@@ -1,0 +1,15 @@
+# Entorno virtual
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+
+# Mac
+.DS_Store
+
+# Data
+data/processed/
