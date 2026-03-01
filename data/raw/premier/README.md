@@ -1,11 +1,11 @@
-# 🇪🇸 LaLiga — Datos Raw
+# 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League — Datos Raw
 
 ## Fuente
 
 | | |
 |---|---|
 | **Proveedor** | [football-data.co.uk](https://www.football-data.co.uk/) |
-| **Código de liga** | `SP1` |
+| **Código de liga** | `E0` |
 | **Temporadas** | 2014/15 – 2023/24 (10) |
 | **Equipos/temporada** | 20 → 380 partidos/temporada |
 | **Formato** | CSV (uno por temporada) |
@@ -13,18 +13,23 @@
 ## Nomenclatura de archivos
 
 ```
-laliga_YYYY_YY_raw.csv       ← datos originales sin procesar
+premier_YYYY_YY_raw.csv       ← datos originales sin procesar
 ```
+
+## Particularidades
+
+- La temporada **2014/15** contiene 1 fila completamente vacía (fila 380), eliminada en el pipeline.
+- Incluye variable `Referee` en todas las temporadas (excluida del core multi-league por ausencia en otras ligas).
 
 ## Diccionario de variables (core)
 
-> Las 43 variables presentes en **todas** las temporadas. Los CSVs raw pueden contener columnas adicionales (cuotas de otras casas, mercados over/under, hándicap asiático, etc.) que varían por temporada.
+> Las 43 variables comunes a todas las temporadas (44 incluyendo `Referee`). Los CSVs raw contienen columnas adicionales que varían por temporada.
 
 ### Identificación
 
 | Variable | Descripción |
 |----------|-------------|
-| `Div` | Código de la liga (`SP1`) |
+| `Div` | Código de la liga (`E0`) |
 | `Date` | Fecha del partido (dd/mm/yy) |
 | `HomeTeam` | Equipo local |
 | `AwayTeam` | Equipo visitante |
@@ -57,7 +62,7 @@ laliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 |---------|------|----------|-------|
 | `B365` | Bet365 | `B365H`, `B365D`, `B365A` | ✅ 100% cobertura |
 | `BW` | bwin | `BWH`, `BWD`, `BWA` | ✅ Estable |
-| `IW` | Interwetten | `IWH`, `IWD`, `IWA` | ⚠️ ~50% nulos en 23/24 |
+| `IW` | Interwetten | `IWH`, `IWD`, `IWA` | ⚠️ ~48% nulos en 23/24 |
 | `PS` | Pinnacle | `PSH`, `PSD`, `PSA` | ✅ Referencia académica |
 | `PSC` | Pinnacle (cierre) | `PSCH`, `PSCD`, `PSCA` | Cuotas de cierre |
 | `VC` | VC Bet | `VCH`, `VCD`, `VCA` | ✅ Estable |
@@ -67,5 +72,5 @@ laliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 
 ## Referencia completa
 
-Documentación oficial de todas las variables (incluidas las no presentes en el core):
+Documentación oficial de todas las variables:
 [football-data.co.uk/notes.txt](https://www.football-data.co.uk/notes.txt)

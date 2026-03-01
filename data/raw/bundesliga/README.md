@@ -1,30 +1,35 @@
-# 🇪🇸 LaLiga — Datos Raw
+# 🇩🇪 Bundesliga — Datos Raw
 
 ## Fuente
 
 | | |
 |---|---|
 | **Proveedor** | [football-data.co.uk](https://www.football-data.co.uk/) |
-| **Código de liga** | `SP1` |
+| **Código de liga** | `D1` |
 | **Temporadas** | 2014/15 – 2023/24 (10) |
-| **Equipos/temporada** | 20 → 380 partidos/temporada |
+| **Equipos/temporada** | 18 → 306 partidos/temporada |
 | **Formato** | CSV (uno por temporada) |
 
 ## Nomenclatura de archivos
 
 ```
-laliga_YYYY_YY_raw.csv       ← datos originales sin procesar
+bundesliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 ```
+
+## Particularidades
+
+- Única liga con **18 equipos** → 306 partidos/temporada (vs. 380 en LaLiga y Premier).
+- 306 partidos exactos en las 10 temporadas, sin anomalías.
 
 ## Diccionario de variables (core)
 
-> Las 43 variables presentes en **todas** las temporadas. Los CSVs raw pueden contener columnas adicionales (cuotas de otras casas, mercados over/under, hándicap asiático, etc.) que varían por temporada.
+> Las 43 variables presentes en **todas** las temporadas. Los CSVs raw contienen columnas adicionales que varían por temporada.
 
 ### Identificación
 
 | Variable | Descripción |
 |----------|-------------|
-| `Div` | Código de la liga (`SP1`) |
+| `Div` | Código de la liga (`D1`) |
 | `Date` | Fecha del partido (dd/mm/yy) |
 | `HomeTeam` | Equipo local |
 | `AwayTeam` | Equipo visitante |
@@ -57,15 +62,15 @@ laliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 |---------|------|----------|-------|
 | `B365` | Bet365 | `B365H`, `B365D`, `B365A` | ✅ 100% cobertura |
 | `BW` | bwin | `BWH`, `BWD`, `BWA` | ✅ Estable |
-| `IW` | Interwetten | `IWH`, `IWD`, `IWA` | ⚠️ ~50% nulos en 23/24 |
+| `IW` | Interwetten | `IWH`, `IWD`, `IWA` | ⚠️ ~53% nulos en 23/24 |
 | `PS` | Pinnacle | `PSH`, `PSD`, `PSA` | ✅ Referencia académica |
 | `PSC` | Pinnacle (cierre) | `PSCH`, `PSCD`, `PSCA` | Cuotas de cierre |
 | `VC` | VC Bet | `VCH`, `VCD`, `VCA` | ✅ Estable |
 | `WH` | William Hill | `WHH`, `WHD`, `WHA` | ✅ Estable |
 
-> **Nota sobre cuotas de cierre**: el sufijo `C` indica odds de cierre (pre-partido). Ej: `B365CH` = cierre Bet365 local. Solo Pinnacle tiene cierre en el core.
+> **Nota sobre cuotas de cierre**: el sufijo `C` indica odds de cierre (pre-partido). Solo Pinnacle tiene cierre en el core.
 
 ## Referencia completa
 
-Documentación oficial de todas las variables (incluidas las no presentes en el core):
+Documentación oficial de todas las variables:
 [football-data.co.uk/notes.txt](https://www.football-data.co.uk/notes.txt)
