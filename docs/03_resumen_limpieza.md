@@ -1,4 +1,4 @@
-# ✅ Fase de Limpieza — Resumen de Ejecución
+# 🧹 Fase de Limpieza — Resumen de Ejecución
 
 > **Dataset de entrada:** `data/processed/core_multi_league_validated.parquet` (10.660 partidos × 43 variables)
 > **Notebook:** `notebooks/03_clean/03_clean_unified.ipynb`

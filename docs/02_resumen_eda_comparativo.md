@@ -83,4 +83,4 @@ Validaciones sobre el dataset consolidado (**10.661 partidos**):
 
 Esquema en `data/processed/core_multi_league_schema.json`.
 
-> **Nota**: El parquet exportado ya excluye la fila vacía de Premier 2014/15 (10.660 filas, no 10.661).
+> **Nota**: La fila vacía de Premier 2014/15 fue eliminada en el EDA individual, por lo que el parquet ya tiene 10.660 filas.

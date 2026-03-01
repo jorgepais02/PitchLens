@@ -12,5 +12,8 @@ __pycache__/
 # Mac
 .DS_Store
 
+# VS Code
+.vscode/
+
 # Data
 data/processed/

@@ -18,7 +18,7 @@ premier_YYYY_YY_raw.csv       ← datos originales sin procesar
 
 ## Particularidades
 
-- La temporada **2014/15** contiene 1 fila completamente vacía (fila 380), eliminada en el pipeline.
+- La temporada **2014/15** contiene 1 fila completamente vacía (fila 380), eliminada durante el EDA individual.
 - Incluye variable `Referee` en todas las temporadas (excluida del core multi-league por ausencia en otras ligas).
 
 ## Diccionario de variables (core)
