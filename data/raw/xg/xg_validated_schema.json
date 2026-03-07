@@ -1,0 +1,44 @@
+{
+  "num_rows": 10660,
+  "num_columns": 20,
+  "columns": {
+    "league": "object",
+    "season": "object",
+    "game": "object",
+    "league_id": "string",
+    "season_id": "Int64",
+    "game_id": "Int64",
+    "date": "datetime64[ns]",
+    "home_team_id": "Int64",
+    "away_team_id": "Int64",
+    "home_team": "string",
+    "away_team": "string",
+    "away_team_code": "string",
+    "home_team_code": "string",
+    "home_goals": "Int64",
+    "away_goals": "Int64",
+    "home_xg": "Float64",
+    "away_xg": "Float64",
+    "is_result": "boolean",
+    "has_data": "boolean",
+    "url": "string"
+  },
+  "matches_per_league": {
+    "ENG-Premier League": 3800,
+    "ESP-La Liga": 3800,
+    "GER-Bundesliga": 3060
+  },
+  "seasons": [
+    "1415",
+    "1516",
+    "1617",
+    "1718",
+    "1819",
+    "1920",
+    "2021",
+    "2122",
+    "2223",
+    "2324"
+  ],
+  "source": "understat (vía soccerdata)"
+}

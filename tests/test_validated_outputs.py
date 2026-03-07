@@ -2,15 +2,17 @@
 
 import pytest
 
-# ── Columnas por grupo ──────────────────────────────────────────────
-
-CORE_COLS = ["Div", "Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR"]
-HALFTIME_COLS = ["HTHG", "HTAG", "HTR"]
-STATS_COLS = ["HS", "AS", "HST", "AST", "HF", "AF", "HC", "AC", "HY", "AY", "HR", "AR"]
-EXPECTED_DIVS = {"SP1", "E0", "D1"}
+from conftest import (
+    CORE_COLS_RAW,
+    HALFTIME_COLS,
+    STATS_COLS,
+    EXPECTED_DIVS,
+    DIV_TO_LEAGUE,
+)
 
 
 # ── Estructura y esquema ────────────────────────────────────────────
+
 
 class TestValidatedStructure:
     """Validaciones de dimensiones y esquema."""
@@ -23,25 +25,23 @@ class TestValidatedStructure:
         assert sorted(df_validated.columns.tolist()) == schema_validated["columns"]
 
     def test_leagues_match_schema(self, df_validated, schema_validated):
-        actual = sorted(df_validated["Div"].map(
-            {"SP1": "laliga", "E0": "premier", "D1": "bundesliga"}
-        ).unique().tolist())
+        actual = sorted(df_validated["Div"].map(DIV_TO_LEAGUE).unique().tolist())
         assert actual == sorted(schema_validated["leagues"])
 
     def test_matches_per_league(self, df_validated, schema_validated):
-        div_to_league = {"SP1": "laliga", "E0": "premier", "D1": "bundesliga"}
-        for div, league in div_to_league.items():
+        for div, league in DIV_TO_LEAGUE.items():
             actual = int((df_validated["Div"] == div).sum())
             assert actual == schema_validated["matches_per_league"][league]
 
 
 # ── Integridad de datos ─────────────────────────────────────────────
 
+
 class TestValidatedIntegrity:
     """Validaciones de integridad sobre columnas core."""
 
     def test_no_nulls_core(self, df_validated):
-        assert df_validated[CORE_COLS].isnull().sum().sum() == 0
+        assert df_validated[CORE_COLS_RAW].isnull().sum().sum() == 0
 
     def test_no_nulls_halftime(self, df_validated):
         assert df_validated[HALFTIME_COLS].isnull().sum().sum() == 0
@@ -61,9 +61,9 @@ class TestValidatedIntegrity:
     def test_ftr_consistent_with_goals(self, df_validated):
         df = df_validated
         inconsistent = df[
-            ((df["FTR"] == "H") & (df["FTHG"] <= df["FTAG"])) |
-            ((df["FTR"] == "A") & (df["FTAG"] <= df["FTHG"])) |
-            ((df["FTR"] == "D") & (df["FTHG"] != df["FTAG"]))
+            ((df["FTR"] == "H") & (df["FTHG"] <= df["FTAG"]))
+            | ((df["FTR"] == "A") & (df["FTAG"] <= df["FTHG"]))
+            | ((df["FTR"] == "D") & (df["FTHG"] != df["FTAG"]))
         ]
         assert len(inconsistent) == 0
 

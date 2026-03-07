@@ -2,18 +2,34 @@
 
 import pytest
 
-# ── Columnas por grupo ──────────────────────────────────────────────
+from conftest import (
+    CORE_COLS,
+    HALFTIME_COLS,
+    STATS_COLS,
+    B365_COLS,
+    PS_COLS,
+    EXPECTED_LEAGUES,
+    EXPECTED_SEASONS,
+)
 
-CORE_COLS = ["League", "Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR"]
-HALFTIME_COLS = ["HTHG", "HTAG", "HTR"]
-STATS_COLS = ["HS", "AS", "HST", "AST", "HF", "AF", "HC", "AC", "HY", "AY", "HR", "AR"]
-B365_COLS = ["B365H", "B365D", "B365A"]
-PS_COLS = ["PSH", "PSD", "PSA", "PSCH", "PSCD", "PSCA"]
-DROPPED_COLS = ["IWH", "IWD", "IWA", "BWH", "BWD", "BWA", "VCH", "VCD", "VCA", "WHH", "WHD", "WHA"]
-EXPECTED_LEAGUES = {"bundesliga", "laliga", "premier"}
+DROPPED_COLS = [
+    "IWH",
+    "IWD",
+    "IWA",
+    "BWH",
+    "BWD",
+    "BWA",
+    "VCH",
+    "VCD",
+    "VCA",
+    "WHH",
+    "WHD",
+    "WHA",
+]
 
 
 # ── Estructura y esquema ────────────────────────────────────────────
+
 
 class TestCleanStructure:
     """Validaciones de dimensiones y esquema."""
@@ -26,7 +42,9 @@ class TestCleanStructure:
         assert sorted(df_clean.columns.tolist()) == schema_clean["columns"]
 
     def test_leagues_match_schema(self, df_clean, schema_clean):
-        assert sorted(df_clean["League"].unique().tolist()) == sorted(schema_clean["leagues"])
+        assert sorted(df_clean["League"].unique().tolist()) == sorted(
+            schema_clean["leagues"]
+        )
 
     def test_matches_per_league(self, df_clean, schema_clean):
         for league, expected in schema_clean["matches_per_league"].items():
@@ -35,6 +53,7 @@ class TestCleanStructure:
 
 
 # ── Transformaciones ────────────────────────────────────────────────
+
 
 class TestCleanTransformations:
     """Validaciones de transformaciones aplicadas en 03_clean."""
@@ -52,12 +71,14 @@ class TestCleanTransformations:
 
     def test_season_exists(self, df_clean):
         assert "Season" in df_clean.columns
-        assert df_clean["Season"].nunique() == 10
+        assert df_clean["Season"].nunique() == EXPECTED_SEASONS
 
     def test_season_per_league(self, df_clean):
         for league in EXPECTED_LEAGUES:
             n_seasons = df_clean[df_clean["League"] == league]["Season"].nunique()
-            assert n_seasons == 10, f"{league}: {n_seasons} temporadas (esperadas: 10)"
+            assert (
+                n_seasons == EXPECTED_SEASONS
+            ), f"{league}: {n_seasons} temporadas (esperadas: {EXPECTED_SEASONS})"
 
     def test_dropped_bookmakers(self, df_clean):
         for col in DROPPED_COLS:
@@ -69,6 +90,7 @@ class TestCleanTransformations:
 
 
 # ── Integridad de datos ─────────────────────────────────────────────
+
 
 class TestCleanIntegrity:
     """Validaciones de integridad sobre el dataset limpio."""
@@ -100,15 +122,15 @@ class TestCleanIntegrity:
     def test_ftr_consistent_with_goals(self, df_clean):
         df = df_clean
         inconsistent = df[
-            ((df["FTR"] == "H") & (df["FTHG"] <= df["FTAG"])) |
-            ((df["FTR"] == "A") & (df["FTAG"] <= df["FTHG"])) |
-            ((df["FTR"] == "D") & (df["FTHG"] != df["FTAG"]))
+            ((df["FTR"] == "H") & (df["FTHG"] <= df["FTAG"]))
+            | ((df["FTR"] == "A") & (df["FTAG"] <= df["FTHG"]))
+            | ((df["FTR"] == "D") & (df["FTHG"] != df["FTAG"]))
         ]
         assert len(inconsistent) == 0
 
     def test_odds_positive(self, df_clean):
         odds_cols = B365_COLS + PS_COLS
-        assert df_clean[odds_cols].le(0).sum().sum() == 0, "Cuotas deben ser > 0"
+        assert df_clean[odds_cols].le(0).sum().sum() == 0
 
     def test_date_is_datetime(self, df_clean):
         assert str(df_clean["Date"].dtype).startswith("datetime64")
