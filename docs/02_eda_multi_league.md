@@ -11,11 +11,19 @@ Determinar si La Liga, Premier y Bundesliga comparten un esquema suficientemente
 
 ```mermaid
 graph LR
-    L[LaLiga\n3.800 × 43] --> U[Core unificado\n10.660 × 43]
-    P[Premier\n3.800 × 43] --> U
-    B[Bundesliga\n3.060 × 43] --> U
+    classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
+    classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
+    classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
+
+    L[LaLiga<br/>3.800 x 43] --> U[Core unificado<br/>10.660 x 43]
+    P[Premier<br/>3.800 x 43] --> U
+    B[Bundesliga<br/>3.060 x 43] --> U
     U --> V{Validación}
-    V -->|OK| D[Estrategia:\nmodelado conjunto]
+    V -->|OK| D[Estrategia:<br/>modelado conjunto]
+
+    class L,P,B src
+    class U,V step
+    class D out
 ```
 
 ---

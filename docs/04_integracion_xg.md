@@ -31,13 +31,18 @@
 
 ```mermaid
 graph LR
-    A[Understat API\nsoccerdata] -->|scraping| B[DataFrame\n10.660 × 17]
-    B -->|filtros + validación| C[xg_validated.parquet\n10.660 × 17]
-    C -->|04_eda| D{Exploración\ny validación}
+    classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
+    classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
+    classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
+
+    A[Understat API<br/>soccerdata] -->|scraping| B[DataFrame<br/>10.660 x 17]
+    B -->|filtros + validación| C[xg_validated.parquet<br/>10.660 x 17]
+    C -->|04_eda| D{Exploración<br/>y validación}
     D -->|OK| E[Listo para merge]
 
-    style A fill:#e8e8e8,stroke:#666
-    style E fill:#2d6a4f,color:#fff
+    class A src
+    class B,C,D step
+    class E out
 ```
 
 ```python

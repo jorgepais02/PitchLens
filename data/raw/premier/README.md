@@ -18,8 +18,8 @@ premier_YYYY_YY_raw.csv       ← datos originales sin procesar
 
 ## Particularidades
 
-- La temporada **2014/15** contiene 1 fila completamente vacía (fila 380), eliminada durante el EDA individual.
-- Incluye variable `Referee` en todas las temporadas (excluida del core multi-league por ausencia en otras ligas).
+- Cobertura: 380 partidos por temporada, con 1 fila completamente vacía en **2014/15** (fila 380), eliminada durante el EDA individual.
+- Diferencial: incluye variable `Referee` en todas las temporadas (excluida del core multi-league por ausencia en otras ligas).
 
 ## Diccionario de variables (core)
 
@@ -72,5 +72,5 @@ premier_YYYY_YY_raw.csv       ← datos originales sin procesar
 
 ## Referencia completa
 
-Documentación oficial de todas las variables:
+Documentación oficial de todas las variables (incluidas las no presentes en el core):
 [football-data.co.uk/notes.txt](https://www.football-data.co.uk/notes.txt)

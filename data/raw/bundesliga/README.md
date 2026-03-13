@@ -18,8 +18,8 @@ bundesliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 
 ## Particularidades
 
-- Única liga con **18 equipos** → 306 partidos/temporada (vs. 380 en LaLiga y Premier).
-- 306 partidos exactos en las 10 temporadas, sin anomalías.
+- Cobertura: 306 partidos exactos por temporada (18 equipos, 10 temporadas).
+- Diferencial: única liga de la muestra con 18 equipos (vs. 20 en LaLiga y Premier), sin anomalías estructurales.
 
 ## Diccionario de variables (core)
 
@@ -68,9 +68,9 @@ bundesliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 | `VC` | VC Bet | `VCH`, `VCD`, `VCA` | ✅ Estable |
 | `WH` | William Hill | `WHH`, `WHD`, `WHA` | ✅ Estable |
 
-> **Nota sobre cuotas de cierre**: el sufijo `C` indica odds de cierre (pre-partido). Solo Pinnacle tiene cierre en el core.
+> **Nota sobre cuotas de cierre**: el sufijo `C` indica odds de cierre (pre-partido). Ej: `B365CH` = cierre Bet365 local. Solo Pinnacle tiene cierre en el core.
 
 ## Referencia completa
 
-Documentación oficial de todas las variables:
+Documentación oficial de todas las variables (incluidas las no presentes en el core):
 [football-data.co.uk/notes.txt](https://www.football-data.co.uk/notes.txt)

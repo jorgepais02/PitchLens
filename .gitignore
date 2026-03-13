@@ -17,3 +17,6 @@ __pycache__/
 
 # Data
 data/processed/
+
+# Env
+.env

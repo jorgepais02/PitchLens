@@ -9,13 +9,17 @@
 
 ```mermaid
 graph LR
-    A[core_multi_league_clean\n10.660 × 33] --> M{Left join\npor match_id}
-    B[xg_validated\n10.660 × 17] --> N[Normalización\nmapping + match_id] --> M
-    M --> C[core_enriched\n10.660 × 35]
+    classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
+    classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
+    classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
 
-    style A fill:#e8e8e8,stroke:#666
-    style B fill:#e8e8e8,stroke:#666
-    style C fill:#2d6a4f,color:#fff
+    A[core_multi_league_clean<br/>10.660 x 33] --> M{Left join<br/>por match_id}
+    B[xg_validated<br/>10.660 x 17] --> N[Normalización<br/>mapping + match_id] --> M
+    M --> C[core_enriched<br/>10.660 x 35]
+
+    class A,B src
+    class M,N step
+    class C out
 ```
 
 | | Core clean | xG validated | Enriched |
@@ -82,21 +86,35 @@ Antes del join, se normalizan las nomenclaturas del xG para coincidir con el cor
 
 ```mermaid
 graph TD
-    subgraph Identificación — 6
-        A[League · Date · HomeTeam · AwayTeam\nSeason · match_id]
+    classDef grp fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+    classDef final fill:#2d6a4f,stroke:#1f4d39,color:#ffffff
+
+    subgraph sg_id ["Identificación (6)"]
+        A[League · Date · HomeTeam · AwayTeam<br/>Season · match_id]
     end
-    subgraph Resultado — 6
-        B[FTHG · FTAG · FTR\nHTHG · HTAG · HTR]
+    subgraph sg_res ["Resultado (6)"]
+        B[FTHG · FTAG · FTR<br/>HTHG · HTAG · HTR]
     end
-    subgraph Estadísticas — 12
-        C[HS · AS · HST · AST\nHF · AF · HC · AC\nHY · AY · HR · AR]
+    subgraph sg_stats ["Estadísticas (12)"]
+        C[HS · AS · HST · AST<br/>HF · AF · HC · AC<br/>HY · AY · HR · AR]
     end
-    subgraph Cuotas — 9
-        D[B365H · B365D · B365A\nPSH · PSD · PSA\nPSCH · PSCD · PSCA]
+    subgraph sg_odds ["Cuotas (9)"]
+        D[B365H · B365D · B365A<br/>PSH · PSD · PSA<br/>PSCH · PSCD · PSCA]
     end
-    subgraph xG — 2
+    subgraph sg_xg ["xG (2)"]
         E[home_xg · away_xg]
     end
+
+    F[Dataset final<br/>10.660 x 35]
+
+    A --> F
+    B --> F
+    C --> F
+    D --> F
+    E --> F
+
+    class A,B,C,D,E grp
+    class F final
 ```
 
 **10.660 partidos × 35 columnas** — 3 ligas × 10 temporadas.

@@ -16,6 +16,11 @@
 laliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 ```
 
+## Particularidades
+
+- Cobertura: 380 partidos exactos por temporada (10 temporadas).
+- Calidad: sin anomalías estructurales; core estable en 43 variables comunes.
+
 ## Diccionario de variables (core)
 
 > Las 43 variables presentes en **todas** las temporadas. Los CSVs raw pueden contener columnas adicionales (cuotas de otras casas, mercados over/under, hándicap asiático, etc.) que varían por temporada.

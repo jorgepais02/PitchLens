@@ -12,15 +12,19 @@
 
 ```mermaid
 graph LR
-    A[CSV raw\nfootball-data.co.uk] -->|01_eda| B[Core por liga\nParquet]
-    B -->|02_eda| C[Multi-league\nvalidado]
-    C -->|03_clean| D[Multi-league\nclean]
-    E[Understat\nsoccerdata] -->|04_eda| F[xG validado]
-    D & F -->|05_merge| G[Core enriched\n10.660 × 35]
+    classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
+    classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
+    classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
 
-    style A fill:#e8e8e8,stroke:#666
-    style E fill:#e8e8e8,stroke:#666
-    style G fill:#2d6a4f,color:#fff
+    A[CSV raw<br/>football-data.co.uk] -->|01_eda| B[Core por liga<br/>Parquet]
+    B -->|02_eda| C[Multi-league<br/>validado]
+    C -->|03_clean| D[Multi-league<br/>clean]
+    E[Understat<br/>soccerdata] -->|04_eda| F[xG validado]
+    D & F -->|05_merge| G[Core enriched<br/>10.660 x 35]
+
+    class A,E src
+    class B,C,D,F step
+    class G out
 ```
 
 ---
@@ -76,18 +80,22 @@ Los tres notebooks siguen una **metodología idéntica** → comparación direct
 
 ```mermaid
 graph TD
+    classDef grp fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+
     subgraph id1 ["Identificación"]
         A[Date · Div · HomeTeam · AwayTeam]
     end
     subgraph id2 ["Resultado"]
-        B[FTHG · FTAG · FTR\nHTHG · HTAG · HTR]
+        B[FTHG · FTAG · FTR<br/>HTHG · HTAG · HTR]
     end
     subgraph id3 ["Estadísticas"]
-        C[HS · AS · HST · AST\nHF · AF · HC · AC\nHY · AY · HR · AR]
+        C[HS · AS · HST · AST<br/>HF · AF · HC · AC<br/>HY · AY · HR · AR]
     end
     subgraph id4 ["Cuotas - 6 casas x H/D/A"]
         D[B365 · BW · IW · PS · VC · WH]
     end
+
+    class A,B,C,D grp
 ```
 
 **43 variables comunes** (intersección): 4 identificación + 6 resultado + 12 estadísticas + 21 cuotas.

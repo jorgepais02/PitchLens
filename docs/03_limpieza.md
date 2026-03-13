@@ -9,10 +9,13 @@
 
 ```mermaid
 graph LR
-    A[core_multi_league_validated\n10.660 × 43] -->|03_clean| B[core_multi_league_clean\n10.660 × 33]
+    classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
+    classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
 
-    style A fill:#e8e8e8,stroke:#666
-    style B fill:#2d6a4f,color:#fff
+    A[core_multi_league_validated<br/>10.660 x 43] -->|03_clean| B[core_multi_league_clean<br/>10.660 x 33]
+
+    class A src
+    class B out
 ```
 
 | | Entrada | Salida |
