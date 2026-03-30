@@ -148,3 +148,7 @@ graph TD
 | `data/processed/core_enriched_schema.json` | Esquema JSON |
 | `config/team_mapping_xg.json` | Mapping de equipos |
 | `config/league_mapping.json` | Mapping de ligas |
+
+---
+
+**Siguiente paso →** [06 - Feature Engineering](06_features.md.md)

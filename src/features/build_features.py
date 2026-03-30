@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import pandas as pd
 
@@ -19,14 +17,14 @@ FEATURES_ROLLING: list[str] = [
     "xg_conceded_diff_last5_global",
     "sot_diff_last5_global",
     "goal_diff_last5_venue",
-    "venue_win_rate_diff",
     "rest_days_diff",
 ]
 
 # Todas las features del ml_dataset
 FEATURES: list[str] = [
     "elo_diff_pre",
-    "points_diff_table",
+    "points_diff_global",
+    "points_diff_venue",
     *FEATURES_ROLLING,
     "prob_diff_market",
 ]
@@ -196,8 +194,11 @@ def compute_table_features(df: pd.DataFrame) -> pd.DataFrame:
     Garantía anti-leakage: shift(1) sobre el cumsum garantiza que cada partido
     usa solo los puntos acumulados en partidos anteriores de la misma temporada y liga.
 
+    points_diff_global: puntos acumulados todos los partidos, local − visitante.
+    points_diff_venue:  puntos acumulados por rol (casa/fuera), local − visitante.
+
     Devuelve un DataFrame indexado por match_id con las columnas:
-        points_diff_table, venue_win_rate_diff
+        points_diff_global, points_diff_venue
     """
     tv = _build_team_view(df)
 
@@ -209,29 +210,21 @@ def compute_table_features(df: pd.DataFrame) -> pd.DataFrame:
         tv["FTR"].map({"H": 3, "D": 1, "A": 0}),
         tv["FTR"].map({"H": 0, "D": 1, "A": 3}),
     )
-    tv["win"] = np.where(
-        tv["is_home"] == 1,
-        (tv["FTR"] == "H").astype(int),
-        (tv["FTR"] == "A").astype(int),
-    )
-    tv["jugado"] = 1
 
     grp = tv.groupby(["Season", "League", "team"])
+    grp_venue = tv.groupby(["Season", "League", "team", "is_home"])
 
     tv["pts_cum"] = grp["pts"].transform(lambda x: x.shift(1).cumsum().fillna(0))
-    tv["wins_cum"] = grp["win"].transform(lambda x: x.shift(1).cumsum().fillna(0))
-    tv["jugado_cum"] = grp["jugado"].transform(lambda x: x.shift(1).cumsum().fillna(0))
-
-    tv["win_rate_venue"] = (
-        tv["wins_cum"].div(tv["jugado_cum"]).where(tv["jugado_cum"] > 0, np.nan)
+    tv["pts_venue_cum"] = grp_venue["pts"].transform(
+        lambda x: x.shift(1).cumsum().fillna(0)
     )
 
     home = tv[tv["is_home"] == 1].set_index("match_id")
     away = tv[tv["is_home"] == 0].set_index("match_id")
 
     result = pd.DataFrame(index=home.index)
-    result["points_diff_table"] = home["pts_cum"] - away["pts_cum"]
-    result["venue_win_rate_diff"] = home["win_rate_venue"] - away["win_rate_venue"]
+    result["points_diff_global"] = home["pts_cum"] - away["pts_cum"]
+    result["points_diff_venue"] = home["pts_venue_cum"] - away["pts_venue_cum"]
 
     return result
 
@@ -350,7 +343,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         2. Calcular cada bloque de features de forma independiente.
         3. Unir todos los bloques por match_id.
         4. Verificar ausencia de leakage.
-        5. Eliminar filas cold start (NaN en cualquiera de las 9 features base).
+        5. Eliminar filas cold start (NaN en cualquiera de las features rolling).
 
     Garantía anti-leakage: shift(1) en todos los bloques vectorizados.
     ELO: valor pre-partido por construcción.
@@ -367,8 +360,8 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     --------
     pd.DataFrame
         ml_dataset con columnas: match_id, League, Season, Date, HomeTeam,
-        AwayTeam, ftr + 9 features base + prob_diff_market.
-        Filas cold start eliminadas. Cero nulos en features base.
+        AwayTeam, ftr + 10 features.
+        Filas cold start eliminadas. Cero nulos en features rolling.
     """
     df = df.sort_values("Date").reset_index(drop=True)
 
@@ -387,6 +380,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     df_ml = (
         df_base.join(df_elo[["elo_diff_pre"]])
+        .join(df_table[["points_diff_global", "points_diff_venue"]])
         .join(
             df_global[
                 [
@@ -398,9 +392,8 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
             ]
         )
         .join(df_venue[["goal_diff_last5_venue"]])
-        .join(df_table[["points_diff_table", "venue_win_rate_diff"]])
-        .join(df_market[["prob_diff_market"]])
         .join(df_rest[["rest_days_diff"]])
+        .join(df_market[["prob_diff_market"]])
     )
 
     check_leakage(df_ml.reset_index(), df)
