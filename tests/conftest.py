@@ -8,18 +8,18 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data" / "processed"
-RAW_XG_DIR = PROJECT_ROOT / "data" / "raw" / "xg"
+XG_DIR = DATA_DIR / "xg"
 CONFIG_DIR = PROJECT_ROOT / "config"
 
 # --- Paths ---
-VALIDATED_PARQUET = DATA_DIR / "core_multi_league_validated.parquet"
-VALIDATED_SCHEMA = DATA_DIR / "core_multi_league_schema.json"
-CLEAN_PARQUET = DATA_DIR / "core_multi_league_clean.parquet"
-CLEAN_SCHEMA = DATA_DIR / "core_multi_league_clean_schema.json"
-ENRICHED_PARQUET = DATA_DIR / "core_enriched.parquet"
-ENRICHED_SCHEMA = DATA_DIR / "core_enriched_schema.json"
-XG_RAW_PARQUET = RAW_XG_DIR / "xg_validated.parquet"
-XG_RAW_SCHEMA = RAW_XG_DIR / "xg_validated_schema.json"
+VALIDATED_PARQUET = DATA_DIR / "multi_league" / "core_multi_league_validated.parquet"
+VALIDATED_SCHEMA = DATA_DIR / "multi_league" / "core_multi_league_validated_schema.json"
+CLEAN_PARQUET = DATA_DIR / "multi_league" / "core_multi_league_clean.parquet"
+CLEAN_SCHEMA = DATA_DIR / "multi_league" / "core_multi_league_clean_schema.json"
+ENRICHED_PARQUET = DATA_DIR / "enriched" / "core_enriched.parquet"
+ENRICHED_SCHEMA = DATA_DIR / "enriched" / "core_enriched_schema.json"
+XG_RAW_PARQUET = XG_DIR / "xg_validated.parquet"
+XG_RAW_SCHEMA = XG_DIR / "xg_validated_schema.json"
 LEAGUE_MAPPING = CONFIG_DIR / "league_mapping.json"
 TEAM_MAPPING = CONFIG_DIR / "team_mapping_xg.json"
 

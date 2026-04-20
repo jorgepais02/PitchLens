@@ -17,8 +17,8 @@ from src.features.build_features import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-core_features_PATH = PROJECT_ROOT / "data" / "processed" / "core_features.parquet"
-ML_SCHEMA_PATH = PROJECT_ROOT / "data" / "processed" / "core_features_schema.json"
+CORE_FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features" / "core_features.parquet"
+CORE_FEATURES_SCHEMA_PATH = PROJECT_ROOT / "data" / "processed" / "features" / "core_features_schema.json"
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -156,17 +156,17 @@ class TestMarketFeature:
 
 
 @pytest.mark.skipif(
-    not core_features_PATH.exists(),
+    not CORE_FEATURES_PATH.exists(),
     reason="core_features.parquet aún no generado — ejecutar build_features primero",
 )
 class TestMLDatasetParquet:
     @pytest.fixture(scope="class")
     def df_ml(self):
-        return pd.read_parquet(core_features_PATH)
+        return pd.read_parquet(CORE_FEATURES_PATH)
 
     @pytest.fixture(scope="class")
     def schema(self):
-        with open(ML_SCHEMA_PATH) as f:
+        with open(CORE_FEATURES_SCHEMA_PATH) as f:
             return json.load(f)
 
     def test_shape_matches_schema(self, df_ml, schema):

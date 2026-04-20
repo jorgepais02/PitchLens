@@ -1,4 +1,5 @@
 {
+  "_comment": "Catálogo completo football-data.co.uk. Solo E0, SP1 y D1 están implementadas (datos en data/raw/). El resto son ligas potenciales sin datos.",
   "E0": "premier",
   "E1": "championship",
   "SP1": "laliga",
