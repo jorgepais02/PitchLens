@@ -7,7 +7,14 @@ import pandas as pd
 import pytest
 
 from src.features import build_features
-from src.features.build_features import FEATURES, FEATURES_ROLLING
+from src.features.build_features import (
+    FEATURES,
+    FEATURES_ROLLING,
+    ELO_K,
+    ELO_BASE,
+    compute_elo,
+    compute_table_features,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 core_features_PATH = PROJECT_ROOT / "data" / "processed" / "core_features.parquet"
@@ -92,29 +99,21 @@ class TestAntiLeakage:
         corrs = ml_subset[FEATURES_ROLLING].corrwith(ftr_enc).abs()
         assert corrs.max() < 0.99, f"Posible leakage: {corrs[corrs >= 0.99].to_dict()}"
 
-    def test_elo_diff_first_match_is_zero(self, ml_subset, df_subset):
-        """El primer partido del dataset arranca con elo_diff_pre = 0."""
-        first_mid = df_subset.iloc[0]["match_id"]
-        if first_mid in ml_subset["match_id"].values:
-            val = ml_subset.loc[
-                ml_subset["match_id"] == first_mid, "elo_diff_pre"
-            ].iloc[0]
-            assert val == 0.0
+    def test_elo_diff_first_match_is_zero(self, df_subset):
+        """El primer partido del dataset arranca con elo_diff_pre = 0 (ambos equipos en base)."""
+        df_elo = compute_elo(df_subset.sort_values("Date"), ELO_K, ELO_BASE)
+        first_mid = df_subset.sort_values("Date").iloc[0]["match_id"]
+        assert df_elo.loc[first_mid, "elo_diff_pre"] == 0.0
 
-    def test_points_diff_first_season_match_is_zero(self, ml_subset, df_subset):
+    def test_points_diff_first_season_match_is_zero(self, df_subset):
         """El primer partido de cada temporada tiene points_diff_global = 0."""
+        df_table = compute_table_features(df_subset)
         first_per_season = (
             df_subset.sort_values("Date").groupby("Season", group_keys=False).head(1)
         )
         for _, row in first_per_season.iterrows():
-            mid = row["match_id"]
-            if mid in ml_subset["match_id"].values:
-                val = ml_subset.loc[
-                    ml_subset["match_id"] == mid, "points_diff_global"
-                ].iloc[0]
-                assert (
-                    val == 0.0
-                ), f"Season {row['Season']}: points_diff_global={val} (esperado 0)"
+            val = df_table.loc[row["match_id"], "points_diff_global"]
+            assert val == 0.0, f"Season {row['Season']}: points_diff_global={val} (esperado 0)"
 
 
 # ─── ELO properties ──────────────────────────────────────────────────────────
