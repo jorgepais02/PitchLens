@@ -20,7 +20,7 @@ FEATURES_ROLLING: list[str] = [
     "rest_days_diff",
 ]
 
-# Todas las features del ml_dataset
+# Todas las features del core_features
 FEATURES: list[str] = [
     "elo_diff_pre",
     "points_diff_global",
@@ -359,8 +359,8 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     Devuelve
     --------
     pd.DataFrame
-        ml_dataset con columnas: match_id, League, Season, Date, HomeTeam,
-        AwayTeam, ftr + 10 features.
+        core_features con columnas: match_id, League, Season, Date, HomeTeam,
+        AwayTeam, FTR + 10 features.
         Filas cold start eliminadas. Cero nulos en features rolling.
     """
     df = df.sort_values("Date").reset_index(drop=True)
@@ -372,11 +372,9 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df_market = compute_market_feature(df)
     df_rest = compute_rest_days(df)
 
-    df_base = (
-        df[["match_id", "League", "Season", "Date", "HomeTeam", "AwayTeam", "FTR"]]
-        .set_index("match_id")
-        .rename(columns={"FTR": "ftr"})
-    )
+    df_base = df[
+        ["match_id", "League", "Season", "Date", "HomeTeam", "AwayTeam", "FTR"]
+    ].set_index("match_id")
 
     df_ml = (
         df_base.join(df_elo[["elo_diff_pre"]])

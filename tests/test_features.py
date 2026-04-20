@@ -1,4 +1,4 @@
-"""Tests Fase 4 — Feature Engineering: build_features y ml_dataset."""
+"""Tests Fase 4 — Feature Engineering: build_features y core_features."""
 
 import json
 from pathlib import Path
@@ -10,8 +10,8 @@ from src.features import build_features
 from src.features.build_features import FEATURES, FEATURES_ROLLING
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-ML_DATASET_PATH = PROJECT_ROOT / "data" / "processed" / "ml_dataset.parquet"
-ML_SCHEMA_PATH = PROJECT_ROOT / "data" / "processed" / "ml_dataset_schema.json"
+core_features_PATH = PROJECT_ROOT / "data" / "processed" / "core_features.parquet"
+ML_SCHEMA_PATH = PROJECT_ROOT / "data" / "processed" / "core_features_schema.json"
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ def df_subset(df_enriched) -> pd.DataFrame:
 
 @pytest.fixture(scope="session")
 def ml_subset(df_subset) -> pd.DataFrame:
-    """ml_dataset generado desde el subset. Cacheado a nivel de sesión."""
+    """core_features generado desde el subset. Cacheado a nivel de sesión."""
     return build_features(df_subset)
 
 
@@ -55,7 +55,7 @@ class TestBuildFeaturesSchema:
             "Date",
             "HomeTeam",
             "AwayTeam",
-            "ftr",
+            "FTR",
         ]:
             assert col in ml_subset.columns, f"Columna de metadatos faltante: {col}"
 
@@ -72,10 +72,10 @@ class TestBuildFeaturesSchema:
         assert ml_subset["prob_diff_market"].isnull().sum() == 0
 
     def test_target_valid_categories(self, ml_subset):
-        assert set(ml_subset["ftr"].unique()) == {"H", "D", "A"}
+        assert set(ml_subset["FTR"].unique()) == {"H", "D", "A"}
 
     def test_cold_start_rows_removed(self, df_subset, ml_subset):
-        """ml_dataset tiene menos filas que el input por el cold start."""
+        """core_features tiene menos filas que el input por el cold start."""
         assert len(ml_subset) < len(df_subset)
 
     def test_output_sorted_by_date(self, ml_subset):
@@ -88,7 +88,7 @@ class TestBuildFeaturesSchema:
 class TestAntiLeakage:
     def test_correlation_all_features_below_threshold(self, ml_subset):
         """Ninguna feature puede tener correlación ≥ 0.99 con el target."""
-        ftr_enc = ml_subset["ftr"].map({"H": 1, "D": 0, "A": -1})
+        ftr_enc = ml_subset["FTR"].map({"H": 1, "D": 0, "A": -1})
         corrs = ml_subset[FEATURES_ROLLING].corrwith(ftr_enc).abs()
         assert corrs.max() < 0.99, f"Posible leakage: {corrs[corrs >= 0.99].to_dict()}"
 
@@ -102,7 +102,7 @@ class TestAntiLeakage:
             assert val == 0.0
 
     def test_points_diff_first_season_match_is_zero(self, ml_subset, df_subset):
-        """El primer partido de cada temporada tiene points_diff_table = 0."""
+        """El primer partido de cada temporada tiene points_diff_global = 0."""
         first_per_season = (
             df_subset.sort_values("Date").groupby("Season", group_keys=False).head(1)
         )
@@ -110,11 +110,11 @@ class TestAntiLeakage:
             mid = row["match_id"]
             if mid in ml_subset["match_id"].values:
                 val = ml_subset.loc[
-                    ml_subset["match_id"] == mid, "points_diff_table"
+                    ml_subset["match_id"] == mid, "points_diff_global"
                 ].iloc[0]
                 assert (
                     val == 0.0
-                ), f"Season {row['Season']}: points_diff_table={val} (esperado 0)"
+                ), f"Season {row['Season']}: points_diff_global={val} (esperado 0)"
 
 
 # ─── ELO properties ──────────────────────────────────────────────────────────
@@ -153,17 +153,17 @@ class TestMarketFeature:
         assert overround_ps < overround_b365
 
 
-# ─── ml_dataset.parquet (si ya existe en disco) ──────────────────────────────
+# ─── core_features.parquet (si ya existe en disco) ──────────────────────────────
 
 
 @pytest.mark.skipif(
-    not ML_DATASET_PATH.exists(),
-    reason="ml_dataset.parquet aún no generado — ejecutar build_features primero",
+    not core_features_PATH.exists(),
+    reason="core_features.parquet aún no generado — ejecutar build_features primero",
 )
 class TestMLDatasetParquet:
     @pytest.fixture(scope="class")
     def df_ml(self):
-        return pd.read_parquet(ML_DATASET_PATH)
+        return pd.read_parquet(core_features_PATH)
 
     @pytest.fixture(scope="class")
     def schema(self):
@@ -182,13 +182,13 @@ class TestMLDatasetParquet:
         assert df_ml["match_id"].nunique() == len(df_ml)
 
     def test_target_valid_categories(self, df_ml):
-        assert set(df_ml["ftr"].unique()) == {"H", "D", "A"}
+        assert set(df_ml["FTR"].unique()) == {"H", "D", "A"}
 
     def test_all_leagues_present(self, df_ml, schema):
         assert set(df_ml["League"].unique()) == set(schema["leagues"])
 
     def test_no_leakage(self, df_ml):
-        ftr_enc = df_ml["ftr"].map({"H": 1, "D": 0, "A": -1})
+        ftr_enc = df_ml["FTR"].map({"H": 1, "D": 0, "A": -1})
         corrs = df_ml[FEATURES_ROLLING].corrwith(ftr_enc).abs()
         assert (
             corrs.max() < 0.99

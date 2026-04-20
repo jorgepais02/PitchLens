@@ -1,6 +1,6 @@
 # 06 — Feature Engineering
 
-> Construcción del `ml_dataset` a partir de `core_enriched`: 10 features + target `ftr`.
+> Construcción del `core_features` a partir de `core_enriched`: 10 features + target `ftr`.
 > Notebook: `notebooks/06_features/06_features.ipynb`
 
 ---
@@ -12,7 +12,7 @@ graph LR
     classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
     classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
 
-    A[core_enriched<br/>10.660 x 35] -->|build_features| B[ml_dataset<br/>9.792 x 17]
+    A[core_enriched<br/>10.660 x 35] -->|build_features| B[core_features<br/>9.792 x 17]
 
     class A src
     class B out
@@ -20,7 +20,7 @@ graph LR
 
 | | Entrada | Salida |
 |---|---------|--------|
-| Archivo | `core_enriched.parquet` | `ml_dataset.parquet` |
+| Archivo | `core_enriched.parquet` | `core_features.parquet` |
 | Filas | 10.660 | 9.792 |
 | Columnas | 35 | 17 |
 | Nulos | 0 | 0 |
@@ -60,7 +60,7 @@ Las features rolling incluyen además la ventana: `métrica_diff_lastN_scope`.
 | `rest_days_diff` | Descanso | Sí | `Date` |
 | `prob_diff_market` | Mercado | No | `PSH`, `PSD`, `PSA` |
 
-**Cold start:** los partidos con NaN en cualquier feature con cold start son eliminados del `ml_dataset`. Existen en `matches` pero no en `match_features`.
+**Cold start:** los partidos con NaN en cualquier feature con cold start son eliminados del `core_features`. Existen en `matches` pero no en `match_features`.
 
 ---
 
@@ -141,7 +141,7 @@ Orquestador del pipeline completo:
 
 ---
 
-## Cobertura del ml_dataset
+## Cobertura del core_features
 
 | Liga | Partidos | Temporadas |
 |---|---|---|
@@ -166,8 +166,8 @@ Suite completa del pipeline: **100+ tests** distribuidos en 5 archivos, ejecutab
 
 | Archivo | Descripción |
 |---------|-------------|
-| `data/processed/ml_dataset.parquet` | Dataset de features (9.792 × 17) |
-| `data/processed/ml_dataset_schema.json` | Esquema JSON |
+| `data/processed/core_features.parquet` | Dataset de features (9.792 × 17) |
+| `data/processed/core_features_schema.json` | Esquema JSON |
 | `src/features/build_features.py` | Módulo de feature engineering |
 
 ---
