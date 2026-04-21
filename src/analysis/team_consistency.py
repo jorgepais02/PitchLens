@@ -1,3 +1,4 @@
+import difflib
 import re
 import unicodedata
 import pandas as pd
@@ -32,17 +33,15 @@ def check_name_consistency(dfs_all: dict, seasons_sorted: list, common_columns):
             - total_teams: número de equipos únicos
             - collisions: DataFrame con colisiones detectadas
     """
-    teams_rows = []
+    teams = pd.concat([
+        pd.concat([dfs_all[s]["HomeTeam"], dfs_all[s]["AwayTeam"]])
+        for s in seasons_sorted
+    ]).dropna().drop_duplicates().reset_index(drop=True)
 
-    for s in seasons_sorted:
-        df = dfs_all[s][list(common_columns)]
-        teams = pd.concat([df["HomeTeam"], df["AwayTeam"]]).dropna().unique()
-        for t in teams:
-            teams_rows.append(
-                {"Season": s, "Team": t, "Team_norm": normalize_team_name(t)}
-            )
-
-    teams_df = pd.DataFrame(teams_rows).drop_duplicates(subset=["Team"])
+    teams_df = pd.DataFrame({
+        "Team": teams,
+        "Team_norm": teams.apply(normalize_team_name),
+    })
 
     collisions = (
         teams_df.groupby("Team_norm")
@@ -83,15 +82,13 @@ def build_team_mapping(
     Returns:
         Dict {nombre_understat: nombre_football_data}.
     """
-    import difflib
-
     mapping: dict[str, str] = {}
 
     for lg_us, lg_core in league_map.items():
         teams_xg = set(df_xg.loc[lg_us]["home_team"].unique())
         teams_core = set(df_core[df_core["League"] == lg_core]["HomeTeam"].unique())
         only_xg = sorted(teams_xg - teams_core)
-        only_core = list(sorted(teams_core - teams_xg))
+        only_core = sorted(teams_core - teams_xg)
 
         # Ronda 1: fuzzy match
         unmatched_xg: list[str] = []

@@ -3,9 +3,6 @@
 import pytest
 
 from conftest import (
-    CORE_COLS,
-    HALFTIME_COLS,
-    STATS_COLS,
     B365_COLS,
     PS_COLS,
     EXPECTED_LEAGUES,
@@ -32,14 +29,7 @@ DROPPED_COLS = [
 
 
 class TestCleanStructure:
-    """Validaciones de dimensiones y esquema."""
-
-    def test_shape_matches_schema(self, df_clean, schema_clean):
-        assert len(df_clean) == schema_clean["num_rows"]
-        assert len(df_clean.columns) == schema_clean["num_columns"]
-
-    def test_columns_match_schema(self, df_clean, schema_clean):
-        assert sorted(df_clean.columns.tolist()) == schema_clean["columns"]
+    """Validaciones específicas de esquema del dataset limpio."""
 
     def test_leagues_match_schema(self, df_clean, schema_clean):
         assert sorted(df_clean["League"].unique().tolist()) == sorted(
@@ -93,44 +83,10 @@ class TestCleanTransformations:
 
 
 class TestCleanIntegrity:
-    """Validaciones de integridad sobre el dataset limpio."""
-
-    def test_no_nulls_core(self, df_clean):
-        assert df_clean[CORE_COLS].isnull().sum().sum() == 0
-
-    def test_no_nulls_halftime(self, df_clean):
-        assert df_clean[HALFTIME_COLS].isnull().sum().sum() == 0
-
-    def test_no_nulls_stats(self, df_clean):
-        assert df_clean[STATS_COLS].isnull().sum().sum() == 0
+    """Validaciones específicas de integridad del dataset limpio."""
 
     def test_no_nulls_b365(self, df_clean):
         assert df_clean[B365_COLS].isnull().sum().sum() == 0
 
     def test_no_nulls_pinnacle(self, df_clean):
         assert df_clean[PS_COLS].isnull().sum().sum() == 0
-
-    def test_no_negative_stats(self, df_clean):
-        assert df_clean[STATS_COLS].lt(0).sum().sum() == 0
-
-    def test_ftr_categories(self, df_clean):
-        assert set(df_clean["FTR"].unique()) == {"H", "D", "A"}
-
-    def test_htr_categories(self, df_clean):
-        assert set(df_clean["HTR"].unique()) == {"H", "D", "A"}
-
-    def test_ftr_consistent_with_goals(self, df_clean):
-        df = df_clean
-        inconsistent = df[
-            ((df["FTR"] == "H") & (df["FTHG"] <= df["FTAG"]))
-            | ((df["FTR"] == "A") & (df["FTAG"] <= df["FTHG"]))
-            | ((df["FTR"] == "D") & (df["FTHG"] != df["FTAG"]))
-        ]
-        assert len(inconsistent) == 0
-
-    def test_odds_positive(self, df_clean):
-        odds_cols = B365_COLS + PS_COLS
-        assert df_clean[odds_cols].le(0).sum().sum() == 0
-
-    def test_date_is_datetime(self, df_clean):
-        assert str(df_clean["Date"].dtype).startswith("datetime64")

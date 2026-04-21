@@ -70,6 +70,15 @@ bundesliga_YYYY_YY_raw.csv       ← datos originales sin procesar
 
 > **Nota sobre cuotas de cierre**: el sufijo `C` indica odds de cierre (pre-partido). Ej: `B365CH` = cierre Bet365 local. Solo Pinnacle tiene cierre en el core.
 
+## Output procesado
+
+Los CSVs de esta carpeta se procesan en `notebooks/01_eda_raw/01_eda_bundesliga.ipynb` y producen:
+
+```
+data/processed/bundesliga/core_validated.parquet   — 3.060 filas × 43 cols
+data/processed/bundesliga/core_schema.json
+```
+
 ## Referencia completa
 
 Documentación oficial de todas las variables (incluidas las no presentes en el core):

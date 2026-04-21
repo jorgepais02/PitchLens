@@ -106,6 +106,31 @@ def schema_xg():
         return json.load(f)
 
 
+# --- Fixtures parametrizados comunes ---
+
+
+@pytest.fixture(params=["validated", "clean", "enriched"])
+def any_df(request, df_validated, df_clean, df_enriched):
+    """Fixture parametrizado: itera sobre los tres datasets del pipeline."""
+    return {"validated": df_validated, "clean": df_clean, "enriched": df_enriched}[request.param]
+
+
+@pytest.fixture(params=["validated", "clean", "enriched"])
+def any_df_schema(request, df_validated, schema_validated, df_clean, schema_clean, df_enriched, schema_enriched):
+    """Fixture parametrizado: devuelve (df, schema) para cada etapa."""
+    return {
+        "validated": (df_validated, schema_validated),
+        "clean": (df_clean, schema_clean),
+        "enriched": (df_enriched, schema_enriched),
+    }[request.param]
+
+
+@pytest.fixture(params=["clean", "enriched"])
+def any_df_post_clean(request, df_clean, df_enriched):
+    """Fixture parametrizado: itera sobre datasets post-limpieza (con League, cuotas, datetime)."""
+    return {"clean": df_clean, "enriched": df_enriched}[request.param]
+
+
 # --- Fixtures: Mappings ---
 
 
