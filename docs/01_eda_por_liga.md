@@ -1,45 +1,47 @@
 # 01 — EDA por liga
 
 > Análisis exploratorio independiente de La Liga, Premier League y Bundesliga.
-> Notebook: `notebooks/01_eda/01_eda_*.ipynb`
+> Notebook: `notebooks/01_eda_raw/01_eda_*.ipynb`
 
 ---
 
-## Pipeline general
+## Objetivo
+
+Evaluar calidad, completitud e integridad de los datos raw por liga para fundamentar un pipeline de limpieza unificado.
+
+---
+
+## Contexto en el pipeline
 
 > [!NOTE]
-> Este documento cubre la **primera etapa** del pipeline. El diagrama completo:
+> Este documento cubre la **primera etapa**. Diagrama completo del pipeline:
 
 ```mermaid
 graph LR
     classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
     classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
     classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
+    classDef active fill:#1e3a5f,stroke:#0f2a4a,color:#ffffff,stroke-width:2px
 
     A[CSV raw<br/>football-data.co.uk] -->|01_eda| B[Core por liga<br/>Parquet]
     B -->|02_eda| C[Multi-league<br/>validado]
     C -->|03_clean| D[Multi-league<br/>clean]
     E[Understat<br/>soccerdata] -->|04_eda| F[xG validado]
-    D & F -->|05_merge| G[Core enriched<br/>10.660 x 35]
+    D & F -->|05_merge| G[Core enriched<br/>10.660 × 35]
+    G -->|06_features| H[Features<br/>9.792 × 17]
+    H -->|07_eda_features| I[EDA analítico]
 
     class A,E src
-    class B,C,D,F step
+    class B active
+    class C,D,F,H,I step
     class G out
 ```
 
 ---
 
-## Resumen ejecutivo
-
-Se realizó un EDA sobre los datasets de tres ligas europeas. Cada análisis cubre **10 temporadas** (2014-15 a 2023-24), cargadas desde CSVs de [football-data.co.uk](https://www.football-data.co.uk/).
-
-Objetivo: evaluar calidad, completitud e integridad para fundamentar un pipeline de limpieza unificado.
-
-Los tres notebooks siguen una **metodología idéntica** → comparación directa entre ligas.
-
----
-
 ## Metodología
+
+Los tres notebooks siguen una **metodología idéntica** para permitir comparación directa entre ligas.
 
 | Paso | Descripción |
 |------|-------------|
@@ -50,6 +52,8 @@ Los tres notebooks siguen una **metodología idéntica** → comparación direct
 | Integridad | FTR/HTR válidos, coherencia goles, duplicados, negativos |
 | Cuotas | Casas presentes, completitud, cobertura |
 | Export | Core por liga en Parquet + schema JSON |
+
+Cada análisis cubre **10 temporadas** (2014-15 a 2023-24), cargadas desde CSVs de football-data.co.uk.
 
 ---
 
@@ -66,7 +70,7 @@ Los tres notebooks siguen una **metodología idéntica** → comparación direct
 | Duplicados | 0 | 0 | 0 |
 
 > [!WARNING]
-> **Premier 2014-15** contiene 1 fila completamente vacía (fila 380). Provoca drift aparente en 16 columnas (`int64` → `float64`) y un partido "fantasma". No es un cambio real de esquema.
+> **Premier 2014-15** contiene 1 fila completamente vacía (fila 380). Provoca drift aparente en 16 columnas (`int64` → `float64`) y un partido "fantasma". No es un cambio real de esquema — se elimina en limpieza.
 
 ### Particularidades
 
@@ -91,7 +95,7 @@ graph TD
     subgraph id3 ["Estadísticas"]
         C[HS · AS · HST · AST<br/>HF · AF · HC · AC<br/>HY · AY · HR · AR]
     end
-    subgraph id4 ["Cuotas - 6 casas x H/D/A"]
+    subgraph id4 ["Cuotas — 6 casas × H/D/A"]
         D[B365 · BW · IW · PS · VC · WH]
     end
 
@@ -139,12 +143,8 @@ graph TD
 | Premier | `data/processed/premier/core_validated.parquet` | 3.801 × 44 |
 | Bundesliga | `data/processed/bundesliga/core_validated.parquet` | 3.060 × 43 |
 
-Cada parquet acompañado de su `core_schema.json`.
+Cada parquet acompañado de su `core_schema.json` en la misma carpeta.
 
 ---
-
-## Conclusión
-
-Los tres EDA confirman **estabilidad estructural**, **coherencia interna** y **alta completitud**. Patrones de calidad homogéneos → viable un pipeline de limpieza unificado.
 
 **Siguiente paso →** [02 — EDA Multi-league](02_eda_multi_league.md)

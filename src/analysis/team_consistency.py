@@ -23,12 +23,12 @@ def check_name_consistency(dfs_all: dict, seasons_sorted: list, common_columns):
     """
     Verifica consistencia en nombres de equipos entre temporadas.
 
-    Args:
+    Parámetros:
         dfs_all: Diccionario {season: DataFrame}
         seasons_sorted: Lista ordenada de temporadas
         common_columns: Set/list de columnas comunes (debe incluir HomeTeam y AwayTeam)
 
-    Returns:
+    Devuelve:
         dict con:
             - total_teams: número de equipos únicos
             - collisions: DataFrame con colisiones detectadas
@@ -71,7 +71,7 @@ def build_team_mapping(
       2. Substring match (nombre core contenido en nombre xG).
       3. Mejor fuzzy match sin cutoff para emparejar los restantes.
 
-    Args:
+    Parámetros:
         df_xg: DataFrame xG con MultiIndex (league, season, game)
                y columna 'home_team'.
         df_core: DataFrame core clean con columnas 'League' y 'HomeTeam'.
@@ -79,7 +79,7 @@ def build_team_mapping(
                     ej. {"ENG-Premier League": "premier"}.
         fuzzy_cutoff: Umbral para la ronda 1 (default 0.6).
 
-    Returns:
+    Devuelve:
         Dict {nombre_understat: nombre_football_data}.
     """
     mapping: dict[str, str] = {}

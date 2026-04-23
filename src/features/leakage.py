@@ -13,14 +13,9 @@ def check_leakage(df_features: pd.DataFrame, df_original: pd.DataFrame) -> None:
     las features rolling. ELO y prob_diff_market se excluyen del check —
     ELO arranca en base por diseño y el mercado no tiene cold start.
 
-    Lanza AssertionError con el nombre de las columnas afectadas si hay leakage.
-
-    Parámetros
-    ----------
-    df_features : pd.DataFrame
-        Dataset de features con columna match_id.
-    df_original : pd.DataFrame
-        Dataset core_enriched original (para recuperar fechas y equipos).
+    Recibe df_features (con columna match_id) y df_original (core_enriched,
+    para recuperar fechas y equipos). Lanza AssertionError con las columnas
+    afectadas si se detecta leakage.
     """
     teams = pd.concat([
         df_original[["match_id", "Date", "HomeTeam"]].rename(columns={"HomeTeam": "team"}),

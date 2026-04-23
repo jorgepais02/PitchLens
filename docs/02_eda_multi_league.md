@@ -1,7 +1,7 @@
 # 02 — EDA Multi-league
 
 > Análisis comparativo de los tres core datasets para validar compatibilidad y decidir estrategia de modelado.
-> Notebook: `notebooks/02_eda/02_eda_multi_league.ipynb`
+> Notebook: `notebooks/02_eda_multi/02_eda_multi_league.ipynb`
 
 ---
 
@@ -9,20 +9,26 @@
 
 Determinar si La Liga, Premier y Bundesliga comparten un esquema suficientemente homogéneo para trabajar con un **dataset consolidado**, o si requieren pipelines separados.
 
+---
+
+## Contexto en el pipeline
+
 ```mermaid
 graph LR
     classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
     classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
     classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
+    classDef active fill:#1e3a5f,stroke:#0f2a4a,color:#ffffff,stroke-width:2px
 
-    L[LaLiga<br/>3.800 x 43] --> U[Core unificado<br/>10.660 x 43]
-    P[Premier<br/>3.800 x 43] --> U
-    B[Bundesliga<br/>3.060 x 43] --> U
+    L[LaLiga<br/>3.800 × 43] --> U[Core unificado<br/>10.660 × 43]
+    P[Premier<br/>3.800 × 43] --> U
+    B[Bundesliga<br/>3.060 × 43] --> U
     U --> V{Validación}
     V -->|OK| D[Estrategia:<br/>modelado conjunto]
 
     class L,P,B src
-    class U,V step
+    class U active
+    class V step
     class D out
 ```
 
@@ -82,9 +88,10 @@ Completitud total en las tres ligas. El único nulo provenía de la fila vacía 
 ## Decisión de estrategia
 
 > [!IMPORTANT]
-> **Modelado conjunto** con `Div` como feature categórica.
+> **Modelado conjunto** con `League` como variable de identificación.
 
 Justificación:
+
 - Esquema idéntico (43 vars, mismos tipos)
 - Patrones de calidad homogéneos entre ligas
 - Maximiza volumen: 10.660 partidos
@@ -94,13 +101,12 @@ Si el rendimiento resulta inconsistente → evaluar segmentación por liga.
 
 ---
 
-## Artefacto
+## Artefactos
 
 | Archivo | Shape | Ligas |
 |---------|-------|-------|
-| `data/processed/core_multi_league_validated.parquet` | 10.660 × 43 | 3 |
-
-Esquema en `data/processed/core_multi_league_schema.json`.
+| `data/processed/multi_league/core_multi_league_validated.parquet` | 10.660 × 43 | 3 |
+| `data/processed/multi_league/core_multi_league_validated_schema.json` | — | — |
 
 ---
 

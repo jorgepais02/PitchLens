@@ -1,7 +1,7 @@
 # 04 — Integración xG
 
 > Extracción, exploración y validación de datos de Expected Goals desde Understat.
-> Notebook: `notebooks/04_eda/04_eda_xg.ipynb`
+> Notebook: `notebooks/04_eda_xg/04_eda_xg.ipynb`
 
 ---
 
@@ -9,7 +9,7 @@
 
 | | |
 |---|---|
-| Proveedor | [understat.com](https://understat.com/) |
+| Proveedor | understat.com |
 | Acceso | Scraping via `soccerdata` (`sd.Understat()`) |
 | Cobertura | La Liga, Premier, Bundesliga — 2014-15 a 2023-24 |
 | Modelo xG | Propio, utilizado en literatura académica |
@@ -35,8 +35,8 @@ graph LR
     classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
     classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
 
-    A[Understat API<br/>soccerdata] -->|scraping| B[DataFrame<br/>10.660 x 17]
-    B -->|filtros + validación| C[xg_validated.parquet<br/>10.660 x 17]
+    A[Understat API<br/>soccerdata] -->|scraping| B[DataFrame<br/>10.660 × 20]
+    B -->|filtros + validación| C[xg_validated.parquet<br/>10.660 × 20]
     C -->|04_eda| D{Exploración<br/>y validación}
     D -->|OK| E[Listo para merge]
 
@@ -114,22 +114,22 @@ De las 17 columnas del dataset xG, solo se incorporan al merge:
 
 ---
 
-## Artefactos
-
-| Archivo | Descripción |
-|---------|-------------|
-| `data/raw/xg/xg_validated.parquet` | Dataset xG validado (10.660 × 17) |
-| `data/raw/xg/xg_validated_schema.json` | Esquema JSON |
-| `config/league_mapping.json` | Mapping de ligas |
-| `config/team_mapping_xg.json` | Mapping de equipos (34 entradas) |
-
----
-
 ## Tests
 
 | Archivo | Tests | Qué valida |
 |---------|-------|------------|
 | `test_xg_outputs.py` | 21 | Estructura, cobertura, integridad, compatibilidad |
+
+---
+
+## Artefactos
+
+| Archivo | Descripción |
+|---------|-------------|
+| `data/processed/xg/xg_validated.parquet` | Dataset xG validado (10.660 × 20) |
+| `data/processed/xg/xg_validated_schema.json` | Esquema JSON |
+| `config/league_mapping.json` | Mapping de ligas |
+| `config/team_mapping_xg.json` | Mapping de equipos (34 entradas) |
 
 ---
 

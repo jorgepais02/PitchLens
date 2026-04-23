@@ -13,9 +13,9 @@ graph LR
     classDef step fill:#ffffff,stroke:#94a3b8,color:#0f172a,stroke-width:1px
     classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
 
-    A[core_multi_league_clean<br/>10.660 x 33] --> M{Left join<br/>por match_id}
-    B[xg_validated<br/>10.660 x 17] --> N[Normalización<br/>mapping + match_id] --> M
-    M --> C[core_enriched<br/>10.660 x 35]
+    A[core_multi_league_clean<br/>10.660 × 33] --> M{Left join<br/>por match_id}
+    B[xg_validated<br/>10.660 × 20] --> N[Normalización<br/>mapping + match_id] --> M
+    M --> C[core_enriched<br/>10.660 × 35]
 
     class A,B src
     class M,N step
@@ -25,7 +25,7 @@ graph LR
 | | Core clean | xG validated | Enriched |
 |---|-----------|-------------|----------|
 | Filas | 10.660 | 10.660 | 10.660 |
-| Columnas | 33 | 17 | 35 |
+| Columnas | 33 | 20 | 35 |
 | Nulos | 0 | 0 | 0 |
 
 ---
@@ -105,7 +105,7 @@ graph TD
         E[home_xg · away_xg]
     end
 
-    F[Dataset final<br/>10.660 x 35]
+    F[Dataset final<br/>10.660 × 35]
 
     A --> F
     B --> F
@@ -127,16 +127,26 @@ graph TD
 | Temporadas | 10 (2015–2024) |
 | Nulos | 0 |
 
+### Distribución del target FTR
+
+| Resultado | Porcentaje |
+|-----------|------------|
+| H (local) | 45.2% |
+| D (empate) | 24.7% |
+| A (visitante) | 30.1% |
+
+> [!NOTE]
+> Distribución desequilibrada esperada — ventaja local consistente en las tres ligas. Los modelos deben manejar este desbalance explícitamente.
+
 ---
 
 ## Tests
 
 | Archivo | Tests | Qué valida |
 |---------|-------|------------|
-| `test_enriched_outputs.py` | 26 | Estructura, xG, integridad del merge, datos |
+| `test_enriched_outputs.py` | 15 | Estructura, xG, integridad del merge, datos |
 
-> [!NOTE]
-> Suite completa del pipeline: **82 tests** distribuidos en 4 archivos, ejecutables con `pytest tests/ -v`.
+Suite acumulada del pipeline: **82 tests** distribuidos en 5 archivos (incluye `test_common.py` con fixtures compartidas), ejecutables con `pytest tests/ -v`.
 
 ---
 
@@ -144,11 +154,11 @@ graph TD
 
 | Archivo | Descripción |
 |---------|-------------|
-| `data/processed/core_enriched.parquet` | Dataset enriquecido (10.660 × 35) |
-| `data/processed/core_enriched_schema.json` | Esquema JSON |
+| `data/processed/enriched/core_enriched.parquet` | Dataset enriquecido (10.660 × 35) — fuente de verdad, NO modificar |
+| `data/processed/enriched/core_enriched_schema.json` | Esquema JSON |
 | `config/team_mapping_xg.json` | Mapping de equipos |
 | `config/league_mapping.json` | Mapping de ligas |
 
 ---
 
-**Siguiente paso →** [06 - Feature Engineering](06_features.md.md)
+**Siguiente paso →** [06 — Feature Engineering](06_features.md)

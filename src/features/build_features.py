@@ -44,19 +44,11 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     Garantía anti-leakage: shift(1) en todos los bloques vectorizados.
     ELO: valor pre-partido por construcción.
 
-    Parámetros
-    ----------
-    df : pd.DataFrame
-        Dataset core_enriched (10.660 × 35). Debe contener las columnas:
-        match_id, Date, HomeTeam, AwayTeam, League, Season, FTR,
-        FTHG, FTAG, HST, AST, home_xg, away_xg, PSH, PSD, PSA.
+    Recibe core_enriched (10.660 × 35) con columnas: match_id, Date, HomeTeam,
+    AwayTeam, League, Season, FTR, FTHG, FTAG, HST, AST, home_xg, away_xg, PSH, PSD, PSA.
 
-    Devuelve
-    --------
-    pd.DataFrame
-        core_features con columnas: match_id, League, Season, Date, HomeTeam,
-        AwayTeam, FTR + 10 features.
-        Filas cold start eliminadas. Cero nulos en features rolling.
+    Devuelve core_features con columnas: match_id, League, Season, Date, HomeTeam,
+    AwayTeam, FTR + 10 features. Filas cold start eliminadas. Cero nulos en features rolling.
     """
     df = df.sort_values("Date").reset_index(drop=True)
 

@@ -12,7 +12,7 @@ graph LR
     classDef src fill:#eef1f4,stroke:#64748b,color:#0f172a,stroke-width:1px
     classDef out fill:#2d6a4f,stroke:#1f4d39,color:#ffffff,stroke-width:1px
 
-    A[core_multi_league_validated<br/>10.660 x 43] -->|03_clean| B[core_multi_league_clean<br/>10.660 x 33]
+    A[core_multi_league_validated<br/>10.660 × 43] -->|03_clean| B[core_multi_league_clean<br/>10.660 × 33]
 
     class A src
     class B out
@@ -109,8 +109,8 @@ Suite en `tests/` ejecutable con `pytest`:
 
 | Archivo | Tests | Qué valida |
 |---------|-------|------------|
-| `test_validated_outputs.py` | 13 | Dataset validado (entrada) |
-| `test_clean_outputs.py` | 22 | Transformaciones, bookmakers, integridad |
+| `test_validated_outputs.py` | 5 | Dataset validado (entrada) |
+| `test_clean_outputs.py` | 11 | Transformaciones, bookmakers, integridad |
 
 ---
 
@@ -118,8 +118,8 @@ Suite en `tests/` ejecutable con `pytest`:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `data/processed/core_multi_league_clean.parquet` | Dataset limpio (10.660 × 33) |
-| `data/processed/core_multi_league_clean_schema.json` | Esquema JSON |
+| `data/processed/multi_league/core_multi_league_clean.parquet` | Dataset limpio (10.660 × 33) |
+| `data/processed/multi_league/core_multi_league_clean_schema.json` | Esquema JSON |
 
 ---
 
