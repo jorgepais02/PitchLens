@@ -137,14 +137,16 @@ class TestMarketFeature:
         assert (ml_subset["prob_diff_market"] <= 1).all()
 
     def test_overround_pinnacle_above_one(self, df_subset):
-        """El overround de Pinnacle siempre es > 1."""
-        overround = 1 / df_subset["PSH"] + 1 / df_subset["PSD"] + 1 / df_subset["PSA"]
+        """El overround de Pinnacle (cierre) siempre es > 1."""
+        overround = (
+            1 / df_subset["PSCH"] + 1 / df_subset["PSCD"] + 1 / df_subset["PSCA"]
+        )
         assert (overround > 1.0).all()
 
     def test_overround_pinnacle_below_bet365(self, df_subset):
-        """Pinnacle tiene menor overround que Bet365."""
+        """Pinnacle (cierre) tiene menor overround que Bet365."""
         overround_ps = (
-            1 / df_subset["PSH"] + 1 / df_subset["PSD"] + 1 / df_subset["PSA"]
+            1 / df_subset["PSCH"] + 1 / df_subset["PSCD"] + 1 / df_subset["PSCA"]
         ).mean()
         overround_b365 = (
             1 / df_subset["B365H"] + 1 / df_subset["B365D"] + 1 / df_subset["B365A"]

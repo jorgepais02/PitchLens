@@ -58,7 +58,7 @@ Las features rolling incluyen además la ventana: `métrica_diff_lastN_scope`.
 | `xg_diff_last5_global` | Rolling global | Sí | `home_xg`, `away_xg` |
 | `xg_conceded_diff_last5_global` | Rolling global | Sí | `home_xg`, `away_xg` |
 | `rest_days_diff` | Descanso | Sí | `Date` |
-| `prob_diff_market` | Mercado | No | `PSH`, `PSD`, `PSA` |
+| `prob_diff_market` | Mercado | No | `PSCH`, `PSCD`, `PSCA` |
 
 > [!IMPORTANT]
 > **Cold start:** los partidos con NaN en cualquier feature rolling son eliminados del `core_features`. Existen en `matches` pero no en `match_features`.
@@ -146,7 +146,7 @@ Orquestador del pipeline completo:
 
 ## Decisiones de diseño
 
-- **Pinnacle vs Bet365** — se usan cuotas Pinnacle de cierre (`PSH/PSD/PSA`) por su menor margen (~1.02–1.03 vs ~1.05 de Bet365) y porque las cuotas de cierre incorporan el consenso final del mercado. Bet365 se incluye como contraste en el notebook.
+- **Pinnacle vs Bet365** — se usan cuotas Pinnacle de cierre (`PSCH/PSCD/PSCA`) por su menor margen (~1.02–1.03 vs ~1.05 de Bet365) y porque las cuotas de cierre incorporan el consenso final del mercado. Bet365 se incluye como contraste en el notebook.
 - **K=20 en ELO** — equilibrio estándar en literatura de predicción de fútbol: K bajo insensibiliza el rating; K alto lo vuelve volátil.
 - **WINDOW=5** — mínimo estadísticamente representativo sin sacrificar demasiados partidos por cold start.
 

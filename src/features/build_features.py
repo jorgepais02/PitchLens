@@ -45,7 +45,8 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     ELO: valor pre-partido por construcción.
 
     Recibe core_enriched (10.660 × 35) con columnas: match_id, Date, HomeTeam,
-    AwayTeam, League, Season, FTR, FTHG, FTAG, HST, AST, home_xg, away_xg, PSH, PSD, PSA.
+    AwayTeam, League, Season, FTR, FTHG, FTAG, HST, AST, home_xg, away_xg,
+    PSCH, PSCD, PSCA (cuotas Pinnacle de cierre).
 
     Devuelve core_features con columnas: match_id, League, Season, Date, HomeTeam,
     AwayTeam, FTR + 10 features. Filas cold start eliminadas. Cero nulos en features rolling.
