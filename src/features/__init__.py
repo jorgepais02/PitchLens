@@ -3,6 +3,7 @@ from .build_features import (
     check_leakage,
     compute_elo,
     compute_global_rolling,
+    compute_h2h_rolling,
     compute_market_feature,
     compute_rest_days,
     compute_table_features,
@@ -10,7 +11,9 @@ from .build_features import (
     ELO_BASE,
     ELO_K,
     FEATURES,
+    FEATURES_H2H,
     FEATURES_ROLLING,
+    H2H_WINDOW,
     WINDOW,
 )
 
@@ -22,10 +25,13 @@ __all__ = [
     "compute_table_features",
     "compute_market_feature",
     "compute_rest_days",
+    "compute_h2h_rolling",
     "check_leakage",
     "FEATURES",
     "FEATURES_ROLLING",
+    "FEATURES_H2H",
     "WINDOW",
+    "H2H_WINDOW",
     "ELO_K",
     "ELO_BASE",
 ]

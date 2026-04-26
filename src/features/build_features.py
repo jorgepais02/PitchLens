@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ._constants import ELO_BASE, ELO_K, FEATURES, FEATURES_ROLLING, WINDOW
+from ._constants import (
+    ELO_BASE,
+    ELO_K,
+    FEATURES,
+    FEATURES_H2H,
+    FEATURES_ROLLING,
+    H2H_WINDOW,
+    WINDOW,
+)
 from ._team_view import _build_team_view
 from .elo import compute_elo
 from .form import compute_global_rolling, compute_venue_rolling
+from .h2h import compute_h2h_rolling
 from .leakage import check_leakage
 from .market import compute_market_feature
 from .table import compute_rest_days, compute_table_features
@@ -20,10 +29,13 @@ __all__ = [
     "compute_table_features",
     "compute_market_feature",
     "compute_rest_days",
+    "compute_h2h_rolling",
     "check_leakage",
     "FEATURES",
     "FEATURES_ROLLING",
+    "FEATURES_H2H",
     "WINDOW",
+    "H2H_WINDOW",
     "ELO_K",
     "ELO_BASE",
 ]
@@ -49,7 +61,8 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     PSCH, PSCD, PSCA (cuotas Pinnacle de cierre).
 
     Devuelve core_features con columnas: match_id, League, Season, Date, HomeTeam,
-    AwayTeam, FTR + 10 features. Filas cold start eliminadas. Cero nulos en features rolling.
+    AwayTeam, FTR + 12 features. Filas cold start eliminadas en FEATURES_ROLLING.
+    Las features H2H se imputan a 0 en cold start (pares sin historial previo).
     """
     df = df.sort_values("Date").reset_index(drop=True)
 
@@ -61,12 +74,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df_table = compute_table_features(df, _tv=tv)
     df_rest = compute_rest_days(df, _tv=tv)
     df_market = compute_market_feature(df)
+    df_h2h = compute_h2h_rolling(df, H2H_WINDOW)
 
     df_base = df[
         ["match_id", "League", "Season", "Date", "HomeTeam", "AwayTeam", "FTR"]
     ].set_index("match_id")
 
-    df_ml = (
+    df_features = (
         df_base.join(df_elo[["elo_diff_pre"]])
         .join(df_table[["points_diff_global", "points_diff_venue"]])
         .join(
@@ -82,7 +96,9 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
         .join(df_venue[["goal_diff_last5_venue"]])
         .join(df_rest[["rest_days_diff"]])
         .join(df_market[["prob_diff_market"]])
+        .join(df_h2h[FEATURES_H2H])
     )
 
-    check_leakage(df_ml.reset_index(), df)
-    return df_ml.dropna(subset=FEATURES_ROLLING).copy().reset_index()
+    check_leakage(df_features.reset_index(), df)
+    df_features[FEATURES_H2H] = df_features[FEATURES_H2H].fillna(0.0)
+    return df_features.dropna(subset=FEATURES_ROLLING).copy().reset_index()

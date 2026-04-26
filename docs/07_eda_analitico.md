@@ -1,18 +1,18 @@
 # 07 — EDA Analítico de Features
 
-> Análisis estadístico del `core_features` para validar las 10 features antes del modelado.
+> Análisis estadístico del `core_features` para validar las 12 features antes del modelado.
 > Notebook: `notebooks/07_eda_features/07_eda_analitico_features.ipynb`
 
 ---
 
 ## Objetivo
 
-Verificar que las features construidas en Fase 4 son estadísticamente válidas y aptas para modelado:
+Verificar que las features construidas en Feature Engineering son estadísticamente válidas y aptas para modelado:
 
-- Analizar distribuciones, outliers y asimetrías
-- Medir poder discriminativo de cada feature respecto al target `FTR` (η²)
+- Verificar distribuciones, outliers y asimetrías de las 12 features
 - Detectar colinealidad entre features
-- Producir tabla resumen con decisiones para Fase 7 (Modelado)
+- Medir poder discriminativo de cada feature respecto al target `FTR` (η²)
+- Documentar la calidad y señal de cada feature como referencia para el entrenamiento de modelos
 
 ---
 
@@ -28,8 +28,8 @@ graph LR
     A[CSV raw] -->|01–03| D[core_multi_league_clean<br/>10.660 × 33]
     B[Understat] -->|04| F[xg_validated<br/>10.660 × 17]
     D & F -->|05| G[core_enriched<br/>10.660 × 35]
-    G -->|06| H[core_features<br/>9.792 × 17]
-    H -->|07_eda| I[Validación analítica<br/>→ decisiones modelado]
+    G -->|06| H[core_features<br/>9.792 × 19]
+    H -->|07_eda| I[Validación analítica]
 
     class A,B src
     class D,F,G,H step
@@ -44,7 +44,7 @@ graph LR
 |---------|---------|----------|
 | Distribución target | Barplot con % | ¿Qué baseline de accuracy ofrece el dataset? |
 | Estadísticos descriptivos | describe + skewness + kurtosis | ¿Hay features sesgadas o con colas pesadas? |
-| Histogramas | 10 histogramas con media | ¿Cómo se distribuye cada feature? |
+| Histogramas | 12 histogramas con media | ¿Cómo se distribuye cada feature? |
 | Correlación | Heatmap Pearson triangular | ¿Qué pares de features están colineales? |
 | Violin plots | Por clase FTR (H/D/A) | ¿Separa cada feature las tres clases? |
 | η² (correlation ratio) | Barplot ordenado | ¿Qué features tienen más señal respecto al target? |
@@ -81,20 +81,17 @@ La distribución en `core_features` difiere ligeramente de `core_enriched` (H=45
 | `sot_diff_last5_global` | -0.208 | 3.02 | 0.01 | 0.07 |
 | `goal_diff_last5_venue` | 0.699 | 1.44 | 0.06 | 0.24 |
 | `rest_days_diff` | -0.017 | 2.72 | 0.04 | **802.9** |
-| `prob_diff_market` | 0.137 | 0.36 | -0.24 | -0.44 |
+| `prob_diff_market` | 0.138 | 0.37 | -0.25 | -0.45 |
+| `h2h_goal_diff_last5` | -0.021 | 0.83 | -0.11 | **3.53** |
+| `h2h_result_diff_last5` | -0.010 | 0.36 | -0.03 | 1.36 |
 
 **Sin asimetrías relevantes** — ninguna feature supera |skewness| > 1.
 
-### Outliers en `rest_days_diff`
+### Alertas de curtosis
 
-> [!NOTE]
-> La única anomalía es `rest_days_diff` con kurtosis = 802, causada por el parón COVID-19 (temporada 2020). Outliers de hasta ±102 días en 248 partidos afectados, con solo 4 casos extremos. No requiere tratamiento — el modelo deberá aprender a ignorar estos valores atípicos.
+**`rest_days_diff` — kurtosis = 802**
 
-```
-5536 2020-06-20  premier  Brighton → Arsenal          rest_days_diff: +102
-5553 2020-06-21  premier  Newcastle → Sheffield Utd   rest_days_diff: +102
-5560 2020-06-22  premier  Man City → Burnley           rest_days_diff: -102
-```
+Causada por el parón COVID-19 (temporada 2020). Outliers de hasta ±102 días en 248 partidos afectados, con solo 4 casos extremos. No requiere tratamiento adicional.
 
 | Liga | Partidos post-COVID |
 |------|---------------------|
@@ -102,6 +99,10 @@ La distribución en `core_features` difiere ligeramente de `core_enriched` (H=45
 | Premier | 92 |
 | La Liga | 110 |
 | **Total** | **248** |
+
+**`h2h_goal_diff_last5` — kurtosis = 3.5**
+
+Distribución picuda con mediana y Q3 = 0. Causada por el `fillna(0)` del cold start H2H: 5.251 partidos (53.6%) sin historial previo suficiente se imputan a 0, acumulando la masa en cero. No requiere tratamiento — 0 codifica correctamente "sin historial previo conocido".
 
 ---
 
@@ -112,9 +113,12 @@ Pares con correlación de Pearson |r| > 0.70:
 | Par | r | Explicación |
 |-----|---|-------------|
 | `prob_diff_market` ↔ `elo_diff_pre` | 0.91 | Ambas miden diferencia de nivel entre equipos |
+| `h2h_goal_diff_last5` ↔ `h2h_result_diff_last5` | 0.91 | Misma señal H2H con métrica distinta |
 | `points_diff_global` ↔ `points_diff_venue` | 0.84 | Clasificación general y por localía muy similares |
 | `xg_diff_last5_global` ↔ `sot_diff_last5_global` | 0.83 | Más tiros implica más xG por construcción |
 | `elo_diff_pre` ↔ `points_diff_global` | 0.83 | ELO y clasificación reflejan nivel similar |
+
+Las dos features H2H son internamente redundantes (r=0.91) — capturan la misma señal histórica con métricas distintas. Presentan además correlación moderada con ELO (~0.57) y mercado (~0.50): equipos históricamente dominantes en el H2H tienden a ser también los mejores en el ranking general.
 
 > [!NOTE]
 > La colinealidad es manejable: los modelos están diseñados por bloques conceptuales y las features colineales no siempre conviven en el mismo modelo. `rest_days_diff` es la única feature ortogonal al resto (r ≈ 0 con todas).
@@ -127,37 +131,20 @@ Pares con correlación de Pearson |r| > 0.70:
 
 | Nivel | Feature | η² |
 |-------|---------|-----|
-| Alto | `prob_diff_market` | 0.19 |
-| Alto | `elo_diff_pre` | 0.15 |
-| Medio-alto | `points_diff_global` | 0.11 |
-| Medio-alto | `sot_diff_last5_global` | 0.10 |
-| Medio-alto | `xg_diff_last5_global` | 0.10 |
-| Medio | `goal_diff_last5_venue` | 0.09 |
-| Medio | `goal_diff_last5_global` | 0.08 |
-| Medio | `points_diff_venue` | 0.08 |
-| Bajo | `xg_conceded_diff_last5_global` | 0.05 |
-| Bajo | `rest_days_diff` | ≈ 0.00 |
+| Alto | `prob_diff_market` | 0.189 |
+| Alto | `elo_diff_pre` | 0.148 |
+| Medio-alto | `points_diff_global` | 0.110 |
+| Medio-alto | `xg_diff_last5_global` | 0.102 |
+| Medio-alto | `sot_diff_last5_global` | 0.096 |
+| Medio | `goal_diff_last5_global` | 0.084 |
+| Medio | `goal_diff_last5_venue` | 0.082 |
+| Medio | `points_diff_venue` | 0.080 |
+| Bajo | `h2h_goal_diff_last5` | 0.050 |
+| Bajo | `xg_conceded_diff_last5_global` | 0.049 |
+| Bajo | `h2h_result_diff_last5` | 0.044 |
+| Residual | `rest_days_diff` | ≈ 0.000 |
 
-
----
-
-## Decisiones para Fase 7
-
-| Feature | Veredicto | Motivo |
-|---------|-----------|--------|
-| `prob_diff_market` | Incluir — señal dominante | η²=0.19, único feature no calculado |
-| `elo_diff_pre` | Incluir | η²=0.15, colineal con mercado pero independiente en modelos `baseline`/`extended` |
-| `points_diff_global` | Incluir | η²=0.11 |
-| `sot_diff_last5_global` | Incluir | η²=0.10 |
-| `xg_diff_last5_global` | Incluir | η²=0.10 |
-| `goal_diff_last5_venue` | Incluir | η²=0.09 |
-| `goal_diff_last5_global` | Incluir | η²=0.08 |
-| `points_diff_venue` | Incluir | η²=0.08, colineal con global pero aporta perspectiva de localía |
-| `xg_conceded_diff_last5_global` | Evaluar en contexto | η²=0.05 — incluida en modelo `extended` y `market` |
-| `rest_days_diff` | Evaluar en contexto | η²≈0 pero incluida como señal de fatiga; raramente decisiva |
-
-> [!TIP]
-> Los modelos preentrenados (`baseline`, `extended`, `market`) están diseñados para aislar el efecto acumulativo de añadir features. El EDA confirma que la jerarquía de η² es coherente con la progresión de bloques A→B→C→D.
+Las features H2H se sitúan en el nivel bajo, comparables a `xg_conceded_diff_last5_global`. Su señal está atenuada porque el 49% de valores son exactamente 0 por el `fillna(0)` del cold start — en el subconjunto de partidos con historial H2H real, su contribución será mayor. `h2h_goal_diff_last5` muestra ligeramente mayor señal que `h2h_result_diff_last5` (η²=0.050 vs 0.044).
 
 ---
 
@@ -171,4 +158,4 @@ Este EDA no produce ningún parquet — es únicamente análisis y validación. 
 
 ---
 
-**Siguiente paso →** Fase 6 — Base de datos (star schema con SQLModel)
+**Siguiente paso →** Base de datos (star schema con SQLModel)
