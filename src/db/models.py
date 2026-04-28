@@ -27,11 +27,11 @@ class Season(SQLModel, table=True):
     """Temporada por liga (30 filas: 3 ligas × 10 temporadas)."""
 
     __tablename__ = "seasons"
-    __table_args__ = (UniqueConstraint("league_id", "start_year"),)
+    __table_args__ = (UniqueConstraint("league_id", "end_year"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    start_year: int = Field(index=True)
-    label: str  # e.g. '2015/16'
+    end_year: int = Field(index=True)
+    label: str  # e.g. '2014/15'
     league_id: int = Field(foreign_key="leagues.id", index=True)
 
     league: Optional[League] = Relationship(back_populates="seasons")
