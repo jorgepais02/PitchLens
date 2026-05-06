@@ -233,11 +233,11 @@ erDiagram
 
 **Feature sets** obtenidos tras probar varias combinaciones — algunas siguiendo literatura (fuerza del equipo, forma reciente, eficiencia de mercado) y otras de forma empírica. Se descartó `rest_days_diff` (η² ≈ 0). Los tres conjuntos mostrados fueron los de mejor rendimiento.
 
-| Modelo | Features |
-|---|---|
-| `baseline` | `elo_diff_pre`, `points_diff_global`, `goal_diff_last5_global` |
-| `extended` | baseline + `xg_diff_last5_global`, `xg_conceded_diff_last5_global`, `goal_diff_last5_venue` |
-| `market` | extended − `elo_diff_pre` + `prob_diff_market` (el mercado reemplaza al ELO, r = 0,90) |
+| Modelo | Features | Pregunta que responde |
+|---|---|---|
+| `baseline` | `elo_diff_pre`, `points_diff_global` | ¿Quién es mejor? |
+| `extended` | baseline + `goal_diff_last5_global`, `xg_diff_last5_global`, `goal_diff_last5_venue` | ¿Quién es mejor y cómo llega? |
+| `market` | extended − `elo_diff_pre` + `prob_diff_market` | ¿Qué dice el mercado sabiendo todo lo anterior? |
 
 **Split temporal** (nunca aleatorio): train ≤ 2022 (7.745), validación 2023 (1.028), test 2024 (1.019).
 
@@ -245,9 +245,9 @@ erDiagram
 
 | Modelo | Val accuracy | Val log-loss | Test accuracy | Test log-loss |
 |---|---|---|---|---|
-| `baseline` | 54,09 % | 0,9907 | 54,37 % | 0,9529 |
-| `extended` | 54,18 % | 0,9887 | 54,66 % | 0,9505 |
-| `market` | 53,50 % | 0,9769 | **57,31 %** | **0,9321** |
+| `baseline` | 54,47 % | 0,9900 | 54,07 % | 0,9560 |
+| `extended` | 53,50 % | 0,9892 | 54,66 % | 0,9504 |
+| `market` | 53,79 % | 0,9771 | **57,41 %** | **0,9319** |
 
 Baseline de mayoría de clase: **45,6 %**
 

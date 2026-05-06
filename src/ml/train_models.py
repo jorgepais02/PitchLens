@@ -25,11 +25,11 @@ logging.basicConfig(level=logging.INFO, format="[TRAIN] %(levelname)s %(message)
 FEATURES_BASELINE: list[str] = [
     "elo_diff_pre",
     "points_diff_global",
-    "goal_diff_last5_global",
 ]
 
-# extended añade xG ofensivo (mayor η²), calidad defensiva y forma por localía.
+# extended añade forma reciente (goal_diff, xG) y localía — alinea con literatura.
 # Incluidos:
+#   - goal_diff_last5_global: forma básica, movida de baseline para separar nivel y forma
 #   - xg_diff_last5_global: η²=0.102, mayor que sot_diff (0.096); r=0.79 con goal_diff (bajo
 #     el umbral de 0.80, borderline). Se acepta porque xG mide calidad del tiro (Understat),
 #     mientras goal_diff captura resultado — dimensiones conceptualmente distintas.
@@ -42,8 +42,8 @@ FEATURES_BASELINE: list[str] = [
 #   - rest_days_diff (η²≈0, 39.5 % ceros, outliers COVID kurtosis=802)
 #   - h2h_* (49-54 % ceros por fillna(0) → LR no distingue sin historial de equilibrio real)
 FEATURES_EXTENDED: list[str] = FEATURES_BASELINE + [
+    "goal_diff_last5_global",
     "xg_diff_last5_global",
-    "xg_conceded_diff_last5_global",
     "goal_diff_last5_venue",
 ]
 
