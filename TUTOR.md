@@ -159,7 +159,48 @@ Muestra (3 primeras filas con historial suficiente):
 
 ## Base de datos — star schema
 
-*(ver diagrama adjunto)*
+```mermaid
+erDiagram
+    leagues ||--o{ seasons : "tiene"
+    leagues ||--o{ teams : "tiene"
+    leagues ||--o{ matches : "tiene"
+    seasons ||--o{ matches : "tiene"
+    teams ||--o{ matches : "local"
+    teams ||--o{ matches : "visitante"
+    matches ||--o| match_features : "tiene"
+
+    leagues {
+        int id PK
+        string code
+        string name
+    }
+    seasons {
+        int id PK
+        int end_year
+        string label
+        int league_id FK
+    }
+    teams {
+        int id PK
+        string name
+        int league_id FK
+    }
+    matches {
+        int id PK
+        int league_id FK
+        int season_id FK
+        int home_team_id FK
+        int away_team_id FK
+        float resultado_stats_odds_xg
+    }
+    match_features {
+        int id PK
+        int match_id FK
+        float elo_diff_pre
+        float prob_diff_market
+        float other_features
+    }
+```
 
 | Tabla | Filas | Contenido |
 |---|---|---|

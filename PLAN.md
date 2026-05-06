@@ -409,28 +409,29 @@ models/
 
 ### 11.2 Split temporal (nunca aleatorio)
 
-- Train: temporadas ≤ 2022 (~7.900 partidos)
-- Validation: temporada 2023 (~950)
-- Test: temporada 2024 (~950, nunca visto)
+- Train: temporadas ≤ 2022 (7.745 partidos)
+- Validation: temporada 2023 (1.028)
+- Test: temporada 2024 (1.019, nunca visto)
 
 ### 11.3 Modelos preentrenados (mismo algoritmo LR para aislar efecto features)
 
 | Modelo | Features |
 |---|---|
 | `baseline` | `elo_diff_pre` + `points_diff_global` + `goal_diff_last5_global` |
-| `extended` | baseline + `xg_diff_last5_global` + `xg_conceded_diff_last5_global` + `sot_diff_last5_global` + `rest_days_diff` + `goal_diff_last5_venue` + `points_diff_venue` |
-| `market` | extended + `prob_diff_market` |
+| `extended` | baseline + `xg_diff_last5_global` + `xg_conceded_diff_last5_global` + `goal_diff_last5_venue` |
+| `market` | extended − `elo_diff_pre` + `prob_diff_market` (el mercado reemplaza al ELO, r=0.90) |
 
-Nota: algoritmo LR pendiente de confirmar con tutor.
+Algoritmo: **Logistic Regression** en los 3 para aislar el efecto de las
+features (confirmado con tutor).
 
 ### 11.4 Modo custom usuario
 
-- Algoritmos: **LR**, **Random Forest**, **XGBoost**.
-- RF y XGBoost requieren `CalibratedClassifierCV(method='sigmoid')` para que
-  las probabilidades sean comparables con LR.
+- Algoritmos: **LR**, **Decision Tree**, **Random Forest**, **XGBoost**.
+- DT, RF y XGBoost requieren `CalibratedClassifierCV(method='sigmoid')` para
+  que las probabilidades sean comparables con LR.
 - Feature importance:
   - LR → coeficientes directos.
-  - RF/XGBoost → permutation importance (más justa que impurity-based).
+  - DT/RF/XGBoost → permutation importance (más justa que impurity-based).
 
 ### 11.5 Módulos Python
 
@@ -438,9 +439,11 @@ Nota: algoritmo LR pendiente de confirmar con tutor.
   `metrics.json`. Idempotente, CLI-runnable.
 - `src/ml/predictor.py` — carga modelos, calcula predicciones y feature
   importance. Es el componente que usarán los endpoints de Fase 8.
-- `tests/test_models.py` — verifica que los 3 modelos cargan, que producen
-  probabilidades válidas (suma 1, sin NaN) y que las métricas en test están
-  en rango razonable (log-loss < referencia).
+- `tests/test_models.py` — existencia de artefactos, probabilidades válidas
+  (suma 1, sin NaN), feature importance en [0, 1] y orden descendente,
+  sanity direccional (local/visitante dominante), detector de empates predichos,
+  invariante market (sin elo, con prob_market), split temporal sin contaminación,
+  métricas en rango calibrado por modelo, input inválido y modelo inexistente.
 
 ### 11.6 Partidos hipotéticos (input en producción)
 
@@ -451,8 +454,8 @@ BD, las features se calculan en caliente desde el historial reciente:
 - Rolling 5: a partir de los últimos 5 partidos en BD.
 - Temporada actual: asumir la última temporada disponible del equipo.
 - `prob_diff_market`: **no disponible** en partido hipotético (no hay cuotas).
-  Por eso el modelo `market` **no se ofrece** para partidos hipotéticos en UI
-  o se solicita cuotas como input del usuario (decisión de UX).
+  El modelo `market` **no se ofrece** para partidos hipotéticos — solo
+  baseline y extended están disponibles en ese modo (decisión cerrada).
 
 Aviso de cold start: si algún equipo tiene < WINDOW partidos de historial,
 la predicción se degrada y la UI debe mostrar aviso.
@@ -520,8 +523,8 @@ nuevos o como ampliación explícita en ese momento, con commit dedicado:
 | 3 | completado | Integración xG → `core_enriched.parquet` |
 | 4 | completado | Feature Engineering → `core_features.parquet` |
 | 5 | completado | EDA analítico features |
-| **6** | **en curso** | BD star schema + seed + endpoints GET básicos (este plan) |
-| 7 | pendiente | Modelado ML (`src/ml/`) — preentrenados + custom |
+| 6 | completado | BD star schema + seed + endpoints GET básicos |
+| **7** | **completado** | Modelado ML (`src/ml/`) — preentrenados + custom |
 | 8 | pendiente | FastAPI extendida + JWT + `/predict`, `/train`, `/models` |
 | 9 | pendiente | Frontend React + Vite + Recharts |
 
@@ -533,10 +536,6 @@ nuevos o como ampliación explícita en ese momento, con commit dedicado:
   `requirements-dev.txt` + `requirements-pipeline.txt` cuando Fase 7 esté
   lista (faltarán `fastapi`, `uvicorn`, `sqlmodel`, `scikit-learn`,
   `psycopg2-binary`, `python-jose`, `passlib[argon2]`).
-- Decidir algoritmo final de preentrenados (LR vs alternativas) con tutor
-  antes de Fase 7.
-- Definir política exacta de partidos hipotéticos respecto a
-  `prob_diff_market` (excluir modelo `market` vs pedir cuotas al usuario).
 
 ---
 
