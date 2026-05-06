@@ -20,3 +20,7 @@ data/processed/
 
 # Env
 .env
+
+# Modelos entrenados (reproducibles con python -m src.ml.train_models)
+models/*.pkl
+models/custom/

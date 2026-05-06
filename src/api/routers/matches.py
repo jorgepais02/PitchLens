@@ -37,8 +37,7 @@ def get_matches(
         query = query.where(Match.league_id == league.id)
 
     if season is not None:
-        # Recuperar los IDs de las temporadas con ese end_year
-        # (puede haber una por liga, máximo 3)
+        # end_year puede aparecer en hasta 3 ligas simultáneamente
         season_ids = [
             s.id for s in session.exec(
                 select(Season).where(Season.end_year == season)

@@ -136,8 +136,6 @@ class MatchDetailRead(BaseModel):
 class MatchBriefRead(BaseModel):
     """Resumen de un partido para el historial reciente de un equipo."""
 
-    model_config = ConfigDict(from_attributes=True)
-
     slug: str
     date: datetime
     opponent_id: int

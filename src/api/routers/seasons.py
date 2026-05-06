@@ -16,7 +16,6 @@ def get_seasons(session: SessionDep, league_code: str | None = None) -> list[Sea
     query = select(Season)
 
     if league_code is not None:
-        # Verificar que la liga existe antes de filtrar
         league = session.exec(
             select(League).where(League.code == league_code)
         ).first()
