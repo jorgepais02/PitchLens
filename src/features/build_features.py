@@ -55,13 +55,15 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     Garantía anti-leakage: shift(1) en todos los bloques vectorizados.
     ELO: valor pre-partido por construcción.
+    prob_diff_market (Pinnacle closing odds): sin leakage por definición.
 
     Recibe core_enriched (10.660 × 35) con columnas: match_id, Date, HomeTeam,
     AwayTeam, League, Season, FTR, FTHG, FTAG, HST, AST, home_xg, away_xg,
-    PSCH, PSCD, PSCA (cuotas Pinnacle de cierre).
+    PSH, PSD, PSA, PSCH, PSCD, PSCA, B365H, B365D, B365A.
 
     Devuelve core_features con columnas: match_id, League, Season, Date, HomeTeam,
-    AwayTeam, FTR + 12 features. Filas cold start eliminadas en FEATURES_ROLLING.
+    AwayTeam, FTR + 13 features (12 originales + prob_diff_market).
+    Filas cold start eliminadas en FEATURES_ROLLING.
     Las features H2H se imputan a 0 en cold start (pares sin historial previo).
     """
     df = df.sort_values("Date").reset_index(drop=True)
@@ -102,3 +104,20 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     check_leakage(df_features.reset_index(), df)
     df_features[FEATURES_H2H] = df_features[FEATURES_H2H].fillna(0.0)
     return df_features.dropna(subset=FEATURES_ROLLING).copy().reset_index()
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+
+    ENRICHED = Path("data/processed/enriched/core_enriched.parquet")
+    OUTPUT = Path("data/processed/features/core_features.parquet")
+
+    print(f"Cargando {ENRICHED} ...")
+    df_enriched = pd.read_parquet(ENRICHED)
+    print(f"  {len(df_enriched):,} filas × {len(df_enriched.columns)} columnas")
+
+    df_out = build_features(df_enriched)
+    print(f"  → {len(df_out):,} filas × {len(df_out.columns)} columnas tras cold start")
+
+    df_out.to_parquet(OUTPUT, index=False)
+    print(f"Guardado en {OUTPUT}")

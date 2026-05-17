@@ -1,7 +1,8 @@
-"""Entrenamiento y persistencia de los 3 modelos preentrenados (LR).
+"""Entrenamiento y persistencia de los 3 modelos preentrenados.
 
 Uso:
-    python -m src.ml.train_models
+    python -m src.ml.train_models           # entrena con LR (por defecto)
+    python -m src.ml.train_models --algo rf # entrena con Random Forest
 """
 
 import json
@@ -11,6 +12,8 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.metrics import accuracy_score, confusion_matrix, log_loss
 from sklearn.model_selection import TimeSeriesSplit
@@ -22,37 +25,41 @@ logging.basicConfig(level=logging.INFO, format="[TRAIN] %(levelname)s %(message)
 
 # ── Constantes ──────────────────────────────────────────────────────────────
 
+# Combinaciones óptimas por bloque encontradas con búsqueda forward (val log_loss).
+# Features seleccionadas con LR + regularización (LogisticRegressionCV).
+# La regularización maneja la colinealidad entre features del mismo bloque.
+# Cada bloque añade dimensiones conceptualmente distintas:
+#   baseline  — nivel histórico (ELO) + posición en tabla + H2H
+#   extended  — baseline + forma reciente (rolling 5 partidos)
+#   market    — extended sin ELO + cuota de cierre Pinnacle (el mercado codifica ELO y más)
+
 FEATURES_BASELINE: list[str] = [
     "elo_diff_pre",
     "points_diff_global",
+    "points_diff_venue",
+    "h2h_result_diff_last5",
+    "h2h_goal_diff_last5",
 ]
 
-# extended añade forma reciente (goal_diff, xG) y localía — alinea con literatura.
-# Incluidos:
-#   - goal_diff_last5_global: forma básica, movida de baseline para separar nivel y forma
-#   - xg_diff_last5_global: η²=0.102, mayor que sot_diff (0.096); r=0.79 con goal_diff (bajo
-#     el umbral de 0.80, borderline). Se acepta porque xG mide calidad del tiro (Understat),
-#     mientras goal_diff captura resultado — dimensiones conceptualmente distintas.
-#   - xg_conceded_diff_last5_global: η²=0.049 (bajo), pero única proxy de calidad defensiva
-#     disponible sin colinealidad alta — sin ella extended no cubriría la dimensión defensiva
-#   - goal_diff_last5_venue: η²=0.082, aporta localía que goal_diff_last5_global no captura
-# Excluidos por el EDA:
-#   - sot_diff (r=0.83 con xg_diff, redundante)
-#   - points_diff_venue (r=0.84 con points_diff_global, redundante)
-#   - rest_days_diff (η²≈0, 39.5 % ceros, outliers COVID kurtosis=802)
-#   - h2h_* (49-54 % ceros por fillna(0) → LR no distingue sin historial de equilibrio real)
 FEATURES_EXTENDED: list[str] = FEATURES_BASELINE + [
     "goal_diff_last5_global",
     "xg_diff_last5_global",
     "goal_diff_last5_venue",
+    "xg_conceded_diff_last5_global",
+    "sot_diff_last5_global",
+    "rest_days_diff",
 ]
 
-# market: prob_diff_market reemplaza a elo_diff_pre.
-# prob_diff_market r=0.90 con elo → el mercado ya lo codifica y más.
-# Reemplazar elimina la colinealidad más severa y la CV confirma mejor resultado.
+# Búsqueda exhaustiva LR (3.100 combinaciones, menor val log_loss, confirmado en test):
+# 5 features del bloque actual eliminadas por añadir ruido con regularización LR.
 FEATURES_MARKET: list[str] = [
-    f for f in FEATURES_EXTENDED if f != "elo_diff_pre"
-] + ["prob_diff_market"]
+    "points_diff_global",
+    "goal_diff_last5_global",
+    "xg_diff_last5_global",
+    "xg_conceded_diff_last5_global",
+    "h2h_goal_diff_last5",
+    "prob_diff_market",
+]
 
 MODELS_CONFIG: dict[str, list[str]] = {
     "baseline": FEATURES_BASELINE,
@@ -60,12 +67,22 @@ MODELS_CONFIG: dict[str, list[str]] = {
     "market": FEATURES_MARKET,
 }
 
-# C candidatos para selección por CV — rango amplio con resolución suficiente
+# C candidatos para LR — rango amplio con resolución suficiente
 _CV_Cs = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
 
 TARGET = "FTR"
 DATA_PATH = Path("data/processed/features/core_features.parquet")
 MODELS_DIR = Path("models")
+
+# Params RF óptimos encontrados con búsqueda en val (RandomizedSearchCV,
+# TimeSeriesSplit n_splits=5, scoring=neg_log_loss, n_iter=40).
+_RF_BEST_PARAMS: dict = {
+    "n_estimators": 200,
+    "min_samples_leaf": 50,
+    "max_features": 0.5,
+    "max_depth": 5,
+    "class_weight": None,
+}
 
 
 # ── Función pública de soporte ──────────────────────────────────────────────
@@ -80,9 +97,9 @@ def split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return train, val, test
 
 
-# ── Helpers privados ─────────────────────────────────────────────────────────
+# ── Builders de pipelines ───────────────────────────────────────────────────
 
-def _build_pipeline() -> Pipeline:
+def _build_lr_pipeline() -> Pipeline:
     """Pipeline escalado + LR con C seleccionado por CV temporal (scoring=neg_log_loss)."""
     return Pipeline([
         ("scaler", StandardScaler()),
@@ -97,6 +114,23 @@ def _build_pipeline() -> Pipeline:
     ])
 
 
+def _build_rf_pipeline(params: dict | None = None) -> Pipeline:
+    """RF calibrado (sigmoid). params sobreescribe los defaults si se provee."""
+    defaults = dict(random_state=42, n_jobs=-1)
+    if params:
+        defaults.update(params)
+    return Pipeline([
+        ("clf", CalibratedClassifierCV(
+            RandomForestClassifier(**defaults),
+            method="sigmoid",
+            cv=5,
+        )),
+    ])
+
+
+# ── Helpers privados ─────────────────────────────────────────────────────────
+
+
 def _compute_metrics(pipeline: Pipeline, X: pd.DataFrame, y: pd.Series) -> dict:
     """Calcula accuracy, log-loss y matriz de confusión."""
     y_pred = pipeline.predict(X)
@@ -108,16 +142,24 @@ def _compute_metrics(pipeline: Pipeline, X: pd.DataFrame, y: pd.Series) -> dict:
     }
 
 
-# ── Función pública ─────────────────────────────────────────────────────────
+# ── Función pública principal ──────────────────────────────────────────────
 
-def train_models() -> dict:
-    """Entrena los 3 modelos preentrenados y los persiste en models/.
+def train_models(algorithm: str = "lr") -> dict:
+    """Entrena los 3 modelos preentrenados con el algoritmo indicado y los persiste en models/.
+
+    Args:
+        algorithm: 'lr' (por defecto) o 'rf' (con _RF_BEST_PARAMS).
 
     Devuelve el diccionario de métricas completo.
     """
+    valid = {"lr", "rf"}
+    if algorithm not in valid:
+        raise ValueError(f"Algoritmo desconocido '{algorithm}'. Opciones: {valid}")
+
     start = time.time()
     MODELS_DIR.mkdir(exist_ok=True)
 
+    log.info("algoritmo: %s", algorithm.upper())
     log.info("cargando %s", DATA_PATH)
     df = pd.read_parquet(DATA_PATH)
     log.info("dataset: %d filas × %d columnas", *df.shape)
@@ -140,15 +182,20 @@ def train_models() -> dict:
         X_test = test[features]
         y_test = test[TARGET]
 
-        pipeline = _build_pipeline()
+        if algorithm == "rf":
+            pipeline = _build_rf_pipeline(_RF_BEST_PARAMS)
+        else:
+            pipeline = _build_lr_pipeline()
+
         pipeline.fit(X_train, y_train)
 
-        # C_.mean() es informativo: multinomial → (1,) = valor exacto; OvR → (n_classes,) = promedio
-        C_opt = float(pipeline.named_steps["lr"].C_.mean())
         val_metrics = _compute_metrics(pipeline, X_val, y_val)
         test_metrics = _compute_metrics(pipeline, X_test, y_test)
 
-        log.info("  C óptimo=%.4f", C_opt)
+        if algorithm == "lr":
+            C_opt = float(pipeline.named_steps["lr"].C_.mean())
+            log.info("  C óptimo=%.4f", C_opt)
+
         log.info(
             "  val  → accuracy=%.4f log_loss=%.4f",
             val_metrics["accuracy"], val_metrics["log_loss"],
@@ -162,11 +209,8 @@ def train_models() -> dict:
         joblib.dump(pipeline, path)
         log.info("  guardado en %s", path)
 
-        global_metrics[name] = {
-            "val": val_metrics,
-            "test": test_metrics,
-            "C": round(float(C_opt), 4),
-        }
+        extra = {"C": round(C_opt, 4)} if algorithm == "lr" else {"algorithm": algorithm}
+        global_metrics[name] = {"val": val_metrics, "test": test_metrics, **extra}
 
     metrics_path = MODELS_DIR / "metrics.json"
     metrics_path.write_text(json.dumps(global_metrics, indent=2))
@@ -174,12 +218,22 @@ def train_models() -> dict:
 
     elapsed = time.time() - start
     log.info(
-        "done in %.1fs — modelos: %s",
-        elapsed, ", ".join(MODELS_CONFIG),
+        "done in %.1fs — algoritmo=%s modelos: %s",
+        elapsed, algorithm.upper(), ", ".join(MODELS_CONFIG),
     )
 
     return global_metrics
 
 
 if __name__ == "__main__":
-    train_models()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Entrenamiento de modelos preentrenados")
+    parser.add_argument(
+        "--algo",
+        default="lr",
+        choices=["lr", "rf"],
+        help="Algoritmo a usar (default: lr)",
+    )
+    args = parser.parse_args()
+    train_models(algorithm=args.algo)

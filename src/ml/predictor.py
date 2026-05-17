@@ -59,7 +59,9 @@ def predict(model_name: ModelName, features: dict[str, float]) -> dict[str, floa
 def feature_importance(model_name: ModelName) -> list[dict]:
     """Devuelve la importancia de cada feature del modelo preentrenado.
 
-    Para LR multiclase: media de |coeficientes| entre clases, normalizada a [0, 1].
+    LR: media de |coeficientes| entre clases, normalizada a [0, 1].
+    RF: media de feature_importances_ entre los folds de CalibratedClassifierCV,
+    normalizada a [0, 1].
     Orden descendente por importancia.
 
     Args:
@@ -69,11 +71,19 @@ def feature_importance(model_name: ModelName) -> list[dict]:
         Lista de {'feature': str, 'importance': float} ordenada de mayor a menor.
     """
     pipeline = _load(model_name)
-    lr = pipeline.named_steps["lr"]
     cols = MODELS_CONFIG[model_name]
 
-    # coef_ shape: (n_classes, n_features)
-    importance = np.mean(np.abs(lr.coef_), axis=0)
+    if "lr" in pipeline.named_steps:
+        # coef_ shape: (n_classes, n_features)
+        importance = np.mean(np.abs(pipeline.named_steps["lr"].coef_), axis=0)
+    else:
+        # RF / XGBoost: CalibratedClassifierCV genera un estimador por fold
+        ccv = pipeline.named_steps["clf"]
+        importance = np.mean(
+            [cal_clf.estimator.feature_importances_ for cal_clf in ccv.calibrated_classifiers_],
+            axis=0,
+        )
+
     if importance.max() > 0:
         importance = importance / importance.max()
 

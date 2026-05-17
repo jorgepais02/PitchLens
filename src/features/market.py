@@ -1,4 +1,4 @@
-"""Feature de mercado: probabilidad implícita Pinnacle normalizada por overround."""
+"""Features de mercado: probabilidades implícitas y drift de cuotas."""
 
 import pandas as pd
 
