@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "integration: tests que requieren Postgres + datos reales (excluir con -m 'not integration')",
+]

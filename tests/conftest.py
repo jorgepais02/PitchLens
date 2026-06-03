@@ -1,10 +1,19 @@
-"""Fixtures compartidos para tests del pipeline de datos."""
+"""Fixtures compartidos para tests del pipeline de datos y de la API."""
 
 import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine
+
+# Importar la app a nivel de módulo registra las tablas de auth (users, custom_models)
+# en SQLModel.metadata antes de que cualquier fixture haga create_all.
+from src.api.main import app
+from src.db.database import get_db
+from src.db.models import League, Season, Team
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data" / "processed"
@@ -146,3 +155,61 @@ def team_mapping():
     """Mapping de equipos Understat → football-data."""
     with open(TEAM_MAPPING) as f:
         return json.load(f)
+
+
+# --- Fixtures: API FastAPI (Fase 8) con SQLite en memoria ---
+
+
+@pytest.fixture(autouse=True)
+def _clear_feature_cache():
+    """Vacía la caché del historial por liga entre tests (es estado de módulo)."""
+    from src.api.feature_builder import clear_history_cache
+
+    clear_history_cache()
+    yield
+
+
+@pytest.fixture(name="session")
+def session_fixture():
+    """Sesión SQLite en memoria — creada y destruida por cada test."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+    SQLModel.metadata.drop_all(engine)
+    engine.dispose()  # cierra el pool — evita ResourceWarning de conexiones SQLite sin cerrar
+
+
+@pytest.fixture(name="client")
+def client_fixture(session: Session):
+    """TestClient con get_db sobreescrito — no necesita servidor real."""
+    app.dependency_overrides[get_db] = lambda: session
+    yield TestClient(app, raise_server_exceptions=False)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="client_with_teams")
+def client_with_teams_fixture(session: Session):
+    """TestClient con dos ligas y equipos insertados en SQLite."""
+    premier = League(id=1, code="premier", name="Premier League")
+    laliga = League(id=2, code="laliga", name="LaLiga")
+    session.add_all([premier, laliga])
+    session.commit()
+
+    season = Season(id=1, end_year=2024, label="2023/24", league_id=1)
+    session.add(season)
+    session.commit()
+
+    arsenal = Team(id=10, name="Arsenal", league_id=1)
+    chelsea = Team(id=11, name="Chelsea", league_id=1)
+    real_madrid = Team(id=20, name="Real Madrid", league_id=2)
+    session.add_all([arsenal, chelsea, real_madrid])
+    session.commit()
+
+    app.dependency_overrides[get_db] = lambda: session
+    yield TestClient(app, raise_server_exceptions=False)
+    app.dependency_overrides.clear()

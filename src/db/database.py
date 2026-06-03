@@ -3,12 +3,15 @@
 Este módulo es inmutable tras Fase 6.
 """
 
+import logging
 from collections.abc import Generator
 
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.core.config import settings
+
+log = logging.getLogger("db")
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -34,4 +37,5 @@ def check_connection() -> bool:
             session.exec(text("SELECT 1"))
         return True
     except Exception:
+        log.exception("check_connection: la BD no responde a SELECT 1")
         return False

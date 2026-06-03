@@ -1,0 +1,8 @@
+# Dependencias de desarrollo y testing.
+# Incluye prod + ml porque los tests cubren API, BD y ML.
+
+-r requirements.txt
+-r requirements-ml.txt
+
+pytest==8.3.5
+httpx==0.28.1

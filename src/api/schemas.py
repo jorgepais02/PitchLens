@@ -145,6 +145,36 @@ class MatchBriefRead(BaseModel):
     result: str
 
 
+class PredictResponse(BaseModel):
+    """Respuesta de una predicción."""
+
+    prob_h: float
+    prob_d: float
+    prob_a: float
+    feature_importance: list[dict]
+    feature_values: dict[str, float]
+    cold_start_warning: bool
+
+
+class ModelInfo(BaseModel):
+    """Información de un modelo preentrenado."""
+
+    name: str
+    features: list[str]
+    n_features: int
+    val_accuracy: float | None = None
+    test_accuracy: float | None = None
+    test_log_loss: float | None = None
+
+
+class FeatureInfo(BaseModel):
+    """Información de una feature disponible para modelado."""
+
+    name: str
+    description: str
+    used_in_models: list[str]
+
+
 class TeamStatsRead(BaseModel):
     """Estadísticas agregadas de un equipo, opcionalmente por temporada."""
 
@@ -159,3 +189,23 @@ class TeamStatsRead(BaseModel):
     xg_against: float = Field(ge=0)
     matches_with_features_pct: float = Field(ge=0, le=100)
     last5: list[MatchBriefRead]
+
+
+class CustomModelRead(BaseModel):
+    """Información de un modelo custom de usuario."""
+
+    id: int
+    name: str
+    algorithm: str
+    features: list[str]
+    val_accuracy: float | None = None
+    test_accuracy: float | None = None
+    test_log_loss: float | None = None
+    created_at: datetime
+
+
+class ModelsResponse(BaseModel):
+    """Respuesta de GET /models: preentrenados + custom del usuario (si autenticado)."""
+
+    pretrained: list[ModelInfo]
+    custom: list[CustomModelRead] = []

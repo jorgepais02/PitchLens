@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 import pandas as pd
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session, SQLModel, select
 
 from src.db.database import engine
 from src.db.models import League, Match, MatchFeatures, Season, Team
@@ -30,7 +30,8 @@ _FEATURES = _ROOT / "data" / "processed" / "features" / "core_features.parquet"
 # Logger
 # ---------------------------------------------------------------------------
 
-logging.basicConfig(format="[SEED] %(levelname)s %(message)s", level=logging.INFO)
+# Logger de módulo — la configuración de handlers se hace solo en el bloque CLI
+# (__main__) para no reconfigurar el root logger al importar este módulo.
 log = logging.getLogger("seed")
 
 # ---------------------------------------------------------------------------
@@ -213,8 +214,8 @@ def seed_features(
     session: Session,
     df: pd.DataFrame,
     match_map: dict[str, int],
-) -> None:
-    """Inserta las 9.792 features de partido."""
+) -> int:
+    """Inserta las 9.792 features de partido y devuelve el número insertado."""
     features = []
     for _, row in df.iterrows():
         match_id = match_map.get(row["match_id"])
@@ -245,6 +246,7 @@ def seed_features(
         log.error("features: esperado=%d obtenido=%d", _EXPECTED_FEATURES, n)
         raise AssertionError(f"features: esperado={_EXPECTED_FEATURES} obtenido={n}")
     log.info("features: insertadas %d filas", n)
+    return n
 
 
 # ---------------------------------------------------------------------------
@@ -259,10 +261,6 @@ def run_seed(wipe: bool = False) -> None:
         wipe: Si True, elimina y recrea todas las tablas antes de insertar.
     """
     t_start = time.perf_counter()
-    log.info("cargando parquets...")
-    df_enriched = pd.read_parquet(_ENRICHED)
-    df_features = pd.read_parquet(_FEATURES)
-    log.info("enriched: %d filas | features: %d filas", len(df_enriched), len(df_features))
 
     if wipe:
         log.info("wipe: eliminando tablas existentes...")
@@ -272,6 +270,22 @@ def run_seed(wipe: bool = False) -> None:
     log.info("creando tablas si no existen...")
     SQLModel.metadata.create_all(engine)
 
+    # Idempotencia: sin --wipe, una re-ejecución sobre BD ya poblada no inserta nada
+    # (evita el IntegrityError del unique de leagues.code). Usa --wipe para recrear.
+    if not wipe:
+        with Session(engine) as session:
+            ya_poblada = session.exec(select(League)).first() is not None
+        if ya_poblada:
+            log.warning(
+                "BD ya poblada — no se inserta nada. Usa --wipe para recrear desde cero."
+            )
+            return
+
+    log.info("cargando parquets...")
+    df_enriched = pd.read_parquet(_ENRICHED)
+    df_features = pd.read_parquet(_FEATURES)
+    log.info("enriched: %d filas | features: %d filas", len(df_enriched), len(df_features))
+
     with Session(engine) as session:
         try:
             league_map = seed_ligas(session)
@@ -280,7 +294,7 @@ def run_seed(wipe: bool = False) -> None:
             match_map = seed_partidos(
                 session, df_enriched, league_map, season_map, team_map
             )
-            seed_features(session, df_features, match_map)
+            n_features = seed_features(session, df_features, match_map)
             session.commit()
 
         except Exception:
@@ -292,11 +306,11 @@ def run_seed(wipe: bool = False) -> None:
     log.info("done in %.1fs", elapsed)
     log.info(
         "summary: ligas=%d temporadas=%d equipos=%d partidos=%d features=%d",
-        _EXPECTED_LEAGUES,
-        _EXPECTED_SEASONS,
-        _EXPECTED_TEAMS,
-        _EXPECTED_MATCHES,
-        _EXPECTED_FEATURES,
+        len(league_map),
+        len(season_map),
+        len(team_map),
+        len(match_map),
+        n_features,
     )
 
 
@@ -306,6 +320,8 @@ def run_seed(wipe: bool = False) -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format="[SEED] %(levelname)s %(message)s", level=logging.INFO)
+
     parser = argparse.ArgumentParser(description="Seed de la base de datos.")
     parser.add_argument(
         "--wipe",

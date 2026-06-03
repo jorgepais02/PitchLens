@@ -8,7 +8,6 @@ Uso:
 import json
 import logging
 import time
-from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -20,59 +19,13 @@ from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+from src.ml._config import CV_Cs, DATA_PATH, MODELS_CONFIG, MODELS_DIR
+
+# Logger de módulo — la configuración de handlers se hace solo en el bloque CLI
+# (__main__) para no reconfigurar el root logger al importar desde la API.
 log = logging.getLogger("train")
-logging.basicConfig(level=logging.INFO, format="[TRAIN] %(levelname)s %(message)s")
-
-# ── Constantes ──────────────────────────────────────────────────────────────
-
-# Combinaciones óptimas por bloque encontradas con búsqueda forward (val log_loss).
-# Features seleccionadas con LR + regularización (LogisticRegressionCV).
-# La regularización maneja la colinealidad entre features del mismo bloque.
-# Cada bloque añade dimensiones conceptualmente distintas:
-#   baseline  — nivel histórico (ELO) + posición en tabla + H2H
-#   extended  — baseline + forma reciente (rolling 5 partidos)
-#   market    — extended sin ELO + cuota de cierre Pinnacle (el mercado codifica ELO y más)
-
-FEATURES_BASELINE: list[str] = [
-    "elo_diff_pre",
-    "points_diff_global",
-    "points_diff_venue",
-    "h2h_result_diff_last5",
-    "h2h_goal_diff_last5",
-]
-
-FEATURES_EXTENDED: list[str] = FEATURES_BASELINE + [
-    "goal_diff_last5_global",
-    "xg_diff_last5_global",
-    "goal_diff_last5_venue",
-    "xg_conceded_diff_last5_global",
-    "sot_diff_last5_global",
-    "rest_days_diff",
-]
-
-# Búsqueda exhaustiva LR (3.100 combinaciones, menor val log_loss, confirmado en test):
-# 5 features del bloque actual eliminadas por añadir ruido con regularización LR.
-FEATURES_MARKET: list[str] = [
-    "points_diff_global",
-    "goal_diff_last5_global",
-    "xg_diff_last5_global",
-    "xg_conceded_diff_last5_global",
-    "h2h_goal_diff_last5",
-    "prob_diff_market",
-]
-
-MODELS_CONFIG: dict[str, list[str]] = {
-    "baseline": FEATURES_BASELINE,
-    "extended": FEATURES_EXTENDED,
-    "market": FEATURES_MARKET,
-}
-
-# C candidatos para LR — rango amplio con resolución suficiente
-_CV_Cs = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
 
 TARGET = "FTR"
-DATA_PATH = Path("data/processed/features/core_features.parquet")
-MODELS_DIR = Path("models")
 
 # Params RF óptimos encontrados con búsqueda en val (RandomizedSearchCV,
 # TimeSeriesSplit n_splits=5, scoring=neg_log_loss, n_iter=40).
@@ -104,7 +57,7 @@ def _build_lr_pipeline() -> Pipeline:
     return Pipeline([
         ("scaler", StandardScaler()),
         ("lr", LogisticRegressionCV(
-            Cs=_CV_Cs,
+            Cs=CV_Cs,
             cv=TimeSeriesSplit(n_splits=5),
             scoring="neg_log_loss",
             max_iter=1000,
@@ -227,6 +180,8 @@ def train_models(algorithm: str = "lr") -> dict:
 
 if __name__ == "__main__":
     import argparse
+
+    logging.basicConfig(level=logging.INFO, format="[TRAIN] %(levelname)s %(message)s")
 
     parser = argparse.ArgumentParser(description="Entrenamiento de modelos preentrenados")
     parser.add_argument(

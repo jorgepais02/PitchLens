@@ -1,0 +1,10 @@
+# Dependencias de datos y ML — pipeline de features, entrenamiento y predicción.
+# Necesarias para `python -m src.ml.train_models`, `python -m src.db.etl` y los
+# endpoints /predict y /train de la API.
+
+scikit-learn==1.8.0
+joblib==1.5.3
+xgboost==3.2.0
+pandas==2.3.3
+numpy==2.4.2
+pyarrow==18.1.0

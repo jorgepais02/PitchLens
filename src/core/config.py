@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     ENV: str = "development"
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_HOURS: int = 24
+
+    MAX_CUSTOM_MODELS: int = 5
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
