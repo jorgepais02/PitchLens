@@ -24,7 +24,7 @@ def get_current_user(
 
     Devuelve el User de BD o lanza 401.
     """
-    from src.api.auth import decode_access_token
+    from src.api.security import decode_access_token
     from src.db.auth_models import User
 
     try:

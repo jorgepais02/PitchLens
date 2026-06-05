@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlmodel import select
 
-from src.api.auth import create_access_token, hash_password, verify_password
+from src.api.security import create_access_token, hash_password, verify_password
 from src.api.deps import SessionDep
 from src.db.auth_models import User
 

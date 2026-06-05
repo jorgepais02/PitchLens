@@ -26,6 +26,7 @@ from src.core.config import settings
 from src.db.auth_models import CustomModel
 from src.db.database import engine
 from src.features._constants import FEATURES
+from src.ml._config import CUSTOM_MODELS_DIR
 
 if TYPE_CHECKING:
     from src.db.auth_models import User
@@ -134,7 +135,7 @@ def _run_training_job(
 ) -> None:
     """Entrena, aplica el límite por usuario y persiste. Nunca lanza: registra el error."""
     _set_job(job_id, status="running")
-    artifact_path = f"models/custom/{user_id}_{uuid.uuid4().hex[:8]}.pkl"
+    artifact_path = str(CUSTOM_MODELS_DIR / f"{user_id}_{uuid.uuid4().hex[:8]}.pkl")
 
     try:
         from src.ml.custom_trainer import train_custom  # noqa: PLC0415

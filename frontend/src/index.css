@@ -1,0 +1,245 @@
+@import 'tailwindcss';
+
+/* Animaciones de entrada/salida para primitives Radix (popover, dialog, tooltip). */
+@import 'tw-animate-css';
+
+/* Fuentes self-hosted (variable) — sin <link> a Google. Geist = referencia Vercel/Linear. */
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Sistema de diseño — "terminal de analítica deportiva", dark-only.
+  Fuente de verdad: DESIGN_PROMPT.md §3 + PRODUCT.md. Cromo near-black neutro,
+  un único acento (indigo) y la semántica de resultado H/D/A SAGRADA
+  (emerald / amber / sky), idéntica en barras, badges, chips y charts.
+  El color porta significado, nunca decoración.
+*/
+:root {
+  --radius: 0.625rem;
+
+  /* Superficies y texto (neutros) */
+  --background: #0a0b0d;   /* fondo app */
+  --foreground: #e6e8ec;   /* texto primario */
+  --card: #121419;         /* cards, paneles */
+  --card-foreground: #e6e8ec;
+  --popover: #1a1d24;      /* popovers, dropdowns, inputs elevados */
+  --popover-foreground: #e6e8ec;
+
+  /* Acento primario (indigo) — acción, foco, links. Nunca significa "resultado". */
+  --primary: #6366f1;
+  --primary-foreground: #fbfbfe;
+
+  /* Superficies secundarias / hover */
+  --secondary: #1a1d24;
+  --secondary-foreground: #e6e8ec;
+  --muted: #15171c;
+  --muted-foreground: #9ba1ad;  /* texto secundario (AA sobre fondo) */
+  --accent: #1c2027;            /* superficie hover */
+  --accent-foreground: #e6e8ec;
+  --subtle: #5c6370;            /* metadatos tenues — solo texto grande/decorativo */
+
+  /* Error (rose) — distinto de H/D/A, no colisiona con la semántica de resultado */
+  --destructive: #f43f5e;
+  --destructive-foreground: #fff5f6;
+
+  /* Bordes finos de bajo contraste */
+  --border: #262a33;
+  --input: #2a2f3a;
+  --ring: #6366f1;
+
+  /* ── Semántica de resultado H/D/A (SAGRADA) ───────────────────────── */
+  --home: #10b981;             /* victoria local  — emerald */
+  --home-foreground: #04130d;  /* ink sobre relleno emerald */
+  --draw: #f59e0b;             /* empate          — amber   */
+  --draw-foreground: #160f02;  /* ink sobre relleno amber  */
+  --away: #38bdf8;             /* victoria visit. — sky     */
+  --away-foreground: #03171f;  /* ink sobre relleno sky    */
+
+  /* Charts (Recharts) — mismas tres más el acento */
+  --chart-home: var(--home);
+  --chart-draw: var(--draw);
+  --chart-away: var(--away);
+  --chart-accent: var(--primary);
+  --chart-grid: #20242d;
+}
+
+@theme inline {
+  /* Colores → utilidades bg-*/text-*/border-* */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-subtle: var(--subtle);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-home: var(--home);
+  --color-home-foreground: var(--home-foreground);
+  --color-draw: var(--draw);
+  --color-draw-foreground: var(--draw-foreground);
+  --color-away: var(--away);
+  --color-away-foreground: var(--away-foreground);
+
+  --color-chart-home: var(--chart-home);
+  --color-chart-draw: var(--chart-draw);
+  --color-chart-away: var(--chart-away);
+  --color-chart-accent: var(--chart-accent);
+  --color-chart-grid: var(--chart-grid);
+
+  /* Tipografía: Geist (UI/texto) + Geist Mono (toda cifra) */
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+
+  /* Radios concéntricos */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+
+  /* Easings (emil-design-eng) — las curvas nativas son flojas */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Animaciones de sistema */
+  --animate-shimmer: shimmer 1.5s linear infinite;
+  --animate-sweep: sweep 1.15s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+  --animate-bar-grow: bar-grow 0.6s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(420%);
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv01', 'ss01';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Foco visible y consistente (Radix lo respeta; no anular) */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-primary) 32%, transparent);
+    color: var(--color-foreground);
+  }
+
+  /* Scrollbar discreto, coherente con el cromo */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: #313742;
+  }
+
+  /* Las cifras (Geist Mono) siempre tabulares, alineadas como hoja de cálculo */
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum', 'cv01';
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  /* Textura tenue de "terminal" — solo para superficies fijas (hero/matchup). */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--color-border) 55%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--color-border) 55%, transparent) 1px, transparent 1px);
+    background-size: 44px 44px;
+    background-position: center;
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
+    mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  }
+
+  /* Relleno tenue por outcome (tracks de barras, fondos de chips soft) */
+  .fill-home {
+    background-color: color-mix(in oklab, var(--color-home) 14%, transparent);
+  }
+  .fill-draw {
+    background-color: color-mix(in oklab, var(--color-draw) 14%, transparent);
+  }
+  .fill-away {
+    background-color: color-mix(in oklab, var(--color-away) 14%, transparent);
+  }
+}
+
+/* Movimiento contenido: respetar prefers-reduced-motion en TODA la app */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

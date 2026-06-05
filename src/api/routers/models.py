@@ -75,7 +75,7 @@ def get_models(
 
     custom: list[CustomModelRead] = []
     if credentials is not None:
-        from src.api.auth import decode_access_token
+        from src.api.security import decode_access_token
         from src.db.auth_models import CustomModel
         from jose import JWTError
 
