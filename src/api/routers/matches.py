@@ -1,12 +1,12 @@
-"""Router de partidos — GET /matches, GET /matches/{slug}."""
+"""Router de partidos — GET /matches, GET /matches/{slug}, GET /matches/h2h."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy.orm import selectinload
-from sqlmodel import or_, select
+from sqlmodel import and_, or_, select
 
 from src.api.deps import PaginationDep, SessionDep
-from src.api.schemas import MatchDetailRead, MatchListRead
-from src.db.models import League, Match, Season
+from src.api.schemas import H2HMatchRead, MatchDetailRead, MatchListRead
+from src.db.models import League, Match, Season, Team
 
 router = APIRouter(prefix="/matches", tags=["matches"])
 
@@ -55,6 +55,53 @@ def get_matches(
 
     query = query.order_by(Match.date.desc()).offset(pagination.offset).limit(pagination.limit)
     return list(session.exec(query).all())
+
+
+@router.get("/h2h", response_model=list[H2HMatchRead])
+def get_h2h(
+    home_team_id: int,
+    away_team_id: int,
+    session: SessionDep,
+    limit: int = Query(default=10, le=50),
+) -> list[H2HMatchRead]:
+    """Devuelve los últimos enfrentamientos directos entre dos equipos, orden descendente."""
+    if home_team_id == away_team_id:
+        raise HTTPException(status_code=422, detail="Los equipos deben ser distintos")
+
+    matches = list(session.exec(
+        select(Match)
+        .where(
+            or_(
+                and_(Match.home_team_id == home_team_id, Match.away_team_id == away_team_id),
+                and_(Match.home_team_id == away_team_id, Match.away_team_id == home_team_id),
+            )
+        )
+        .order_by(Match.date.desc())
+        .limit(limit)
+    ).all())
+
+    if not matches:
+        return []
+
+    all_team_ids = {home_team_id, away_team_id}
+    teams_map: dict[int, str] = {
+        t.id: t.display_name or t.name
+        for t in session.exec(select(Team).where(Team.id.in_(list(all_team_ids)))).all()
+    }
+
+    return [
+        H2HMatchRead(
+            date=m.date,
+            home_team_id=m.home_team_id,
+            away_team_id=m.away_team_id,
+            home_team_name=teams_map[m.home_team_id],
+            away_team_name=teams_map[m.away_team_id],
+            fthg=m.fthg,
+            ftag=m.ftag,
+            ftr=m.ftr,
+        )
+        for m in matches
+    ]
 
 
 @router.get("/{slug}", response_model=MatchDetailRead)

@@ -47,6 +47,8 @@ class Team(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=80, index=True)
     league_id: int = Field(foreign_key="leagues.id", index=True)
+    crest_url: Optional[str] = Field(default=None, max_length=200)
+    display_name: Optional[str] = Field(default=None, max_length=120)
 
     league: Optional[League] = Relationship(back_populates="teams")
     home_matches: list["Match"] = Relationship(

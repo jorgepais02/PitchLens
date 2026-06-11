@@ -2,7 +2,13 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+_LEAGUE_DISPLAY: dict[str, str] = {
+    "premier":    "Premier League",
+    "laliga":     "La Liga",
+    "bundesliga": "Bundesliga",
+}
 
 
 class LeagueRead(BaseModel):
@@ -13,6 +19,13 @@ class LeagueRead(BaseModel):
     id: int
     code: str
     name: str
+    display_name: str | None = None
+
+    @model_validator(mode="after")
+    def _set_display_name(self) -> "LeagueRead":
+        if self.display_name is None:
+            self.display_name = _LEAGUE_DISPLAY.get(self.code, self.name)
+        return self
 
 
 class SeasonRead(BaseModel):
@@ -34,6 +47,8 @@ class TeamRead(BaseModel):
     id: int
     name: str
     league_id: int
+    crest_url: str | None = None
+    display_name: str | None = None
 
 
 class TeamDetailRead(BaseModel):
@@ -44,6 +59,8 @@ class TeamDetailRead(BaseModel):
     id: int
     name: str
     league: LeagueRead
+    crest_url: str | None = None
+    display_name: str | None = None
 
 
 class MatchFeaturesRead(BaseModel):
@@ -139,10 +156,25 @@ class MatchBriefRead(BaseModel):
     slug: str
     date: datetime
     opponent_id: int
+    opponent_name: str
+    opponent_crest_url: str | None
     venue: str
     goals_for: int
     goals_against: int
     result: str
+
+
+class H2HMatchRead(BaseModel):
+    """Un enfrentamiento directo entre dos equipos."""
+
+    date: datetime
+    home_team_id: int
+    away_team_id: int
+    home_team_name: str
+    away_team_name: str
+    fthg: int
+    ftag: int
+    ftr: str  # H/D/A relativo al local de ese partido concreto
 
 
 class PredictResponse(BaseModel):
@@ -153,7 +185,9 @@ class PredictResponse(BaseModel):
     prob_a: float
     feature_importance: list[dict]
     feature_values: dict[str, float]
+    feature_values_split: dict[str, dict[str, float]] | None = None
     cold_start_warning: bool
+    h2h_cold_start: bool = False
 
 
 class ModelInfo(BaseModel):

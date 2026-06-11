@@ -50,11 +50,13 @@ def _match_brief(match: Match, team_id: int) -> MatchBriefRead:
     if is_home:
         gf, ga = match.fthg, match.ftag
         opponent_id = match.away_team_id
+        opponent = match.away_team
         venue = "home"
         result = "W" if match.ftr == "H" else ("L" if match.ftr == "A" else "D")
     else:
         gf, ga = match.ftag, match.fthg
         opponent_id = match.home_team_id
+        opponent = match.home_team
         venue = "away"
         result = "W" if match.ftr == "A" else ("L" if match.ftr == "H" else "D")
 
@@ -62,6 +64,8 @@ def _match_brief(match: Match, team_id: int) -> MatchBriefRead:
         slug=match.slug,
         date=match.date,
         opponent_id=opponent_id,
+        opponent_name=opponent.display_name or opponent.name if opponent else str(opponent_id),
+        opponent_crest_url=opponent.crest_url if opponent else None,
         venue=venue,
         goals_for=gf,
         goals_against=ga,
@@ -87,7 +91,11 @@ def get_team_stats(
     query = (
         select(Match)
         .where(or_(Match.home_team_id == team_id, Match.away_team_id == team_id))
-        .options(selectinload(Match.features))
+        .options(
+            selectinload(Match.features),
+            selectinload(Match.home_team),
+            selectinload(Match.away_team),
+        )
     )
 
     if season is not None:

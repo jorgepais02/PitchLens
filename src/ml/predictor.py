@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
-from src.ml._config import MODELS_CONFIG, MODELS_DIR
+from src.ml._config import CONTRIBUTION_GROUPS, MODELS_CONFIG, MODELS_DIR
 
 ModelName = Literal["baseline", "extended", "market"]
 
@@ -113,6 +113,101 @@ def compute_feature_importance(pipeline: Pipeline, features: list[str]) -> list[
         key=lambda d: d["importance"],
         reverse=True,
     )
+
+
+def _shap_contributions(
+    pipeline: Pipeline,
+    X: "pd.DataFrame",
+    classes: list[str],
+) -> "np.ndarray":
+    """SHAP values promediados sobre los folds de CalibratedClassifierCV.
+
+    Devuelve array de shape (n_features, n_classes) con los SHAP values
+    para la muestra X (una sola fila).
+    """
+    import shap  # import lazy — solo en predicciones con modelos árbol
+
+    ccv = pipeline.named_steps["clf"]
+    n_classes = len(classes)
+    shap_sum = np.zeros((X.shape[1], n_classes))
+
+    for cal_clf in ccv.calibrated_classifiers_:
+        explainer = shap.TreeExplainer(cal_clf.estimator)
+        sv = explainer.shap_values(X)
+        # sv puede ser lista (una array por clase) o array 3D (n_samples, n_feat, n_classes)
+        if isinstance(sv, list):
+            # orden de clases del estimador base — puede diferir del pipeline
+            est_classes = list(cal_clf.estimator.classes_) if hasattr(cal_clf.estimator, "classes_") else classes
+            for cls_local_idx, cls in enumerate(est_classes):
+                if cls in classes:
+                    cls_global_idx = classes.index(cls)
+                    shap_sum[:, cls_global_idx] += sv[cls_local_idx][0]
+        else:
+            shap_sum += sv[0]  # shape (n_feat, n_classes)
+
+    return shap_sum / len(ccv.calibrated_classifiers_)
+
+
+def compute_local_contributions(
+    pipeline: Pipeline,
+    features: dict[str, float],
+    model_features: list[str],
+    groups: dict[str, list[str]] | None = None,
+) -> dict[str, dict[str, float]] | None:
+    """Contribuciones locales por grupo (exactas para LR y modelos árbol).
+
+    LR: coef_ * x_scaled — analítico, sin aproximación.
+    DT/RF/XGBoost: SHAP TreeExplainer promediado sobre folds de CalibratedClassifierCV.
+
+    El grupo 'market' se omite si prob_diff_market == 0.0 (sin cuotas reales).
+    Features internas (points_diff_*, rest_days_diff) no se mapean a ningún grupo.
+
+    Args:
+        pipeline: Pipeline sklearn entrenado.
+        features: Diccionario completo {nombre_feature: valor} del partido.
+        model_features: Features usadas por este modelo, en orden de columnas.
+        groups: Agrupación {nombre_grupo: [features]}. Por defecto CONTRIBUTION_GROUPS.
+
+    Returns:
+        {grupo: {'H': float, 'D': float, 'A': float}} o None si no aplica.
+    """
+    if groups is None:
+        groups = CONTRIBUTION_GROUPS
+
+    X = pd.DataFrame([features])[model_features]
+
+    if "lr" in pipeline.named_steps:
+        lr = pipeline.named_steps["lr"]
+        classes: list[str] = list(lr.classes_)
+        X_scaled = pipeline[:-1].transform(X)
+        coef = lr.coef_  # shape (n_classes, n_features)
+        # contrib[feat_idx, cls_idx] = coef[cls_idx, feat_idx] * x_scaled[feat_idx]
+        contrib_matrix = (coef * X_scaled).T  # shape (n_features, n_classes)
+    elif "clf" in pipeline.named_steps:
+        classes = list(pipeline.named_steps["clf"].classes_)
+        contrib_matrix = _shap_contributions(pipeline, X, classes)
+    else:
+        return None
+
+    result: dict[str, dict[str, float]] = {}
+    for group_name, group_feats in groups.items():
+        if group_name == "market" and features.get("prob_diff_market", 0.0) == 0.0:
+            continue
+
+        active = [f for f in group_feats if f in model_features]
+        if not active:
+            continue
+
+        group_contrib = np.zeros(len(classes))
+        for feat in active:
+            idx = model_features.index(feat)
+            group_contrib += contrib_matrix[idx]
+
+        result[group_name] = {
+            classes[i]: round(float(group_contrib[i]), 4) for i in range(len(classes))
+        }
+
+    return result or None
 
 
 def feature_importance(model_name: ModelName) -> list[dict]:

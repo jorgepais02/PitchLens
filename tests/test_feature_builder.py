@@ -92,7 +92,7 @@ def test_sin_cold_start_devuelve_12_features_finitas(session: Session) -> None:
     import math
 
     _seed(session, n_matches=7)
-    features, cold_start = compute_prediction_features(session, _TEAM_A, _TEAM_B)
+    features, cold_start, _h2h, _split = compute_prediction_features(session, _TEAM_A, _TEAM_B)
 
     assert cold_start is False
     assert set(features) == set(FEATURES)
@@ -102,14 +102,14 @@ def test_sin_cold_start_devuelve_12_features_finitas(session: Session) -> None:
 def test_cold_start_true_con_historial_insuficiente(session: Session) -> None:
     """Con menos de WINDOW partidos por equipo, cold_start=True."""
     _seed(session, n_matches=WINDOW - 2)
-    _, cold_start = compute_prediction_features(session, _TEAM_A, _TEAM_B)
+    _, cold_start, *_ = compute_prediction_features(session, _TEAM_A, _TEAM_B)
     assert cold_start is True
 
 
 def test_rest_days_diff_se_imputa_a_cero(session: Session) -> None:
     """rest_days_diff siempre 0 en partido hipotético (descanso no comparable)."""
     _seed(session, n_matches=7)
-    features, _ = compute_prediction_features(session, _TEAM_A, _TEAM_B)
+    features, *_ = compute_prediction_features(session, _TEAM_A, _TEAM_B)
     assert features["rest_days_diff"] == 0.0
 
 
@@ -117,12 +117,10 @@ def test_prob_diff_market_refleja_las_cuotas(session: Session) -> None:
     """Las cuotas del partido virtual se propagan a prob_diff_market (passthrough)."""
     _seed(session, n_matches=7)
 
-    # Local muy favorito → prob_diff_market positivo
-    fav_local, _ = compute_prediction_features(
+    fav_local, *_ = compute_prediction_features(
         session, _TEAM_A, _TEAM_B, psch=1.2, pscd=6.0, psca=9.0
     )
-    # Visitante muy favorito → prob_diff_market negativo
-    fav_visit, _ = compute_prediction_features(
+    fav_visit, *_ = compute_prediction_features(
         session, _TEAM_A, _TEAM_B, psch=9.0, pscd=6.0, psca=1.2
     )
 
@@ -165,7 +163,7 @@ def test_features_cacheadas_iguales_a_build_features_completo(session: Session) 
     psch, pscd, psca = 1.6, 3.8, 5.5
 
     # Ruta optimizada
-    optim, _ = compute_prediction_features(session, _TEAM_A, _TEAM_B, psch=psch, pscd=pscd, psca=psca)
+    optim, *_ = compute_prediction_features(session, _TEAM_A, _TEAM_B, psch=psch, pscd=pscd, psca=psca)
 
     # Referencia: build_features sobre la misma fila virtual con cuotas reales
     history = _get_league_history(session, 1)

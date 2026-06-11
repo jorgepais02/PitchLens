@@ -343,7 +343,7 @@ def test_predict_custom_artefacto_borrado_devuelve_503(
     # Aislamos el branch del artefacto: la construcción de features se simula
     monkeypatch.setattr(
         "src.api.routers.predict.compute_prediction_features",
-        lambda **kwargs: ({"elo_diff_pre": 0.0}, False),
+        lambda **kwargs: ({"elo_diff_pre": 0.0}, False, False, {}),
     )
 
     r = client_with_teams.post(

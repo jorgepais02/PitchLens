@@ -46,3 +46,14 @@ MODELS_CONFIG: dict[str, list[str]] = {
     "extended": FEATURES_EXTENDED,
     "market": FEATURES_MARKET,
 }
+
+# Agrupación de features en factores futbolísticos para la UI.
+# Las features internas (points_diff_*, rest_days_diff) no se mapean a ningún grupo.
+# El grupo "market" se omite cuando prob_diff_market == 0.0 (sin cuotas reales).
+CONTRIBUTION_GROUPS: dict[str, list[str]] = {
+    "elo":      ["elo_diff_pre"],
+    "form":     ["goal_diff_last5_global", "goal_diff_last5_venue", "sot_diff_last5_global"],
+    "xg_trend": ["xg_diff_last5_global", "xg_conceded_diff_last5_global"],
+    "h2h":      ["h2h_goal_diff_last5", "h2h_result_diff_last5"],
+    "market":   ["prob_diff_market"],
+}

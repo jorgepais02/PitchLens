@@ -154,49 +154,252 @@ def compute_prediction_features(
     psch: float | None = None,
     pscd: float | None = None,
     psca: float | None = None,
-) -> tuple[dict[str, float], bool]:
+) -> tuple[dict[str, float], bool, bool, dict[str, dict[str, float]]]:
     """Calcula las 12 features para un partido hipotético futuro.
 
-    Devuelve (feature_dict, cold_start_warning).
+    Devuelve (feature_dict, cold_start_warning, h2h_cold_start, split_values).
     cold_start_warning=True si alguno de los equipos tiene < WINDOW partidos en la BD.
-
-    Args:
-        session: Sesión de BD activa.
-        home_team_id: ID del equipo local.
-        away_team_id: ID del equipo visitante.
-        psch/pscd/psca: Cuotas Pinnacle de cierre (requeridas para modelo market).
-
-    Returns:
-        Tupla (features: dict nombre→valor, cold_start: bool).
+    h2h_cold_start=True si el par tiene < H2H_WINDOW enfrentamientos directos.
+    split_values: {feature: {"home": val, "away": val}} para visualización butterfly.
     """
     home_team = session.get(Team, home_team_id)
     away_team = session.get(Team, away_team_id)
     if home_team is None or away_team is None:
         raise ValueError("Equipo no encontrado")
 
-    # prob_diff_market depende solo de las cuotas del partido virtual: se aplica al
-    # final sobre las features deterministas (cacheadas por enfrentamiento).
     market = _market_value(psch, pscd, psca)
 
     cache_key = (home_team_id, away_team_id)
     with _CACHE_LOCK:
         cached = _FEATURE_CACHE.get(cache_key)
     if cached is not None:
-        feature_dict, cold_start = cached
+        feature_dict, cold_start, h2h_cold_start = cached
         result = dict(feature_dict)
         result["prob_diff_market"] = market
-        return result, cold_start
+        # Reconstruir split con las cuotas actuales (prob_diff_market depende de ellas)
+        history = _get_league_history(session, home_team.league_id)
+        df_hist = history.df_hist
+        virtual_row = pd.DataFrame([{
+            "match_id": _VIRTUAL_ID, "Date": __import__("datetime").datetime.utcnow(),
+            "HomeTeam": home_team.name, "AwayTeam": away_team.name,
+            "Season": history.latest_season_label, "League": _LEAGUE_PLACEHOLDER,
+            "FTR": "H", "FTHG": 0, "FTAG": 0, "HST": 0, "AST": 0,
+            "home_xg": 0.0, "away_xg": 0.0, "PSCH": 3.0, "PSCD": 3.0, "PSCA": 3.0,
+        }])
+        df_full = pd.concat([df_hist, virtual_row], ignore_index=True)
+        df_full["Date"] = pd.to_datetime(df_full["Date"])
+        split = _compute_split_values(df_full, home_team.name, away_team.name, psch, pscd, psca)
+        return result, cold_start, h2h_cold_start, split
 
-    feature_dict, cold_start = _build_deterministic_features(
+    feature_dict, cold_start, h2h_cold_start, df_full = _build_deterministic_features(
         session, home_team.league_id, home_team.name, away_team.name
     )
 
     with _CACHE_LOCK:
-        _FEATURE_CACHE[cache_key] = (feature_dict, cold_start)
+        _FEATURE_CACHE[cache_key] = (feature_dict, cold_start, h2h_cold_start)
 
     result = dict(feature_dict)
     result["prob_diff_market"] = market
-    return result, cold_start
+    split = _compute_split_values(df_full, home_team.name, away_team.name, psch, pscd, psca)
+    return result, cold_start, h2h_cold_start, split
+
+
+def _compute_split_values(
+    df_full: pd.DataFrame,
+    home_name: str,
+    away_name: str,
+    psch: float | None,
+    pscd: float | None,
+    psca: float | None,
+) -> dict[str, dict[str, float]]:
+    """Valores individuales (home, away) por feature para visualización butterfly.
+
+    Devuelve {feature: {"home": val, "away": val}}.
+    """
+    from src.features._team_view import _build_team_view  # noqa: PLC0415
+    from src.features._constants import ELO_K, ELO_BASE, WINDOW, H2H_WINDOW  # noqa: PLC0415
+
+    split: dict[str, dict[str, float]] = {}
+    df = df_full.sort_values("Date").reset_index(drop=True)
+    tv = _build_team_view(df)
+
+    # ─── ELO individual ──────────────────────────────────────────────────
+    elo: dict[str, float] = {}
+    for row in df.itertuples():
+        h_name, a_name = row.HomeTeam, row.AwayTeam
+        elo_h = elo.get(h_name, ELO_BASE)
+        elo_a = elo.get(a_name, ELO_BASE)
+        if row.match_id == _VIRTUAL_ID:
+            split["elo_diff_pre"] = {"home": round(elo_h, 1), "away": round(elo_a, 1)}
+            break
+        s_h = 1.0 if row.FTR == "H" else (0.5 if row.FTR == "D" else 0.0)
+        e_h = 1.0 / (1.0 + 10.0 ** ((elo_a - elo_h) / 400.0))
+        delta = ELO_K * (s_h - e_h)
+        elo[h_name] = elo_h + delta
+        elo[a_name] = elo_a - delta
+
+    # ─── Rolling form (global) ────────────────────────────────────────────
+    tv2 = tv.copy()
+    tv2["gd"]      = tv2["gf"] - tv2["gc"]
+    tv2["xgd"]     = tv2["xgf"] - tv2["xgc"]
+    tv2["sot_net"] = tv2["sot"] - tv2["soc"]
+
+    grp = tv2.groupby("team")
+    for col in ["gd", "xgd", "xgc", "xgf", "sot_net", "gf", "gc"]:
+        tv2[f"{col}_roll"] = grp[col].transform(
+            lambda s: s.shift(1).rolling(WINDOW, min_periods=1).mean()
+        )
+    for col in ["gf", "gc"]:
+        tv2[f"{col}_sum"] = grp[col].transform(
+            lambda s: s.shift(1).rolling(WINDOW, min_periods=1).sum()
+        )
+
+    h_row = tv2[(tv2["match_id"] == _VIRTUAL_ID) & (tv2["team"] == home_name)]
+    a_row = tv2[(tv2["match_id"] == _VIRTUAL_ID) & (tv2["team"] == away_name)]
+    if not h_row.empty and not a_row.empty:
+        h, a = h_row.iloc[0], a_row.iloc[0]
+        split["goal_diff_last5_global"]          = {"home": round(float(h["gd_roll"]),      3), "away": round(float(a["gd_roll"]),      3)}
+        split["xg_diff_last5_global"]            = {"home": round(float(h["xgd_roll"]),     3), "away": round(float(a["xgd_roll"]),     3)}
+        split["xg_conceded_diff_last5_global"]   = {"home": round(float(h["xgc_roll"]),     3), "away": round(float(a["xgc_roll"]),     3)}
+        split["sot_diff_last5_global"]           = {"home": round(float(h["sot_net_roll"]), 3), "away": round(float(a["sot_net_roll"]), 3)}
+        split["goals_scored_last5"]              = {"home": round(float(h["gf_sum"]),       1), "away": round(float(a["gf_sum"]),       1)}
+        split["goals_conceded_last5"]            = {"home": round(float(h["gc_sum"]),       1), "away": round(float(a["gc_sum"]),       1)}
+        split["xg_scored_last5"]                 = {"home": round(float(h["xgf_roll"]),     2), "away": round(float(a["xgf_roll"]),     2)}
+        split["xg_conceded_last5"]               = {"home": round(float(h["xgc_roll"]),     2), "away": round(float(a["xgc_roll"]),     2)}
+
+    # ─── Puntos acumulados en la temporada actual ─────────────────────────
+    virtual_season = df.loc[df["match_id"] == _VIRTUAL_ID, "Season"]
+    if not virtual_season.empty:
+        season_label = virtual_season.iloc[0]
+        season_df = df[(df["Season"] == season_label) & (df["match_id"] != _VIRTUAL_ID)]
+
+        def _pts(team: str) -> float:
+            tm = season_df[(season_df["HomeTeam"] == team) | (season_df["AwayTeam"] == team)]
+            pts = 0.0
+            for _, m in tm.iterrows():
+                is_h = m["HomeTeam"] == team
+                ftr  = m["FTR"]
+                if (is_h and ftr == "H") or (not is_h and ftr == "A"):
+                    pts += 3.0
+                elif ftr == "D":
+                    pts += 1.0
+            return pts
+
+        split["points_diff_global"] = {"home": _pts(home_name), "away": _pts(away_name)}
+
+    # ─── Cuotas Pinnacle → probabilidades implícitas ──────────────────────
+    _psch = psch if psch is not None else 3.0
+    _pscd = pscd if pscd is not None else 3.0
+    _psca = psca if psca is not None else 3.0
+    p_h_r, p_d_r, p_a_r = 1.0 / _psch, 1.0 / _pscd, 1.0 / _psca
+    ov = p_h_r + p_d_r + p_a_r
+    split["prob_diff_market"] = {
+        "home": round(p_h_r / ov, 4),
+        "away": round(p_a_r / ov, 4),
+    }
+
+    # ─── H2H ─────────────────────────────────────────────────────────────
+    h2h = df[
+        (
+            ((df["HomeTeam"] == home_name) & (df["AwayTeam"] == away_name)) |
+            ((df["HomeTeam"] == away_name) & (df["AwayTeam"] == home_name))
+        ) & (df["match_id"] != _VIRTUAL_ID)
+    ].sort_values("Date").tail(H2H_WINDOW)
+
+    if not h2h.empty:
+        home_wins = away_wins = 0
+        home_gd_sum = 0.0
+        home_goals = away_goals = 0.0
+        for _, m in h2h.iterrows():
+            is_h = m["HomeTeam"] == home_name
+            ftr  = m["FTR"]
+            gd   = float(m["FTHG"] - m["FTAG"]) if is_h else float(m["FTAG"] - m["FTHG"])
+            home_gd_sum += gd
+            # goles anotados por cada equipo (perspectiva independiente)
+            if is_h:
+                home_goals += float(m["FTHG"])
+                away_goals += float(m["FTAG"])
+            else:
+                home_goals += float(m["FTAG"])
+                away_goals += float(m["FTHG"])
+            if (is_h and ftr == "H") or (not is_h and ftr == "A"):
+                home_wins += 1
+            elif (is_h and ftr == "A") or (not is_h and ftr == "H"):
+                away_wins += 1
+        n = len(h2h)
+        split["h2h_result_diff_last5"] = {
+            "home": round(home_wins / n, 3),
+            "away": round(away_wins / n, 3),
+        }
+        split["h2h_goal_diff_last5"] = {
+            "home": round(home_goals / n, 3),
+            "away": round(away_goals / n, 3),
+        }
+        split["h2h_goals_scored_last5"]   = {"home": round(home_goals), "away": round(away_goals)}
+        split["h2h_goals_conceded_last5"] = {"home": round(away_goals), "away": round(home_goals)}
+    else:
+        split["h2h_result_diff_last5"]    = {"home": 0.0, "away": 0.0}
+        split["h2h_goal_diff_last5"]      = {"home": 0.0, "away": 0.0}
+        split["h2h_goals_scored_last5"]   = {"home": 0.0, "away": 0.0}
+        split["h2h_goals_conceded_last5"] = {"home": 0.0, "away": 0.0}
+
+    return split
+
+
+def _build_cold_start_features(df_full: pd.DataFrame) -> dict[str, float]:
+    """Fallback para cold start: reconstruye el pipeline sin dropna e imputa NaN a 0.
+
+    build_features elimina el partido virtual cuando algún equipo tiene < WINDOW
+    partidos (NaN en features rolling). Esta función recupera elo_diff_pre, points
+    y H2H — que son siempre computables — e imputa las features rolling a 0.
+    """
+    # Import lazy igual que _build_deterministic_features
+    from src.features._constants import (  # noqa: PLC0415
+        ELO_BASE, ELO_K, FEATURES, FEATURES_H2H, FEATURES_ROLLING, H2H_WINDOW, WINDOW,
+    )
+    from src.features._team_view import _build_team_view  # noqa: PLC0415
+    from src.features.elo import compute_elo  # noqa: PLC0415
+    from src.features.form import compute_global_rolling, compute_venue_rolling  # noqa: PLC0415
+    from src.features.h2h import compute_h2h_rolling  # noqa: PLC0415
+    from src.features.market import compute_market_feature  # noqa: PLC0415
+    from src.features.table import compute_rest_days, compute_table_features  # noqa: PLC0415
+
+    df = df_full.sort_values("Date").reset_index(drop=True)
+    tv = _build_team_view(df)
+
+    df_elo_cs    = compute_elo(df, ELO_K, ELO_BASE)
+    df_global_cs = compute_global_rolling(df, WINDOW, _tv=tv)
+    df_venue_cs  = compute_venue_rolling(df, WINDOW, _tv=tv)
+    df_table_cs  = compute_table_features(df, _tv=tv)
+    df_rest_cs   = compute_rest_days(df, _tv=tv)
+    df_market_cs = compute_market_feature(df)
+    df_h2h_cs    = compute_h2h_rolling(df, H2H_WINDOW)
+
+    df_base_cs = df[["match_id", "League", "Season", "Date", "HomeTeam", "AwayTeam", "FTR"]].set_index("match_id")
+    df_raw_cs = (
+        df_base_cs
+        .join(df_elo_cs[["elo_diff_pre"]])
+        .join(df_table_cs[["points_diff_global", "points_diff_venue"]])
+        .join(df_global_cs[["goal_diff_last5_global", "xg_diff_last5_global",
+                             "xg_conceded_diff_last5_global", "sot_diff_last5_global"]])
+        .join(df_venue_cs[["goal_diff_last5_venue"]])
+        .join(df_rest_cs[["rest_days_diff"]])
+        .join(df_market_cs[["prob_diff_market"]])
+        .join(df_h2h_cs[FEATURES_H2H])
+    )
+    df_raw_cs[FEATURES_H2H]     = df_raw_cs[FEATURES_H2H].fillna(0.0)
+    df_raw_cs[FEATURES_ROLLING] = df_raw_cs[FEATURES_ROLLING].fillna(0.0)
+    df_raw_cs = df_raw_cs.reset_index()
+
+    virtual_cs = df_raw_cs[df_raw_cs["match_id"] == _VIRTUAL_ID]
+    if virtual_cs.empty:
+        from src.features._constants import FEATURES as _FEATURES  # noqa: PLC0415
+        return {f: 0.0 for f in _FEATURES}
+
+    row_cs = virtual_cs.iloc[0]
+    result = {f: float(row_cs[f]) for f in FEATURES if f in row_cs.index}
+    result["rest_days_diff"] = 0.0
+    return result
 
 
 def _build_deterministic_features(
@@ -204,23 +407,28 @@ def _build_deterministic_features(
     league_id: int,
     home_name: str,
     away_name: str,
-) -> tuple[dict[str, float], bool]:
+) -> tuple[dict[str, float], bool, bool, "pd.DataFrame"]:
     """Construye las 12 features con cuotas neutras (prob_diff_market se aplica aparte).
 
-    Ejecuta el pipeline `build_features` completo sobre el frame histórico cacheado
-    más una fila virtual, garantizando consistencia exacta con las features de
-    entrenamiento. Devuelve (feature_dict, cold_start).
+    Devuelve (feature_dict, cold_start, h2h_cold_start, df_full) donde df_full
+    es el historial + fila virtual, necesario para _compute_split_values.
     """
     history = _get_league_history(session, league_id)
     df_hist = history.df_hist
 
-    # Cold start: algún equipo con < WINDOW partidos en BD
+    # Cold start individual: algún equipo con < WINDOW partidos en BD
     if df_hist.empty:
-        home_count = away_count = 0
+        home_count = away_count = h2h_count = 0
     else:
         home_count = ((df_hist["HomeTeam"] == home_name) | (df_hist["AwayTeam"] == home_name)).sum()
         away_count = ((df_hist["HomeTeam"] == away_name) | (df_hist["AwayTeam"] == away_name)).sum()
-    cold_start = bool(home_count < WINDOW or away_count < WINDOW)
+        h2h_count  = (
+            ((df_hist["HomeTeam"] == home_name) & (df_hist["AwayTeam"] == away_name)) |
+            ((df_hist["HomeTeam"] == away_name) & (df_hist["AwayTeam"] == home_name))
+        ).sum()
+    cold_start     = bool(home_count < WINDOW or away_count < WINDOW)
+    from src.features._constants import H2H_WINDOW  # noqa: PLC0415
+    h2h_cold_start = bool(h2h_count < H2H_WINDOW)
 
     # Partido virtual: resultado y stats dummy — no se usan en sus propias features
     # gracias al shift(1) de todos los bloques vectorizados. Cuotas neutras (3.0):
@@ -262,15 +470,14 @@ def _build_deterministic_features(
     # build_features hace reset_index() al final — match_id es columna, no índice
     virtual_row_features = df_features[df_features["match_id"] == _VIRTUAL_ID]
     if virtual_row_features.empty:
-        return {f: 0.0 for f in FEATURES}, True
+        # build_features eliminó el partido virtual por NaN en FEATURES_ROLLING (cold start).
+        # Reconstruimos sin dropna para conservar elo_diff_pre, points y H2H;
+        # las features rolling se imputan a 0 (sin historial = rendimiento neutro).
+        feature_dict = _build_cold_start_features(df_full)
+        return feature_dict, True, h2h_cold_start, df_full
 
     row = virtual_row_features.iloc[0]
     feature_dict = {f: float(row[f]) for f in FEATURES if f in row.index}
-
-    # rest_days_diff mide días desde el último partido de la temporada. Para un partido
-    # hipotético con fecha actual (~2 años después del último dato), ambos equipos
-    # acumulan ~730 días de "descanso" y la diferencia es ruido puro. Se imputa a 0:
-    # sin ventaja de descanso para ninguno de los equipos.
     feature_dict["rest_days_diff"] = 0.0
 
-    return feature_dict, cold_start
+    return feature_dict, cold_start, h2h_cold_start, df_full

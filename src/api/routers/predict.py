@@ -24,6 +24,7 @@ log = logging.getLogger("api.predict")
 router = APIRouter(tags=["predict"])
 
 
+
 def _resolve_features(
     session: SessionDep,
     home_team_id: int,
@@ -33,7 +34,7 @@ def _resolve_features(
     psch: float | None,
     pscd: float | None,
     psca: float | None,
-) -> tuple[dict[str, float], bool]:
+) -> tuple[dict[str, float], bool, bool, dict[str, dict[str, float]]]:
     """Valida equipos/liga/cuotas y construye las features del partido hipotético.
 
     Compartido por /predict y /predict/custom. Lanza HTTPException con el código
@@ -62,7 +63,7 @@ def _resolve_features(
         )
 
     try:
-        return compute_prediction_features(
+        features, cold_start, h2h_cold_start, split = compute_prediction_features(
             session=session,
             home_team_id=home_team_id,
             away_team_id=away_team_id,
@@ -70,6 +71,7 @@ def _resolve_features(
             pscd=pscd,
             psca=psca,
         )
+        return features, cold_start, h2h_cold_start, split
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except Exception:
@@ -102,7 +104,7 @@ def post_predict(body: PredictRequest, session: SessionDep) -> PredictResponse:
     obligatorias para 'market' (422 si faltan) e ignoradas para baseline/extended.
     """
     requires_market = body.model == "market"
-    features, cold_start = _resolve_features(
+    features, cold_start, h2h_cold_start, split = _resolve_features(
         session,
         body.home_team_id,
         body.away_team_id,
@@ -121,7 +123,6 @@ def post_predict(body: PredictRequest, session: SessionDep) -> PredictResponse:
             detail=f"Features no disponibles para el modelo '{body.model}'",
         )
 
-    # Import lazy — sklearn se carga solo en la primera predicción, no al arrancar la API
     from src.ml.predictor import feature_importance, predict  # noqa: PLC0415
 
     probabilities = predict(body.model, features)
@@ -133,7 +134,9 @@ def post_predict(body: PredictRequest, session: SessionDep) -> PredictResponse:
         prob_a=probabilities["prob_a"],
         feature_importance=importance,
         feature_values={k: round(v, 4) for k, v in features.items() if k in model_features},
+        feature_values_split=split,
         cold_start_warning=cold_start,
+        h2h_cold_start=h2h_cold_start,
     )
 
 
@@ -168,7 +171,7 @@ def post_predict_custom(
     model_features: list[str] = modelo.features
     requires_market = "prob_diff_market" in model_features
 
-    features, cold_start = _resolve_features(
+    features, cold_start, h2h_cold_start, split = _resolve_features(
         session,
         body.home_team_id,
         body.away_team_id,
@@ -194,5 +197,7 @@ def post_predict_custom(
         prob_a=probabilities["prob_a"],
         feature_importance=importance,
         feature_values={k: round(v, 4) for k, v in features.items() if k in model_features},
+        feature_values_split=split,
         cold_start_warning=cold_start,
+        h2h_cold_start=h2h_cold_start,
     )
