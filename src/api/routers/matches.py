@@ -18,6 +18,7 @@ def get_matches(
     league_code: str | None = None,
     season: int | None = None,
     team_id: int | None = None,
+    round_number: int | None = None,
 ) -> list[Match]:
     """Devuelve partidos paginados con filtros opcionales, orden fecha descendente.
 
@@ -25,6 +26,7 @@ def get_matches(
         league_code: Código de liga (premier, laliga, bundesliga).
         season: Año de fin de temporada (ej. 2015 = temporada 2014/15).
         team_id: ID de equipo — devuelve partidos como local o visitante.
+        round_number: Número de jornada.
     """
     query = select(Match)
 
@@ -52,6 +54,9 @@ def get_matches(
         query = query.where(
             or_(Match.home_team_id == team_id, Match.away_team_id == team_id)
         )
+
+    if round_number is not None:
+        query = query.where(Match.round_number == round_number)
 
     query = query.order_by(Match.date.desc()).offset(pagination.offset).limit(pagination.limit)
     return list(session.exec(query).all())

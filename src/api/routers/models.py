@@ -1,13 +1,14 @@
-"""Router de modelos — GET /models, GET /features/available."""
+"""Router de modelos — GET /models, GET /features/available, DELETE /models/custom/{id}."""
 
 import json
+import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import select
 
-from src.api.deps import SessionDep
+from src.api.deps import CurrentUserDep, SessionDep
 from src.api.schemas import CustomModelRead, FeatureInfo, ModelInfo, ModelsResponse
 from src.features._constants import FEATURES
 from src.ml._config import MODELS_CONFIG
@@ -105,6 +106,31 @@ def get_models(
         ]
 
     return ModelsResponse(pretrained=pretrained, custom=custom)
+
+
+@router.delete("/models/custom/{model_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_custom_model(
+    model_id: int,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> None:
+    """Borra un modelo custom del usuario autenticado (fila + artefacto .pkl).
+
+    Devuelve 404 si el modelo no existe o pertenece a otro usuario.
+    """
+    from src.db.auth_models import CustomModel
+
+    modelo = session.get(CustomModel, model_id)
+    if modelo is None or modelo.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Modelo no encontrado")
+
+    try:
+        os.remove(modelo.artifact_path)
+    except FileNotFoundError:
+        pass
+
+    session.delete(modelo)
+    session.commit()
 
 
 @router.get("/features/available", response_model=list[FeatureInfo])

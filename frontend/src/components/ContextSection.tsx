@@ -14,13 +14,6 @@ const COL_LABEL: React.CSSProperties = {
   fontFamily: 'var(--font-sans)',
 }
 
-function hexAlpha(hex: string, a: number): string {
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `rgba(${r},${g},${b},${a})`
-}
-
 function fmtDate(iso: string): string {
   const d = new Date(iso)
   const weekday = d.toLocaleDateString('es-ES', { weekday: 'short' }).replace(/\.$/, '')
@@ -43,14 +36,14 @@ function Crest({ url, name, size = 22 }: { url: string | null; name: string; siz
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: size, height: size, flexShrink: 0,
       background: 'rgba(255,255,255,0.08)', borderRadius: 4,
-      fontSize: size * 0.32, fontWeight: 600, color: MUTED,
+      fontSize: size * 0.32, fontWeight: 600, color: SECONDARY,
       fontFamily: 'var(--font-sans)',
     }}>{initials}</span>
   )
 }
 
 // ─── Columna izquierda — Historial directo ────────────────────────────────────
-function H2HColumn({ matches, homeId, awayId, homeName, homeDisplayName, awayDisplayName, homeCrestUrl, awayCrestUrl }: {
+function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName, homeCrestUrl, awayCrestUrl }: {
   matches: H2HMatch[]
   homeId: number
   awayId: number

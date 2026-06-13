@@ -97,6 +97,7 @@ class MatchListRead(BaseModel):
     fthg: int
     ftag: int
     ftr: str
+    round_number: int | None = None
 
 
 class MatchDetailRead(BaseModel):
@@ -223,6 +224,22 @@ class TeamStatsRead(BaseModel):
     xg_against: float = Field(ge=0)
     matches_with_features_pct: float = Field(ge=0, le=100)
     last5: list[MatchBriefRead]
+
+
+class StandingRow(BaseModel):
+    """Una fila de la clasificación de una liga y temporada."""
+
+    team_id: int
+    team_name: str
+    crest_url: str | None = None
+    played: int
+    wins: int
+    draws: int
+    losses: int
+    goals_for: int
+    goals_against: int
+    goal_diff: int
+    points: int
 
 
 class CustomModelRead(BaseModel):

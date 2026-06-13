@@ -23,14 +23,6 @@ const DISPLAY_LABELS: Record<string, string> = {
 // Métricas donde menos = mejor (barra invertida)
 const CONCEDED_FEATURES = new Set(['goals_conceded_last5', 'h2h_goals_conceded_last5', 'xg_conceded_last5'])
 
-// Métricas de solo visualización (no son features del modelo)
-const DISPLAY_ONLY_FEATURES = new Set([
-  'goals_scored_last5', 'goals_conceded_last5',
-  'h2h_goals_scored_last5', 'h2h_goals_conceded_last5',
-  'xg_scored_last5', 'xg_conceded_last5',
-])
-
-
 const MODEL_DISPLAY_FEATURES: Record<string, string[]> = {
   baseline: ['elo_diff_pre', 'h2h_result_diff_last5', 'h2h_goals_scored_last5'],
   extended: ['elo_diff_pre', 'goals_scored_last5', 'xg_scored_last5', 'goals_conceded_last5', 'xg_conceded_last5', 'h2h_result_diff_last5'],

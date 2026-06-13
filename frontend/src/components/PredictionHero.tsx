@@ -29,6 +29,7 @@ export default function PredictionHero({
     <div
       style={{
         position: 'relative', overflow: 'hidden',
+        background: 'linear-gradient(to right, #091524, #190909)',
         padding: '40px 8.75vw 60px',
         animation: 'hero-fade-in 0.4s ease-out both',
       }}

@@ -8,7 +8,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routers import auth, health, leagues, matches, models, predict, seasons, teams, train
+from src.api.routers import auth, health, leagues, matches, models, predict, seasons, standings, teams, train
 from src.core.config import settings
 from src.db.database import create_db_and_tables
 
@@ -66,7 +66,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
@@ -75,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(seasons.router)
     app.include_router(teams.router)
     app.include_router(matches.router)
+    app.include_router(standings.router)
     app.include_router(models.router)
     app.include_router(predict.router)
     app.include_router(auth.router)

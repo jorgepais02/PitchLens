@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Lock, ArrowRight, Search, ArrowLeftRight, X } from 'lucide-react'
+import { ArrowRight, Search, ArrowLeftRight, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api, type League, type Team } from '../lib/api'
 import { usePrediction, type ModelKey } from '../context/PredictionContext'
@@ -385,7 +385,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
 export default function PredictorPage() {
   const navigate           = useNavigate()
   const { setActivePrediction } = usePrediction()
-  const isAuthenticated    = false
 
   const [home,         setHome]         = useState<EnrichedTeam | null>(null)
   const [away,         setAway]         = useState<EnrichedTeam | null>(null)
@@ -450,8 +449,6 @@ export default function PredictorPage() {
     t.id !== away?.id && (!away || t.league.id === away.league.id)
   )
 
-  const displayedLeague = home?.league ?? away?.league ?? null
-
   // ── Dropdown handlers ──
   const handleOpenDropdown = (side: 'home' | 'away') => {
     const btn = side === 'home' ? homeButtonRef.current : awayButtonRef.current
@@ -492,7 +489,6 @@ export default function PredictorPage() {
   const oddsFilled = pschVal > 1 && pscdVal > 1 && pscaVal > 1
   const impliedSum = oddsFilled ? 1/pschVal + 1/pscdVal + 1/pscaVal : 0
   const oddsValid  = oddsFilled && impliedSum >= 1.0
-  const canPredict = !!home && !!away && !!model && model !== 'custom' && (model !== 'market' || oddsValid)
 
   const handlePredict = async () => {
     if (!home || !away || !model || model === 'custom') return
@@ -978,7 +974,7 @@ export default function PredictorPage() {
                       padding: '13px 28px', borderRadius: 6,
                       fontSize: '1rem', fontWeight: 500,
                       fontFamily: 'var(--font-sans)',
-                      border: 'none', cursor: canClick ? 'pointer' : 'not-allowed',
+                      cursor: canClick ? 'pointer' : 'not-allowed',
                       transition: 'background 120ms',
                       ...(canClick
                         ? { background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.9)', border: '1px solid rgba(255,255,255,0.62)' }
@@ -1116,7 +1112,7 @@ export default function PredictorPage() {
                 disabled={!oddsValid || isPredicting}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '14px', borderRadius: 8, border: 'none',
+                  padding: '14px', borderRadius: 8,
                   fontSize: '1rem', fontWeight: 600,
                   fontFamily: 'var(--font-sans)',
                   cursor: oddsValid && !isPredicting ? 'pointer' : 'not-allowed',

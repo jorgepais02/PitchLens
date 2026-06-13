@@ -120,6 +120,9 @@ class Match(SQLModel, table=True):
     home_xg: float
     away_xg: float
 
+    # Jornada (enriquecida desde football-data.org vía enrich_rounds.py)
+    round_number: Optional[int] = Field(default=None)
+
     league: Optional[League] = Relationship(back_populates="matches")
     season: Optional[Season] = Relationship(back_populates="matches")
     home_team: Optional[Team] = Relationship(
