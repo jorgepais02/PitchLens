@@ -1,198 +1,454 @@
-import { useState } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, Plus } from 'lucide-react'
-import { usePrediction } from '../context/PredictionContext'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { NavLink, useLocation } from 'react-router-dom'
+import { ChevronDown, LogOut, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import AuthModal from './AuthModal'
 
-// La altura es fija (48px): PredictorPage calcula su layout como calc(100svh - 48px)
-const NAV_H = 48
+// La altura es fija (60px): PredictorPage sangra su hero con marginTop: -60
+const NAV_H = 60
+// Alto del item dentro de la isla — deja aire arriba/abajo dentro de la barra
+const SEG_H = 38
+
+// Color de marca único por usuario: el tono (hue) se deriva del hash del email,
+// pero luminancia y chroma quedan FIJOS en un rango medio controlado. Así cada
+// cuenta tiene su color propio y estable entre sesiones, y todos quedan cohesionados
+// sobre el fondo dark sin que ninguno chille. OKLCH → igual brillo percibido por tono.
+// Iniciales a partir del email (no hay nombre en el contexto de auth)
+function initialsFromEmail(email: string): string {
+  const local = email.split('@')[0] ?? ''
+  const parts = local.split(/[._-]+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return local.slice(0, 2).toUpperCase() || '?'
+}
+
 
 function NavItem({ to, label, active }: { to: string; label: string; active: boolean }) {
   return (
     <NavLink
       to={to}
       style={{
-        position: 'relative',
-        display: 'flex', alignItems: 'center',
-        height: NAV_H, padding: '0 14px',
-        fontSize: '0.875rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: SEG_H, padding: '0 clamp(20px, 1.6vw, 34px)',
+        borderRadius: 999,
+        fontSize: '0.9375rem',
         fontWeight: active ? 500 : 400,
         fontFamily: 'var(--font-sans)',
-        color: active ? 'var(--color-ink)' : 'var(--color-ink-muted)',
+        color: active ? 'var(--color-ink)' : 'oklch(0.66 0.012 268)',
+        background: active ? 'rgba(255,255,255,0.09)' : 'transparent',
         textDecoration: 'none',
-        transition: 'color var(--duration-fast) var(--ease-out)',
+        whiteSpace: 'nowrap',
+        transition: 'color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out)',
       }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--color-ink)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--color-ink-muted)' }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'oklch(0.66 0.012 268)' }}
     >
       {label}
-      {/* Indicador activo — línea a ras del borde inferior del header */}
-      <span
-        aria-hidden="true"
-        style={{
-          position: 'absolute', left: 14, right: 14, bottom: -1, height: 2,
-          background: active ? 'rgba(255,255,255,0.82)' : 'transparent',
-          borderRadius: 1,
-          transition: 'background var(--duration-fast) var(--ease-out)',
-        }}
-      />
     </NavLink>
   )
 }
 
-export default function Navbar() {
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const { activePrediction, clearPrediction } = usePrediction()
-  const { isAuthenticated, email, logout } = useAuth()
-  const [authOpen, setAuthOpen] = useState(false)
+function DeleteAccountModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { email, deleteAccount } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const predictionTo = activePrediction ? `/prediction/${activePrediction.id}` : '/new'
-  const predictionActive = pathname.startsWith('/new') || pathname.startsWith('/prediction')
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !loading) onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, loading, onClose])
 
-  const handleNueva = () => {
-    clearPrediction()
-    navigate('/new')
+  // Limpia el error al cerrar para no arrastrarlo a la siguiente apertura
+  useEffect(() => { if (!open) setError(null) }, [open])
+
+  if (!open) return null
+
+  const handleDelete = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // Al tener éxito, deleteAccount limpia la sesión y este menú se desmonta solo
+      await deleteAccount()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo eliminar la cuenta')
+      setLoading(false)
+    }
   }
 
-  return (
-    <header
-      className="sticky top-0 z-50 flex items-center justify-between"
+  return createPortal(
+    <div
+      onMouseDown={e => { if (e.target === e.currentTarget && !loading) onClose() }}
       style={{
-        height: NAV_H,
-        padding: '0 20px',
-        borderBottom: '1px solid var(--color-border-subtle)',
-        background: 'oklch(0.1 0.006 268 / 0.82)',
-        backdropFilter: 'blur(14px) saturate(1.4)',
-        WebkitBackdropFilter: 'blur(14px) saturate(1.4)',
+        position: 'fixed', inset: 0, zIndex: 100,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24,
+        background: 'rgba(8,8,10,0.72)',
+        backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+        animation: 'hero-fade-in 0.2s ease-out both',
       }}
     >
-      {/* Logo */}
-      <NavLink
-        to="/"
-        aria-label="Kraken — inicio"
-        className="flex items-center gap-2.5"
-        style={{ color: 'var(--color-ink)', textDecoration: 'none', flexShrink: 0 }}
-      >
-        <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <circle cx="9" cy="9" r="7.5" stroke="var(--color-ink)" strokeWidth="1.3" />
-          <path
-            d="M9 4.5L11.1 7.5H6.9L9 4.5ZM9 13.5L6.9 10.5H11.1L9 13.5Z"
-            fill="var(--color-ink)"
-          />
-          <path
-            d="M4.5 9L7.5 6.9V11.1L4.5 9ZM13.5 9L10.5 11.1V6.9L13.5 9Z"
-            fill="var(--color-ink)" opacity="0.55"
-          />
-        </svg>
-        <span style={{
-          fontSize: '0.9375rem', fontWeight: 650,
-          letterSpacing: '-0.02em', fontFamily: 'var(--font-sans)',
-        }}>
-          Kraken
-        </span>
-      </NavLink>
-
-      {/* Nav central — centrado absoluto, independiente de los laterales */}
-      <nav
-        aria-label="Navegación principal"
-        className="flex items-center"
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="del-title"
         style={{
-          position: 'absolute', left: '50%', top: 0,
-          transform: 'translateX(-50%)', height: NAV_H,
+          width: 'min(400px, calc(100vw - 32px))', padding: 24,
+          borderRadius: 14,
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.85), 0 4px 16px rgba(0,0,0,0.5)',
         }}
       >
-        <NavItem to={predictionTo} label="Predicción" active={predictionActive} />
-        <NavItem to="/explore" label="Explorar" active={pathname.startsWith('/explore')} />
-        <NavItem to="/studio" label="Studio" active={pathname.startsWith('/studio')} />
-      </nav>
+        <div
+          aria-hidden="true"
+          className="flex items-center justify-center"
+          style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'var(--color-error-subtle)', color: 'var(--color-error)',
+            marginBottom: 14,
+          }}
+        >
+          <Trash2 size={18} />
+        </div>
+        <h2 id="del-title" style={{
+          margin: 0, fontSize: '1.0625rem', fontWeight: 600,
+          fontFamily: 'var(--font-sans)', color: 'var(--color-ink)',
+          letterSpacing: '-0.01em',
+        }}>
+          ¿Eliminar tu cuenta?
+        </h2>
+        <p style={{
+          margin: '8px 0 0', fontSize: '0.875rem', lineHeight: 1.55,
+          fontFamily: 'var(--font-sans)', color: 'var(--color-ink-muted)',
+        }}>
+          Se borrarán <strong style={{ color: 'var(--color-ink)', fontWeight: 500 }}>{email}</strong> y
+          todos tus modelos entrenados. Esta acción no se puede deshacer.
+        </p>
 
-      {/* Acciones derecha */}
-      <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-        {isAuthenticated ? (
-          <div className="flex items-center" style={{ gap: 10 }}>
-            <span
+        {error && (
+          <p style={{
+            margin: '14px 0 0', padding: '8px 10px', borderRadius: 8,
+            fontSize: '0.8125rem', lineHeight: 1.4,
+            fontFamily: 'var(--font-sans)', color: 'var(--color-error)',
+            background: 'var(--color-error-subtle)',
+          }}>
+            {error}
+          </p>
+        )}
+
+        <div className="flex items-center justify-end" style={{ gap: 8, marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="cursor-pointer"
+            style={{
+              padding: '8px 14px', borderRadius: 8,
+              fontSize: '0.8125rem', fontWeight: 500,
+              fontFamily: 'var(--font-sans)',
+              color: 'var(--color-ink-muted)',
+              background: 'transparent', border: '1px solid var(--color-border)',
+              opacity: loading ? 0.5 : 1,
+              transition: 'color var(--duration-fast), border-color var(--duration-fast)',
+            }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.color = 'var(--color-ink)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-ink-muted)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={loading}
+            className="cursor-pointer"
+            style={{
+              padding: '8px 14px', borderRadius: 8,
+              fontSize: '0.8125rem', fontWeight: 500,
+              fontFamily: 'var(--font-sans)',
+              color: '#fff',
+              background: 'var(--color-error)', border: '1px solid transparent',
+              opacity: loading ? 0.7 : 1,
+              transition: 'background var(--duration-fast)',
+            }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'oklch(0.6 0.22 25)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-error)' }}
+          >
+            {loading ? 'Eliminando…' : 'Eliminar cuenta'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function AccountMenu() {
+  const { email, logout } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-label="Cuenta"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={email ?? undefined}
+        className="flex items-center cursor-pointer"
+        style={{
+          gap: 3, padding: '5px 6px', borderRadius: 8,
+          fontFamily: 'var(--font-sans)',
+          background: open ? 'rgba(255,255,255,0.06)' : 'transparent',
+          border: 'none',
+          transition: 'background var(--duration-fast)',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent' }}
+      >
+        {/* Iniciales en blanco, sin contenedor */}
+        <span style={{
+          fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.01em',
+          color: 'var(--color-ink)',
+        }}>
+          {email ? initialsFromEmail(email) : '?'}
+        </span>
+        <ChevronDown
+          size={13}
+          style={{
+            // Mismo color que el divisor vertical de la navbar
+            color: 'rgba(255,255,255,0.26)',
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform var(--duration-fast) var(--ease-out)',
+          }}
+          aria-hidden="true"
+        />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+            minWidth: 208, padding: 6,
+            borderRadius: 10,
+            background: 'oklch(0.185 0.007 268)',
+            border: '1px solid var(--color-border)',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
+            display: 'flex', flexDirection: 'column', gap: 2,
+          }}
+        >
+          <div
+            style={{
+              padding: '4px 8px 9px',
+              borderBottom: '1px solid var(--color-border-subtle)',
+              marginBottom: 2,
+            }}
+          >
+            <div style={{
+              fontSize: '0.625rem', fontWeight: 600,
+              letterSpacing: '0.07em', textTransform: 'uppercase',
+              fontFamily: 'var(--font-sans)',
+              color: 'var(--color-ink-muted)',
+              marginBottom: 3,
+            }}>
+              Conectado como
+            </div>
+            <div
               title={email ?? undefined}
               style={{
-                fontSize: '0.75rem', color: 'var(--color-ink-muted)',
+                fontSize: '0.8125rem',
+                color: 'var(--color-ink)',
                 fontFamily: 'var(--font-mono)', letterSpacing: '-0.01em',
-                maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}
             >
               {email}
-            </span>
-            <button
-              type="button"
-              onClick={logout}
-              aria-label="Cerrar sesión"
-              title="Cerrar sesión"
-              className="flex items-center justify-center cursor-pointer"
-              style={{
-                width: 28, height: 28, borderRadius: 6,
-                background: 'transparent', border: 'none',
-                color: 'var(--color-ink-faint)',
-                transition: 'color var(--duration-fast), background var(--duration-fast)',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = 'var(--color-ink)'
-                e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = 'var(--color-ink-faint)'
-                e.currentTarget.style.background = 'transparent'
-              }}
-            >
-              <LogOut size={13} />
-            </button>
+            </div>
           </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setOpen(false); logout() }}
+            className="flex items-center gap-2 cursor-pointer"
+            style={{
+              padding: '7px 8px', borderRadius: 6,
+              fontSize: '0.8125rem', fontWeight: 400, textAlign: 'left',
+              fontFamily: 'var(--font-sans)',
+              color: 'var(--color-ink-muted)',
+              background: 'transparent', border: 'none',
+              transition: 'color var(--duration-fast), background var(--duration-fast)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--color-ink)'
+              e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'var(--color-ink-muted)'
+              e.currentTarget.style.background = 'transparent'
+            }}
+          >
+            <LogOut size={13} />
+            Cerrar sesión
+          </button>
+
+          <div style={{ height: 1, background: 'var(--color-border-subtle)', margin: '2px 0' }} />
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setOpen(false); setConfirmOpen(true) }}
+            className="flex items-center gap-2 cursor-pointer"
+            style={{
+              padding: '7px 8px', borderRadius: 6,
+              fontSize: '0.8125rem', fontWeight: 400, textAlign: 'left',
+              fontFamily: 'var(--font-sans)',
+              color: 'oklch(0.62 0.13 25)',
+              background: 'transparent', border: 'none',
+              transition: 'color var(--duration-fast), background var(--duration-fast)',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--color-error)'
+              e.currentTarget.style.background = 'var(--color-error-subtle)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'oklch(0.62 0.13 25)'
+              e.currentTarget.style.background = 'transparent'
+            }}
+          >
+            <Trash2 size={13} />
+            Eliminar cuenta
+          </button>
+        </div>
+      )}
+
+      <DeleteAccountModal open={confirmOpen} onClose={() => setConfirmOpen(false)} />
+    </div>
+  )
+}
+
+export default function Navbar() {
+  const { pathname } = useLocation()
+  const { isAuthenticated } = useAuth()
+  const [authOpen, setAuthOpen] = useState(false)
+  // La isla se asienta (fondo más sólido + sombra) en cuanto hay scroll bajo ella
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // La pestaña "Predicción" es el verbo: lleva siempre al formulario (/new) desde
+  // cualquier pantalla. El resultado sigue accesible por su URL mientras exista.
+  const predictionTo = '/new'
+  const predictionActive = pathname.startsWith('/new') || pathname.startsWith('/prediction')
+
+  return (
+    <header
+      className="sticky top-0 z-50 flex items-center justify-center"
+      style={{
+        height: NAV_H,
+        padding: scrolled ? '0 24px' : '0',
+        background: scrolled ? 'oklch(0.15 0.006 268 / 0.88)' : 'transparent',
+        borderBottom: `1px solid ${scrolled ? 'var(--color-border-subtle)' : 'transparent'}`,
+        backdropFilter: scrolled ? 'blur(14px) saturate(1.4)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(14px) saturate(1.4)' : 'none',
+        transition: 'background 220ms var(--ease-out), border-color 220ms var(--ease-out), padding 220ms var(--ease-out)',
+      }}
+    >
+      {/* Isla central única — logo + nav + cuenta */}
+      <div
+        className="flex items-center"
+        style={{
+          width: scrolled ? '100%' : 'auto',
+          justifyContent: scrolled ? 'space-between' : 'center',
+          gap: scrolled ? 0 : 8,
+          padding: scrolled ? 0 : '5px 18px',
+          borderRadius: scrolled ? 0 : 999,
+          background: scrolled ? 'transparent' : 'oklch(0.215 0.008 268 / 0.72)',
+          border: `1px solid ${scrolled ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
+          boxShadow: scrolled ? 'none' : '0 6px 22px rgba(0,0,0,0.38)',
+          backdropFilter: scrolled ? 'none' : 'blur(14px) saturate(1.4)',
+          WebkitBackdropFilter: scrolled ? 'none' : 'blur(14px) saturate(1.4)',
+          transition: 'background 220ms var(--ease-out), border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out), gap 220ms var(--ease-out), padding 220ms var(--ease-out), border-radius 220ms var(--ease-out)',
+        }}
+      >
+        {/* Logo */}
+        <NavLink
+          to="/"
+          aria-label="PitchLens — inicio"
+          className="flex items-center gap-2.5"
+          style={{ color: 'var(--color-ink)', textDecoration: 'none', flexShrink: 0 }}
+        >
+          <svg width="34" height="34" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+            <rect x="12" y="28" width="76" height="44" rx="14" stroke="#fff" strokeWidth="4" />
+            <circle cx="50" cy="50" r="14" stroke="#fff" strokeWidth="3" />
+            <line x1="50" y1="28" x2="50" y2="72" stroke="#fff" strokeWidth="2.5" opacity="0.45" />
+            <circle cx="50" cy="50" r="4" fill="#fff" />
+          </svg>
+          <span style={{
+            fontSize: '1.0625rem', fontWeight: 650,
+            letterSpacing: '-0.02em', fontFamily: 'var(--font-sans)',
+          }}>
+            PitchLens
+          </span>
+        </NavLink>
+
+        <span aria-hidden="true" style={{ display: scrolled ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
+
+        {/* Nav */}
+        <nav aria-label="Navegación principal" className="flex items-center" style={{ gap: 3 }}>
+          <NavItem to={predictionTo} label="Predicción" active={predictionActive} />
+          <NavItem to="/explore" label="Explorar" active={pathname.startsWith('/explore')} />
+          <NavItem to="/studio" label="Studio" active={pathname.startsWith('/studio')} />
+        </nav>
+
+        <span aria-hidden="true" style={{ display: scrolled ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
+
+        {/* Cuenta */}
+        {isAuthenticated ? (
+          <AccountMenu />
         ) : (
           <button
             type="button"
             onClick={() => setAuthOpen(true)}
             className="cursor-pointer"
             style={{
-              padding: '6px 10px', borderRadius: 6,
-              fontSize: '0.8125rem', fontWeight: 400,
+              // Texto simple, mismo peso visual que los links de navegación
+              padding: '8px 10px',
+              fontSize: '0.9375rem', fontWeight: 400,
               fontFamily: 'var(--font-sans)',
-              color: 'var(--color-ink-muted)',
+              color: 'oklch(0.66 0.012 268)',
               background: 'transparent', border: 'none',
               transition: 'color var(--duration-fast)',
             }}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-ink)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-ink-muted)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'oklch(0.66 0.012 268)' }}
           >
             Iniciar sesión
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={handleNueva}
-          className="flex items-center gap-1.5 cursor-pointer"
-          style={{
-            padding: '6px 12px', borderRadius: 6,
-            fontSize: '0.8125rem', fontWeight: 500,
-            fontFamily: 'var(--font-sans)',
-            color: 'rgba(255,255,255,0.9)',
-            background: 'rgba(255,255,255,0.07)',
-            border: '1px solid rgba(255,255,255,0.28)',
-            transition: 'background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast)',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.12)'
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)'
-            e.currentTarget.style.color = '#fff'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.07)'
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.28)'
-            e.currentTarget.style.color = 'rgba(255,255,255,0.9)'
-          }}
-        >
-          <Plus size={13} strokeWidth={2.2} />
-          Nueva predicción
-        </button>
       </div>
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />

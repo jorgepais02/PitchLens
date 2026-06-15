@@ -13,7 +13,7 @@ from sklearn.linear_model import LogisticRegressionCV
 from sklearn.metrics import accuracy_score, log_loss
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 
 from src.ml._config import CV_Cs, DATA_PATH
@@ -22,6 +22,33 @@ from src.ml.train_models import split
 
 TARGET = "FTR"
 VALID_ALGORITHMS = {"lr", "dt", "rf", "xgb"}
+
+
+class _EncodedPipeline:
+    """Envuelve un pipeline + LabelEncoder exponiendo la interfaz de sklearn.
+
+    Necesario para DT/RF/XGB: CalibratedClassifierCV exige labels numéricos,
+    pero el resto del sistema (predictor, /predict/custom) espera classes_ con
+    los strings originales ('A','D','H') y predict_proba alineado con ellos.
+    """
+
+    def __init__(self, pipeline: Pipeline, le: LabelEncoder) -> None:
+        self._pipeline = pipeline
+        self._le = le
+
+    @property
+    def named_steps(self) -> dict:
+        return self._pipeline.named_steps
+
+    @property
+    def classes_(self) -> "np.ndarray":  # type: ignore[name-defined]
+        return self._le.classes_
+
+    def predict_proba(self, X: pd.DataFrame) -> "np.ndarray":  # type: ignore[name-defined]
+        return self._pipeline.predict_proba(X)
+
+    def predict(self, X: pd.DataFrame) -> "np.ndarray":  # type: ignore[name-defined]
+        return self._le.inverse_transform(self._pipeline.predict(X))
 
 
 def _build_pipeline(algorithm: str) -> Pipeline:
@@ -89,22 +116,31 @@ def train_custom(
     X_test, y_test = test[features], test[TARGET]
 
     pipeline = _build_pipeline(algorithm)
-    pipeline.fit(X_train, y_train)
 
-    def _metrics(X: pd.DataFrame, y: pd.Series) -> dict:
-        y_pred = pipeline.predict(X)
-        y_proba = pipeline.predict_proba(X)
+    # XGB/DT/RF requieren labels numéricos; LR los maneja como string directamente.
+    if algorithm != "lr":
+        le = LabelEncoder()
+        y_train_fit = le.fit_transform(y_train)
+        pipeline.fit(X_train, y_train_fit)
+        artifact = _EncodedPipeline(pipeline, le)
+    else:
+        pipeline.fit(X_train, y_train)
+        artifact = pipeline  # type: ignore[assignment]
+
+    def _metrics(X: pd.DataFrame, y_true: pd.Series) -> dict:
+        y_pred = artifact.predict(X)
+        y_proba = artifact.predict_proba(X)
         return {
-            "accuracy": round(float(accuracy_score(y, y_pred)), 4),
-            "log_loss": round(float(log_loss(y, y_proba)), 4),
+            "accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
+            "log_loss": round(float(log_loss(y_true, y_proba, labels=artifact.classes_)), 4),
         }
 
     path = Path(artifact_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(pipeline, path)
+    joblib.dump(artifact, path)
 
     return {
         "val": _metrics(X_val, y_val),
         "test": _metrics(X_test, y_test),
-        "feature_importance": compute_feature_importance(pipeline, features),
+        "feature_importance": compute_feature_importance(artifact, features),
     }

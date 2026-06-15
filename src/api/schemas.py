@@ -247,11 +247,14 @@ class CustomModelRead(BaseModel):
 
     id: int
     name: str
+    description: str = ""
     algorithm: str
     features: list[str]
     val_accuracy: float | None = None
+    val_log_loss: float | None = None
     test_accuracy: float | None = None
     test_log_loss: float | None = None
+    feature_importance: list[dict] = []
     created_at: datetime
 
 

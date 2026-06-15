@@ -33,6 +33,7 @@ class CustomModel(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", ondelete="CASCADE", index=True)
     name: str = Field(max_length=100)
+    description: str = Field(default="", max_length=280)  # nota opcional del usuario
     algorithm: str = Field(max_length=10)  # lr, dt, rf, xgb
     features: list = Field(default_factory=list, sa_column=Column(JSON))
     metrics: dict = Field(default_factory=dict, sa_column=Column(JSON))

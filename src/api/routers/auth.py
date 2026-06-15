@@ -1,12 +1,14 @@
-"""Router de autenticación — POST /auth/register, POST /auth/login."""
+"""Router de autenticación — POST /auth/register, POST /auth/login, DELETE /auth/me."""
+
+import os
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlmodel import select
 
 from src.api.security import create_access_token, hash_password, verify_password
-from src.api.deps import SessionDep
-from src.db.auth_models import User
+from src.api.deps import CurrentUserDep, SessionDep
+from src.db.auth_models import CustomModel, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -55,6 +57,27 @@ def register(body: RegisterRequest, session: SessionDep) -> TokenResponse:
     session.refresh(user)
 
     return TokenResponse(access_token=create_access_token(user.id))
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(session: SessionDep, current_user: CurrentUserDep) -> None:
+    """Elimina la cuenta del usuario autenticado y todos sus datos.
+
+    Borra los artefactos .pkl de sus modelos custom en disco y luego la fila
+    de usuario; el ON DELETE CASCADE de la FK elimina las filas de custom_models.
+    """
+    modelos = session.exec(
+        select(CustomModel).where(CustomModel.user_id == current_user.id)
+    ).all()
+    for modelo in modelos:
+        try:
+            os.remove(modelo.artifact_path)
+        except FileNotFoundError:
+            pass
+        session.delete(modelo)
+
+    session.delete(current_user)
+    session.commit()
 
 
 @router.post("/login", response_model=TokenResponse)

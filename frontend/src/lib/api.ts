@@ -1,9 +1,10 @@
 const BASE = 'http://localhost:8000'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const { headers: optHeaders, ...restOptions } = options ?? {}
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
+    ...restOptions,
+    headers: { 'Content-Type': 'application/json', ...optHeaders },
   })
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
@@ -47,11 +48,14 @@ export interface PretrainedModel {
 export interface CustomModel {
   id: number
   name: string
+  description: string
   algorithm: string
   features: string[]
   val_accuracy: number | null
+  val_log_loss: number | null
   test_accuracy: number | null
   test_log_loss: number | null
+  feature_importance: FeatureImportance[]
   created_at: string
 }
 
@@ -64,6 +68,15 @@ export interface PredictRequest {
   home_team_id: number
   away_team_id: number
   model: 'baseline' | 'extended' | 'market'
+  psch?: number
+  pscd?: number
+  psca?: number
+}
+
+export interface PredictCustomRequest {
+  home_team_id: number
+  away_team_id: number
+  model_id: number
   psch?: number
   pscd?: number
   psca?: number
@@ -188,6 +201,7 @@ export interface TrainRequest {
   features: string[]
   algorithm: Algorithm
   name: string
+  description?: string
 }
 
 export interface TrainJobAccepted {
@@ -234,6 +248,8 @@ export const api = {
     request('/models', token ? { headers: bearer(token) } : undefined),
   predict: (body: PredictRequest): Promise<PredictResponse> =>
     request('/predict', { method: 'POST', body: JSON.stringify(body) }),
+  predictCustom: (body: PredictCustomRequest, token: string): Promise<PredictResponse> =>
+    request('/predict/custom', { method: 'POST', body: JSON.stringify(body), headers: bearer(token) }),
   h2h: (homeId: number, awayId: number, limit = 10): Promise<H2HMatch[]> =>
     request(`/matches/h2h?home_team_id=${homeId}&away_team_id=${awayId}&limit=${limit}`),
   teamStats: (teamId: number): Promise<TeamStats> =>
@@ -263,4 +279,6 @@ export const api = {
     request(`/train/jobs/${jobId}`, { headers: bearer(token) }),
   deleteCustomModel: (id: number, token: string): Promise<void> =>
     request(`/models/custom/${id}`, { method: 'DELETE', headers: bearer(token) }),
+  deleteAccount: (token: string): Promise<void> =>
+    request('/auth/me', { method: 'DELETE', headers: bearer(token) }),
 }

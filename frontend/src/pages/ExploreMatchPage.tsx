@@ -1,12 +1,11 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft } from 'lucide-react'
 import { api, type MatchDetail, type Team } from '../lib/api'
 import { AWAY_C, Crest, HOME_C, SEP, Spinner, fmtDate } from '../components/shared'
 
 const PRIMARY   = 'rgba(255,255,255,0.92)'
-const SECONDARY = 'rgba(255,255,255,0.45)'
-const DIM       = 'rgba(255,255,255,0.42)'
 
 const SECTION_TITLE: React.CSSProperties = {
   fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em',
@@ -65,11 +64,6 @@ function StatRow({ label, home, away, lowerWins = false, isLast = false }: {
 function ShotsBlock({ homeSots, awaySots, homeMisses, awayMisses }: {
   homeSots: number; awaySots: number; homeMisses: number; awayMisses: number
 }) {
-  const sotHomeWins = homeSots > awaySots
-  const sotAwayWins = awaySots > homeSots
-  const missHomeWins = homeMisses > awayMisses
-  const missAwayWins = awayMisses > homeMisses
-
   const num = (n: number) => (
     <span style={{
       minWidth: 42, height: 42, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -211,8 +205,8 @@ const CLASI_GRID: React.CSSProperties = {
   alignItems: 'center', gap: 8,
 }
 
-function StandingsCompact({ leagueName, leagueCode, season, homeTeamId, awayTeamId }: {
-  leagueName: string; leagueCode: string; season: number
+function StandingsCompact({ leagueCode, season, homeTeamId, awayTeamId }: {
+  leagueCode: string; season: number
   homeTeamId: number; awayTeamId: number
 }) {
   const { data: rows, isLoading } = useQuery({
@@ -246,7 +240,7 @@ function StandingsCompact({ leagueName, leagueCode, season, homeTeamId, awayTeam
         <span /><span /><span />
         {COLS.map(c => (
           <span key={c} style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+            fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
             color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-sans)', textAlign: 'center', fontSize: 13,
           }}>{c}</span>
         ))}
@@ -287,7 +281,7 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
   const awayName = away?.display_name ?? away?.name ?? 'Visitante'
 
   const XG_LABEL: React.CSSProperties = {
-    fontSize: 16, fontWeight: 400, letterSpacing: '0.04em',
+    fontSize: 16, fontWeight: 600, letterSpacing: '0.04em',
     fontFamily: 'var(--font-sans)',
   }
 
@@ -295,7 +289,7 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
     <div style={{
       position: 'relative', overflow: 'hidden',
       background: 'linear-gradient(to right, #091524, #190909)',
-      padding: '28px 8.75vw 52px',
+      marginTop: -60, padding: '88px 8.75vw 52px',
       animation: 'hero-fade-in 0.4s ease-out both',
     }}>
       <div style={{
@@ -305,12 +299,12 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
       }} />
 
       <div style={{ margin: '12px 0 44px', fontFamily: 'var(--font-sans)' }}>
-        <div style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
-          <span style={{ color: 'rgba(255,255,255,0.88)', fontWeight: 500 }}>{leagueName}</span>
-          <span style={{ margin: '0 8px', color: 'rgba(255,255,255,0.30)' }}>·</span>
-          <span style={{ color: 'rgba(255,255,255,0.65)' }}>{seasonLabel}</span>
+        <div style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <span style={{ color: 'rgba(255,255,255,0.55)' }}>{leagueName}</span>
+          <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.55)' }}>·</span>
+          <span style={{ color: 'rgba(255,255,255,0.55)' }}>{seasonLabel}</span>
         </div>
-        <div style={{ marginTop: 6, fontSize: 14, color: 'rgba(255,255,255,0.40)' }}>
+        <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.40)' }}>
           {fmtDate(match.date)}
         </div>
       </div>
@@ -394,14 +388,14 @@ export default function ExploreMatchPage() {
   const teamById = useMemo(() => new Map(teams.map(t => [t.id, t])), [teams])
 
   if (isLoading) return (
-    <div style={{ height: 'calc(100svh - 48px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ height: 'calc(100svh - 60px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <Spinner size={22} />
     </div>
   )
 
   if (isError || !match) return (
     <div style={{
-      height: 'calc(100svh - 48px)', display: 'flex', flexDirection: 'column',
+      height: 'calc(100svh - 60px)', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', gap: 18,
     }}>
       <p style={{ margin: 0, fontSize: 17, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-sans)' }}>
@@ -425,7 +419,8 @@ export default function ExploreMatchPage() {
   const showReds = match.home_reds > 0 || match.away_reds > 0
 
   return (
-    <div style={{ minHeight: 'calc(100svh - 48px)', background: '#0c0d0f', paddingBottom: 80 }}>
+    <div style={{ minHeight: 'calc(100svh - 60px)', background: '#0c0d0f', paddingBottom: 80 }}>
+      <title>{`${home?.display_name ?? home?.name ?? 'Local'} vs ${away?.display_name ?? away?.name ?? 'Visitante'} · PitchLens`}</title>
 
       <MatchHeader
         match={match} home={home} away={away}
@@ -471,7 +466,6 @@ export default function ExploreMatchPage() {
             />
             {league && season && (
               <StandingsCompact
-                leagueName={league.display_name ?? league.name}
                 leagueCode={league.code}
                 season={season.end_year}
                 homeTeamId={match.home_team_id}

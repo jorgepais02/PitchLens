@@ -95,11 +95,14 @@ def get_models(
             CustomModelRead(
                 id=m.id,
                 name=m.name,
+                description=m.description,
                 algorithm=m.algorithm,
                 features=m.features,
                 val_accuracy=m.metrics.get("val", {}).get("accuracy"),
+                val_log_loss=m.metrics.get("val", {}).get("log_loss"),
                 test_accuracy=m.metrics.get("test", {}).get("accuracy"),
                 test_log_loss=m.metrics.get("test", {}).get("log_loss"),
+                feature_importance=m.metrics.get("feature_importance", []),
                 created_at=m.created_at,
             )
             for m in modelos

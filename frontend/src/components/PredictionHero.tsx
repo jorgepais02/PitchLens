@@ -30,7 +30,7 @@ export default function PredictionHero({
       style={{
         position: 'relative', overflow: 'hidden',
         background: 'linear-gradient(to right, #091524, #190909)',
-        padding: '40px 8.75vw 60px',
+        marginTop: -55, padding: '95px 8.75vw 60px',
         animation: 'hero-fade-in 0.4s ease-out both',
       }}
     >
@@ -56,12 +56,12 @@ export default function PredictionHero({
         {/* Meta: liga · modelo */}
         <div style={{
           textAlign: 'left', marginBottom: 44,
-          fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase',
+          fontSize: 12, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase',
           fontFamily: 'var(--font-sans)',
         }}>
-          <span style={{ color: 'rgba(255,255,255,0.78)' }}>{league}</span>
-          <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.50)' }}>·</span>
-          <span style={{ color: 'rgba(255,255,255,0.78)' }}>{MODEL_LABEL[model] ?? model}</span>
+          <span style={{ color: 'rgba(255,255,255,0.55)' }}>{league}</span>
+          <span style={{ margin: '0 6px', color: 'rgba(255,255,255,0.55)' }}>·</span>
+          <span style={{ color: 'rgba(255,255,255,0.55)' }}>{MODEL_LABEL[model] ?? model}</span>
         </div>
 
         {/* Grid 1fr auto 1fr — vertical: escudo arriba, nombre abajo */}
@@ -126,7 +126,7 @@ export default function PredictionHero({
             <span style={{ fontSize: 80, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: '#4D93F8', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctH}%</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <span style={{ fontSize: 80, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: 'rgba(255,255,255,0.32)', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctD}%</span>
+            <span style={{ fontSize: 80, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: 'rgba(255,255,255,0.42)', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctD}%</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <span style={{ fontSize: 80, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: '#F35A5A', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctA}%</span>

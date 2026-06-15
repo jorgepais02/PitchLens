@@ -11,6 +11,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => void
+  deleteAccount: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -43,8 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmail(null)
   }, [])
 
+  // Elimina la cuenta en el backend y, si tiene éxito, limpia la sesión local
+  const deleteAccount = useCallback(async () => {
+    if (!token) return
+    await api.deleteAccount(token)
+    logout()
+  }, [token, logout])
+
   return (
-    <AuthContext.Provider value={{ token, email, isAuthenticated: token !== null, login, register, logout }}>
+    <AuthContext.Provider value={{ token, email, isAuthenticated: token !== null, login, register, logout, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   )

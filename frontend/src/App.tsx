@@ -1,30 +1,54 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { lazy, Suspense, useLayoutEffect } from 'react'
 import { Toaster } from 'sonner'
 import { PredictionProvider } from './context/PredictionContext'
 import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
-import PredictorPage from './pages/PredictorPage'
-import PredictionPage from './pages/PredictionPage'
-import ExplorePage from './pages/ExplorePage'
-import ExploreMatchPage from './pages/ExploreMatchPage'
-import StudioPage from './pages/StudioPage'
+import { Spinner } from './components/shared'
+
+// Páginas cargadas bajo demanda — cada ruta es su propio chunk, así Recharts
+// y demás solo se descargan al navegar a la pantalla que los usa.
+const PredictorPage    = lazy(() => import('./pages/PredictorPage'))
+const PredictionPage   = lazy(() => import('./pages/PredictionPage'))
+const ExplorePage      = lazy(() => import('./pages/ExplorePage'))
+const ExploreMatchPage = lazy(() => import('./pages/ExploreMatchPage'))
+const StudioPage       = lazy(() => import('./pages/StudioPage'))
+const NotFoundPage     = lazy(() => import('./pages/NotFoundPage'))
+
+// Restablece el scroll al inicio en cada cambio de ruta — React Router conserva
+// la posición por defecto, lo que dejaba la pantalla nueva a media altura.
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <PredictionProvider>
+          <ScrollToTop />
           <div className="min-h-svh flex flex-col" style={{ background: 'var(--color-bg)' }}>
             <Navbar />
             <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Navigate to="/new" replace />} />
-                <Route path="/new" element={<PredictorPage />} />
-                <Route path="/prediction/:id" element={<PredictionPage />} />
-                <Route path="/explore" element={<ExplorePage />} />
-                <Route path="/explore/:slug" element={<ExploreMatchPage />} />
-                <Route path="/studio" element={<StudioPage />} />
-              </Routes>
+              <Suspense fallback={
+                <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
+                  <Spinner />
+                </div>
+              }>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/new" replace />} />
+                  <Route path="/new" element={<PredictorPage />} />
+                  <Route path="/prediction/:id" element={<PredictionPage />} />
+                  <Route path="/explore" element={<ExplorePage />} />
+                  <Route path="/explore/:slug" element={<ExploreMatchPage />} />
+                  <Route path="/studio/*" element={<StudioPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </Suspense>
             </main>
           </div>
           <Toaster

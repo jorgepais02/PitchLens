@@ -78,6 +78,8 @@ body {
   font-family: var(--font-sans);
   min-height: 100svh;
   line-height: 1.5;
+  /* Cero limpio (sin raya) en toda la app — Geist usa ss09 para el glyph alternativo */
+  font-feature-settings: "ss09" 1;
 }
 
 :focus-visible {
@@ -131,6 +133,9 @@ body {
 @media (max-width: 480px) {
   .model-section-inner { padding: 12px 12px 8px; }
 }
+
+.studio-name-input::placeholder { color: rgba(255,255,255,0.2); font-weight: 400; }
+.studio-name-input { field-sizing: content; min-width: 140px; }
 
 .h2h-scroll::-webkit-scrollbar { width: 4px; }
 .h2h-scroll::-webkit-scrollbar-track { background: transparent; }

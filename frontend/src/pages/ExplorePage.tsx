@@ -3,16 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { api, type MatchListItem, type Team } from '../lib/api'
-import { Crest, ResultBadge, SEP, Spinner, fmtDate } from '../components/shared'
+import { Crest, SEP, fmtDate } from '../components/shared'
 
 const PAGE_SIZE = 20
-
-const ROW_GRID: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '2fr 3fr 72px 3fr 44px',
-  alignItems: 'center',
-  gap: 16,
-}
 
 // ─── Select de filtro — botón + panel, lenguaje del TeamDropdown ──────────────
 interface FilterOption {
@@ -20,7 +13,7 @@ interface FilterOption {
   label: string
 }
 
-function FilterSelect({ label, value, options, placeholder, disabled, onChange }: {
+function FilterSelect({ value, options, placeholder, disabled, onChange }: {
   label: string
   value: string | null
   options: FilterOption[]
@@ -29,7 +22,7 @@ function FilterSelect({ label, value, options, placeholder, disabled, onChange }
   onChange: (value: string | null) => void
 }) {
   const [open, setOpen]           = useState(false)
-  const [focusedIdx, setFocusedIdx] = useState(-1)
+  const [, setFocusedIdx] = useState(-1)
   const rootRef    = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const optionRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -93,7 +86,7 @@ function FilterSelect({ label, value, options, placeholder, disabled, onChange }
           background: '#1a1a1c', border: `1px solid ${open ? '#4a4a4a' : '#2a2a2a'}`,
           borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer',
           fontSize: '0.9375rem', fontFamily: 'var(--font-sans)',
-          color: disabled ? 'rgba(255,255,255,0.18)' : selected ? '#f0f0f0' : 'rgba(255,255,255,0.35)',
+          color: disabled ? 'rgba(255,255,255,0.18)' : selected ? '#f0f0f0' : 'rgba(255,255,255,0.45)',
           opacity: disabled ? 0.6 : 1,
           transition: 'border-color 120ms, color 120ms',
           textAlign: 'left',
@@ -153,9 +146,6 @@ function FilterSelect({ label, value, options, placeholder, disabled, onChange }
     </div>
   )
 }
-
-const PRIMARY = 'rgba(255,255,255,0.92)'
-const DIM     = 'rgba(255,255,255,0.28)'
 
 // ─── Fila de partido ──────────────────────────────────────────────────────────
 function MatchRow({ match, teamById, onClick }: {
@@ -235,7 +225,7 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
 }) {
   const [query,      setQuery]      = useState('')
   const [open,       setOpen]       = useState(false)
-  const [focusedIdx, setFocusedIdx] = useState(-1)
+  const [, setFocusedIdx] = useState(-1)
   const rootRef    = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
   const resultRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -482,20 +472,6 @@ export default function ExplorePage() {
   const hasNextPage = rawMatches.length > PAGE_SIZE
   const matches     = hasNextPage ? rawMatches.slice(0, PAGE_SIZE) : rawMatches
 
-  // Jornadas disponibles para la temporada actual (valores únicos, ordenados)
-  const { data: allSeasonMatches = [] } = useQuery({
-    queryKey: ['matches-all', leagueCode, season],
-    queryFn: () => api.matches({ league_code: leagueCode!, season: season!, limit: 500, offset: 0 }),
-    enabled: filtersReady,
-    staleTime: Infinity,
-  })
-  const availableRounds = useMemo(() => {
-    const rounds = allSeasonMatches
-      .map(m => m.round_number)
-      .filter((r): r is number => r !== null)
-    return [...new Set(rounds)].sort((a, b) => a - b)
-  }, [allSeasonMatches])
-
   const handleLeagueChange = (code: string | null) => {
     setSearchParams(code ? { league: code } : {})
   }
@@ -517,7 +493,8 @@ export default function ExplorePage() {
   )
 
   return (
-    <div style={{ minHeight: 'calc(100svh - 48px)', background: 'var(--color-bg)', paddingBottom: 80 }}>
+    <div style={{ minHeight: 'calc(100svh - 60px)', background: 'var(--color-bg)', paddingBottom: 80 }}>
+      <title>Explorar · PitchLens</title>
       <div style={{ paddingTop: 48 }}>
         <div style={{ maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
 
@@ -527,7 +504,7 @@ export default function ExplorePage() {
             margin: 0, fontSize: '2.125rem', fontWeight: 700,
             letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
           }}>
-            Explorar
+            Explorar el dataset
           </h1>
           <p style={{
             margin: '8px 0 0', fontSize: 18, fontWeight: 400,
@@ -572,8 +549,8 @@ export default function ExplorePage() {
         </div>
 
         {!filtersReady ? (
-          <div style={{ minHeight: '40vh', borderTop: `0.5px solid ${SEP}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p style={{ margin: 0, fontSize: 15, color: 'rgba(255,255,255,0.22)', fontFamily: 'var(--font-sans)' }}>
+          <div style={{ borderTop: `0.5px solid ${SEP}`, padding: '48px 0', textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 16, color: 'rgba(255,255,255,0.28)', fontFamily: 'var(--font-sans)' }}>
               Selecciona liga y temporada para ver los partidos
             </p>
           </div>
@@ -613,7 +590,7 @@ export default function ExplorePage() {
                 {(page > 1 || hasNextPage) && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 28 }}>
                     {page > 1 ? (
-                      <PaginationBtn onClick={() => setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('page', String(page - 1)); return n })} aria-label="Página anterior">
+                      <PaginationBtn disabled={false} onClick={() => setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('page', String(page - 1)); return n })} aria-label="Página anterior">
                         <ChevronLeft size={15} />
                       </PaginationBtn>
                     ) : (
@@ -628,7 +605,7 @@ export default function ExplorePage() {
                     </span>
 
                     {hasNextPage ? (
-                      <PaginationBtn onClick={() => setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('page', String(page + 1)); return n })} aria-label="Página siguiente">
+                      <PaginationBtn disabled={false} onClick={() => setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('page', String(page + 1)); return n })} aria-label="Página siguiente">
                         <ChevronRight size={15} />
                       </PaginationBtn>
                     ) : (

@@ -55,6 +55,29 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
 }) {
   const [atBottom, setAtBottom] = useState(false)
 
+  // Cold start de H2H: el par no se ha enfrentado en el historial disponible.
+  // Se mantiene la columna con su cabecera y se muestra un empty-state, en vez
+  // de ocultar el bloque (mismo estilo de texto que el empty-state del Predictor).
+  if (matches.length === 0) {
+    return (
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <span style={{ ...COL_LABEL, display: 'block', textAlign: 'center' }}>H2H</span>
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'flex-start', textAlign: 'center',
+          gap: 7, padding: '96px 24px 0',
+        }}>
+          <div style={{ fontSize: '1.25rem', fontWeight: 500, color: 'rgba(255,255,255,0.7)', fontFamily: 'var(--font-sans)' }}>
+            Sin enfrentamientos previos
+          </div>
+          <div style={{ fontSize: '0.9375rem', color: 'rgba(255,255,255,0.34)', lineHeight: 1.5, maxWidth: 300, fontFamily: 'var(--font-sans)' }}>
+            Estos equipos no se han enfrentado en el historial disponible
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   let homeWins = 0, draws = 0, awayWins = 0
   for (const m of matches) {
     const homeIsOurHome = m.home_team_name === homeName
@@ -75,7 +98,7 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
       <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', margin: '28px 0 0' }}>
         {([
           { color: HOME_C, num: homeWins, label: homeDisplayName },
-          { color: DIM,    num: draws,    label: 'Empates' },
+          { color: 'rgba(255,255,255,0.42)', num: draws, label: 'Empates' },
           { color: AWAY_C, num: awayWins, label: awayDisplayName },
         ] as { color: string; num: number; label: string }[]).map(({ color, num, label }, idx) => (
           <div key={label} style={{ flex: 1, display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: idx === 0 ? 'flex-start' : idx === 1 ? 'center' : 'flex-end', minWidth: 0 }}>
@@ -255,8 +278,8 @@ function FormBlock({ matches, teamName, color, mt }: {
                 </div>
                 {isLast && (
                   <div style={{
-                    width: '100%', maxWidth: 44, height: 3, borderRadius: 2,
-                    background: tileColor, marginTop: -6,
+                    width: '100%', maxWidth: 30, height: 2, borderRadius: 2,
+                    background: tileColor, marginTop: -4,
                   }} />
                 )}
               </div>
@@ -313,7 +336,6 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
 
   const hDisplay = homeDisplayName ?? homeName
   const aDisplay = awayDisplayName ?? awayName
-  const hasH2H   = h2h && h2h.length > 0
   const hasForm  = homeForm || awayForm
 
   return (
@@ -336,7 +358,7 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
 
       {/* Dos columnas */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
-        {hasH2H && (
+        {h2h && (
           <H2HColumn
             matches={h2h}
             homeId={homeId}
@@ -349,7 +371,7 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
           />
         )}
 
-        {hasH2H && hasForm && (
+        {h2h && hasForm && (
           <div style={{ width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 48px' }} />
         )}
 

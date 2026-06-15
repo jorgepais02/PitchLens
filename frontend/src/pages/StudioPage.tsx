@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, Check, Lock, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ListFilter, Lock, MoreHorizontal, Plus, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, type Algorithm, type CustomModel, type TrainResult } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import AuthModal from '../components/AuthModal'
-import { FEATURE_LABELS, SEP, Spinner, fmtDate } from '../components/shared'
-
-type View = 'list' | 'create' | 'result'
+import { FEATURE_LABELS, SEP, Spinner } from '../components/shared'
 
 const PRIMARY   = 'rgba(255,255,255,0.92)'
+const SECTION   = 'rgba(255,255,255,0.85)'  // headers de sección — por debajo del h1 de título
 const SECONDARY = 'rgba(255,255,255,0.45)'
 const DIM       = 'rgba(255,255,255,0.28)'
 
@@ -23,137 +24,256 @@ const PRETRAINED = [
     desc: 'Extended + probabilidad implícita de cierre Pinnacle' },
 ] as const
 
+
 const FEATURE_BLOCKS: { title: string; features: string[] }[] = [
-  { title: 'Bloque A — Contexto global',   features: ['elo_diff_pre', 'points_diff_global', 'points_diff_venue'] },
-  { title: 'Bloque B — Forma rolling 5',   features: ['goal_diff_last5_global', 'goal_diff_last5_venue', 'sot_diff_last5_global', 'xg_diff_last5_global', 'xg_conceded_diff_last5_global', 'rest_days_diff'] },
-  { title: 'Bloque C — Historial directo', features: ['h2h_goal_diff_last5', 'h2h_result_diff_last5'] },
-  { title: 'Bloque D — Mercado',           features: ['prob_diff_market'] },
+  { title: 'BLOQUE A — Contexto global',   features: ['elo_diff_pre', 'points_diff_global', 'points_diff_venue'] },
+  { title: 'BLOQUE B — Forma reciente (últimos 5 partidos)',   features: ['goal_diff_last5_global', 'xg_diff_last5_global', 'goal_diff_last5_venue', 'xg_conceded_diff_last5_global', 'sot_diff_last5_global'] },
+  { title: 'BLOQUE C — Historial directo', features: ['h2h_goal_diff_last5', 'h2h_result_diff_last5'] },
+  { title: 'BLOQUE D — Mercado',           features: ['prob_diff_market'] },
 ]
 
+// Descripción corta de cada feature — ayuda a decidir sin mostrar el nombre interno.
+const FEATURE_DESC: Record<string, string> = {
+  elo_diff_pre:                  'Nivel de cada equipo según su historial de resultados.',
+  points_diff_global:            'Puntos sumados en la última temporada jugada por cada equipo.',
+  points_diff_venue:             'Puntos sumados en la última temporada, sólo los partidos en casa del local y los de fuera del visitante.',
+  goal_diff_last5_global:        'Balance entre los goles marcados y encajados.',
+  goal_diff_last5_venue:         'Balance entre goles marcados y encajados, sólo en casa el local y fuera el visitante.',
+  sot_diff_last5_global:         'Balance entre los tiros a puerta a favor y en contra.',
+  xg_diff_last5_global:          'Balance entre el xG generado y el concedido.',
+  xg_conceded_diff_last5_global: 'Calidad de las ocasiones que cada equipo permite al rival.',
+  rest_days_diff:                'Días de descanso desde el último partido.',
+  prob_diff_market:              'Probabilidad de victoria según las cuotas de cierre de Pinnacle.',
+  h2h_goal_diff_last5:           'Saldo de goles en los últimos 5 enfrentamientos.',
+  h2h_result_diff_last5:         'Resultados en los últimos 5 enfrentamientos.',
+}
+
 const ALGORITHMS: { key: Algorithm; short: string; name: string; desc: string }[] = [
-  { key: 'lr',  short: 'LR',  name: 'Logistic Regression', desc: 'Lineal con regularización L2 — el algoritmo de los modelos oficiales' },
+  { key: 'lr',  short: 'LR',  name: 'Logistic Regression', desc: 'Modelo lineal con regularización L2 y bien calibrado' },
   { key: 'dt',  short: 'DT',  name: 'Decision Tree',       desc: 'Árbol de decisión interpretable, calibrado con sigmoide' },
   { key: 'rf',  short: 'RF',  name: 'Random Forest',       desc: 'Ensemble de árboles con calibración de probabilidades' },
-  { key: 'xgb', short: 'XGB', name: 'XGBoost',             desc: 'Gradient boosting sobre árboles, calibrado' },
+  { key: 'xgb', short: 'XGB', name: 'XGBoost',             desc: 'Gradient boosting sobre árboles de decisión calibrado' },
 ]
 
 const ALGO_SHORT: Record<string, string> = { lr: 'LR', dt: 'DT', rf: 'RF', xgb: 'XGB' }
 
+// Tope de caracteres del nombre del modelo — usabilidad y cabe en las tarjetas.
+const NAME_MAX = 30
+// Tope de la descripción opcional — debe caber en una línea de la tarjeta del selector.
+const DESC_MAX = 80
+
 const fmtAcc = (v: number | null | undefined) => v != null ? `${(v * 100).toFixed(1)}%` : '—'
 const fmtLoss = (v: number | null | undefined) => v != null ? v.toFixed(4) : '—'
 
-// ─── Piezas pequeñas ──────────────────────────────────────────────────────────
-function AlgoBadge({ algorithm }: { algorithm: string }) {
-  return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 20, flexShrink: 0,
-      fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
-      background: 'var(--color-accent-subtle)', color: '#a5b4fc',
-      border: '1px solid rgba(99,102,241,0.35)',
-      fontFamily: 'var(--font-sans)',
-    }}>
-      {ALGO_SHORT[algorithm] ?? algorithm}
-    </span>
-  )
+function timeAgo(dateStr: string): string {
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000)
+  if (days === 0) return 'hoy'
+  if (days === 1) return 'hace 1 día'
+  if (days < 30) return `hace ${days} días`
+  const months = Math.floor(days / 30)
+  return months === 1 ? 'hace 1 mes' : `hace ${months} meses`
 }
 
-function OfficialBadge() {
-  return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 20, flexShrink: 0,
-      fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
-      background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)',
-      border: '1px solid rgba(255,255,255,0.14)',
-      fontFamily: 'var(--font-sans)',
-    }}>
-      Oficial
-    </span>
-  )
-}
+function ModelCard({ model, onView, onDelete }: { model: CustomModel; onView: () => void; onDelete: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-function MetricInline({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  useEffect(() => {
+    if (!menuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onClick); document.removeEventListener('keydown', onKey) }
+  }, [menuOpen])
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <span style={{
-        fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase',
-        color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap',
-      }}>
-        {label}
-      </span>
-      <span style={{
-        fontSize: strong ? 20 : 15, fontWeight: strong ? 600 : 500,
-        color: strong ? PRIMARY : SECONDARY,
-        fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
-      }}>
-        {value}
-      </span>
+    <div
+      onClick={onView}
+      onMouseEnter={e => { e.currentTarget.style.background = '#2a2a2f'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = '#232327'; e.currentTarget.style.borderColor = 'var(--color-border-subtle)' }}
+      style={{
+        position: 'relative', background: '#232327',
+        border: '1px solid var(--color-border-subtle)', borderRadius: 10, padding: '22px 28px',
+        cursor: 'pointer', transition: 'border-color var(--duration-fast), background var(--duration-fast)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 7 }}>
+            <span style={{
+              fontSize: 20, fontWeight: 700, color: PRIMARY,
+              fontFamily: 'var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {model.name}
+            </span>
+          </div>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.52)', fontFamily: 'var(--font-sans)' }}>
+            {ALGO_SHORT[model.algorithm] ?? model.algorithm}
+            <span style={{ margin: '0 8px', opacity: 0.65 }}>·</span>
+            {model.features.length} features
+            <span style={{ margin: '0 8px', opacity: 0.65 }}>·</span>
+            entrenado {timeAgo(model.created_at)}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 30, flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{
+              fontSize: 22, fontWeight: 700, color: PRIMARY,
+              fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+            }}>
+              {fmtAcc(model.test_accuracy)}
+            </div>
+            <div style={{
+              fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-sans)', marginTop: 3,
+            }}>
+              Accuracy
+            </div>
+          </div>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setMenuOpen(o => !o) }}
+              aria-label="Opciones"
+              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.background = 'transparent' }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, borderRadius: 6,
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'rgba(255,255,255,0.45)', transition: 'color var(--duration-fast), background var(--duration-fast)',
+              }}
+            >
+              <MoreHorizontal size={17} />
+            </button>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute', right: 0, top: 34, zIndex: 50,
+                background: '#222224', border: '1px solid #2e2e30', borderRadius: 8,
+                padding: '4px 0', minWidth: 148, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              }}>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setMenuOpen(false); onView() }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  style={{ display: 'block', width: '100%', padding: '9px 14px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', fontSize: 13, textAlign: 'left' }}
+                >
+                  Ver comparación
+                </button>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); setMenuOpen(false); onDelete() }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  style={{ display: 'block', width: '100%', padding: '9px 14px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-error)', fontSize: 13, textAlign: 'left' }}
+                >
+                  Eliminar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-const CARD_STYLE: React.CSSProperties = {
-  background: 'var(--color-surface)',
-  border: '1px solid var(--color-border-subtle)',
-  borderRadius: 12,
-  padding: '18px 20px',
-  display: 'flex', flexDirection: 'column', gap: 14,
-}
+function RankingSection({ customModels }: { customModels: CustomModel[] }) {
+  const all = [
+    ...customModels.map(m => ({
+      key: String(m.id), name: m.name, acc: m.test_accuracy ?? 0,
+      algorithm: m.algorithm, isCustom: true as const,
+    })),
+    ...PRETRAINED.map(m => ({
+      key: m.key, name: m.label, acc: m.test_acc,
+      algorithm: 'lr', isCustom: false as const,
+    })),
+  ].sort((a, b) => b.acc - a.acc)
 
-// ─── Vista list ───────────────────────────────────────────────────────────────
-function ModelCard({ model, onDelete }: { model: CustomModel; onDelete: () => void }) {
   return (
-    <div style={CARD_STYLE}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{
-          flex: 1, minWidth: 0, fontSize: 16, fontWeight: 600, color: PRIMARY,
-          fontFamily: 'var(--font-sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+    <div style={{ marginTop: 52 }}>
+      <h2 style={{
+        margin: '0 0 4px', fontSize: '1.5rem', fontWeight: 600,
+        letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)',
+      }}>
+        Ranking
+      </h2>
+      {all.map((m, i) => (
+        <div key={m.key} style={{
+          display: 'grid',
+          gridTemplateColumns: '20px 1fr 40px 56px 64px',
+          alignItems: 'center', gap: 24,
+          padding: '16px 0',
+          borderBottom: `0.5px solid ${SEP}`,
         }}>
-          {model.name}
-        </span>
-        <AlgoBadge algorithm={model.algorithm} />
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label={`Borrar ${model.name}`}
-          title="Borrar modelo"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 26, height: 26, borderRadius: 6, flexShrink: 0,
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--color-ink-faint)',
-            transition: 'color var(--duration-fast), background var(--duration-fast)',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.color = 'var(--color-error)'
-            e.currentTarget.style.background = 'var(--color-error-subtle)'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.color = 'var(--color-ink-faint)'
-            e.currentTarget.style.background = 'transparent'
-          }}
-        >
-          <Trash2 size={13} />
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', gap: 24 }}>
-        <MetricInline strong label="Test acc" value={fmtAcc(model.test_accuracy)} />
-        <MetricInline label="Val acc" value={fmtAcc(model.val_accuracy)} />
-        <MetricInline label="Log loss" value={fmtLoss(model.test_log_loss)} />
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <span style={{ fontSize: 12.5, color: DIM, fontFamily: 'var(--font-sans)' }}>
-          {model.features.length} features · {fmtDate(model.created_at)}
-        </span>
-      </div>
+          <span style={{
+            textAlign: 'right', fontSize: 16,
+            color: m.isCustom ? 'rgba(255,255,255,0.75)' : DIM,
+            fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+          }}>
+            {i + 1}
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontSize: 19, fontWeight: m.isCustom ? 500 : 400,
+              color: m.isCustom ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)',
+              fontFamily: 'var(--font-sans)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {m.name}
+            </div>
+            {!m.isCustom && (
+              <div style={{ fontSize: 13, color: DIM, fontFamily: 'var(--font-sans)', marginTop: 3 }}>
+                preentrenado
+              </div>
+            )}
+          </div>
+          <span style={{
+            fontSize: 14, fontWeight: 700, letterSpacing: '0.05em',
+            fontFamily: 'var(--font-mono)', textAlign: 'right',
+            color: m.isCustom ? 'rgba(255,255,255,0.75)' : DIM,
+          }}>
+            {ALGO_SHORT[m.algorithm] ?? m.algorithm.toUpperCase()}
+          </span>
+          <span />
+          <span style={{
+            textAlign: 'right', fontSize: 19, fontWeight: m.isCustom ? 500 : 400,
+            color: m.isCustom ? 'rgba(255,255,255,0.75)' : DIM,
+            fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+          }}>
+            {fmtAcc(m.acc)}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }
 
-function ListView({ onCreate, onShowAuth }: { onCreate: () => void; onShowAuth: () => void }) {
+type SortKey = 'recent' | 'features' | 'name'
+const SORT_LABELS: Record<SortKey, string> = { recent: 'Recientes', features: 'Nº features', name: 'Modelo' }
+
+function ListView({ onCreate, onShowAuth, onView }: { onCreate: () => void; onShowAuth: () => void; onView: (model: CustomModel) => void }) {
   const { isAuthenticated, token } = useAuth()
   const queryClient = useQueryClient()
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState<SortKey>('recent')
+  const [sortOpen, setSortOpen] = useState(false)
+  const sortRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!sortOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSortOpen(false) }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onClick); document.removeEventListener('keydown', onKey) }
+  }, [sortOpen])
 
   const { data: models, isLoading } = useQuery({
     queryKey: ['models', token],
@@ -179,19 +299,19 @@ function ListView({ onCreate, onShowAuth }: { onCreate: () => void; onShowAuth: 
         alignItems: 'center', justifyContent: 'center', gap: 20, textAlign: 'center',
       }}>
         <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.04)', border: '1px solid var(--color-border-subtle)',
+          width: 68, height: 68, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.06)', border: '1px solid var(--color-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <Lock size={22} style={{ color: 'var(--color-ink-muted)' }} />
+          <Lock size={24} style={{ color: 'oklch(0.72 0.01 268)' }} />
         </div>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 600, color: PRIMARY, fontFamily: 'var(--font-sans)', marginBottom: 8 }}>
-            Tu taller de modelos
+          <div style={{ fontSize: 24, fontWeight: 600, color: PRIMARY, fontFamily: 'var(--font-sans)', marginBottom: 8 }}>
+            Tu laboratorio de modelos
           </div>
-          <p style={{ margin: 0, fontSize: 16, color: SECONDARY, fontFamily: 'var(--font-sans)', maxWidth: 420, lineHeight: 1.55 }}>
-            Elige tus features, entrena tu propio modelo y compáralo con los oficiales.
-            Necesitas una cuenta para guardar tus modelos.
+          <p style={{ margin: 0, fontSize: 17, color: SECONDARY, fontFamily: 'var(--font-sans)', maxWidth: 420, lineHeight: 1.55 }}>
+            Elige tus features, entrena tus propios modelos y compáralos con los preentrenados.
+            Necesitas una cuenta para guardarlos.
           </p>
         </div>
         <button
@@ -199,8 +319,8 @@ function ListView({ onCreate, onShowAuth }: { onCreate: () => void; onShowAuth: 
           onClick={onShowAuth}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 9,
-            padding: '11px 24px', borderRadius: 6, marginTop: 4,
-            fontSize: '0.9375rem', fontWeight: 500, fontFamily: 'var(--font-sans)',
+            padding: '12px 26px', borderRadius: 8, marginTop: 4,
+            fontSize: '1rem', fontWeight: 500, fontFamily: 'var(--font-sans)',
             background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.9)',
             border: '1px solid rgba(255,255,255,0.62)', cursor: 'pointer',
             transition: 'background 120ms, border-color 120ms, color 120ms',
@@ -208,107 +328,154 @@ function ListView({ onCreate, onShowAuth }: { onCreate: () => void; onShowAuth: 
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
         >
-          <Lock size={13} /> Iniciar sesión
+          Iniciar sesión
         </button>
       </div>
     )
   }
 
-  const customModels = models?.custom ?? []
+  const allModels = models?.custom ?? []
+  const filtered = allModels
+    .filter(m => m.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === 'recent') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (sortBy === 'features') return b.features.length - a.features.length
+      return a.name.localeCompare(b.name)
+    })
 
   return (
     <div>
       {/* Cabecera */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 44 }}>
-        <div>
-          <h1 style={{
-            margin: 0, fontSize: '2.125rem', fontWeight: 700,
-            letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
-          }}>
-            Studio
-          </h1>
-          <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 400, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
-            Entrena tus propios modelos y compáralos con los oficiales.
-          </p>
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ margin: 0, fontSize: '2.125rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)' }}>
+          Mis modelos
+        </h1>
+      </div>
+
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        {/* Buscador — ocupa ~40% */}
+        <div style={{
+          width: 260, display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 12px', background: '#1a1a1c',
+          border: '1px solid #2a2a2a', borderRadius: 6,
+        }}>
+          <Search size={13} style={{ flexShrink: 0, color: 'rgba(255,255,255,0.3)' }} />
+          <input
+            type="text"
+            placeholder="Buscar modelo…"
+            value={search}
+            maxLength={30}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              fontSize: '0.9375rem', fontFamily: 'var(--font-sans)', color: '#f0f0f0',
+            }}
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', padding: 0 }}>
+              <X size={13} />
+            </button>
+          )}
         </div>
+
+        {/* Sort — icono junto al buscador */}
+        <div ref={sortRef} style={{ position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setSortOpen(o => !o)}
+            title={`Ordenar: ${SORT_LABELS[sortBy]}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 28, height: 28, borderRadius: 4,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'rgba(255,255,255,0.35)',
+              transition: 'color 120ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
+          >
+            <ListFilter size={16} />
+          </button>
+          {sortOpen && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 50,
+              background: '#1a1a1c', border: '1px solid #2a2a2a', borderRadius: 8,
+              padding: '4px', minWidth: 140,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}>
+              {(Object.keys(SORT_LABELS) as SortKey[]).map(key => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setSortBy(key); setSortOpen(false) }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '8px 12px', borderRadius: 5,
+                    fontSize: '0.9375rem', fontFamily: 'var(--font-sans)',
+                    background: sortBy === key ? 'rgba(255,255,255,0.06)' : 'transparent',
+                    color: sortBy === key ? PRIMARY : SECONDARY,
+                    border: 'none', cursor: 'pointer',
+                    transition: 'background 100ms',
+                  }}
+                  onMouseEnter={e => { if (sortBy !== key) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { if (sortBy !== key) e.currentTarget.style.background = 'transparent' }}
+                >
+                  {SORT_LABELS[key]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Nuevo modelo */}
         <button
           type="button"
           onClick={onCreate}
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0,
-            padding: '10px 20px', borderRadius: 6, marginTop: 6,
+            display: 'inline-flex', alignItems: 'center', gap: 7, flexShrink: 0,
+            padding: '8px 18px', borderRadius: 6,
             fontSize: '0.9375rem', fontWeight: 500, fontFamily: 'var(--font-sans)',
-            background: 'var(--color-accent)', color: '#fff',
-            border: 'none', cursor: 'pointer',
-            transition: 'background var(--duration-fast)',
+            background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.9)',
+            border: '1px solid rgba(255,255,255,0.62)', cursor: 'pointer',
+            transition: 'background 120ms, border-color 120ms, color 120ms',
+            whiteSpace: 'nowrap',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--color-accent-hover)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-accent)' }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.75)'; e.currentTarget.style.color = '#fff' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.62)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' }}
         >
-          <Plus size={14} strokeWidth={2.2} /> Crear nuevo modelo
+          <Plus size={14} strokeWidth={2} /> Nuevo modelo
         </button>
       </div>
 
-      {/* Mis modelos */}
-      <div style={{ marginBottom: 56 }}>
-        <h2 style={{
-          margin: '0 0 18px', fontSize: '1.375rem', fontWeight: 600,
-          letterSpacing: '-0.01em', color: PRIMARY, fontFamily: 'var(--font-sans)',
-        }}>
-          Mis modelos
-        </h2>
-
-        {isLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
-            <Spinner />
-          </div>
-        ) : customModels.length === 0 ? (
-          <div style={{
-            padding: '44px 0', textAlign: 'center',
-            border: `1px dashed ${SEP}`, borderRadius: 12,
-          }}>
-            <p style={{ margin: 0, fontSize: 16, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-sans)' }}>
-              Aún no has entrenado ningún modelo — crea el primero.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
-            {customModels.map(m => (
-              <ModelCard key={m.id} model={m} onDelete={() => handleDelete(m)} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modelos de referencia */}
-      <div>
-        <h2 style={{
-          margin: '0 0 18px', fontSize: '1.375rem', fontWeight: 600,
-          letterSpacing: '-0.01em', color: PRIMARY, fontFamily: 'var(--font-sans)',
-        }}>
-          Modelos de referencia
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
-          {PRETRAINED.map(m => (
-            <div key={m.key} style={CARD_STYLE}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ flex: 1, fontSize: 16, fontWeight: 600, color: PRIMARY, fontFamily: 'var(--font-sans)' }}>
-                  {m.label}
-                </span>
-                <OfficialBadge />
-              </div>
-              <div style={{ display: 'flex', gap: 24 }}>
-                <MetricInline strong label="Test acc" value={fmtAcc(m.test_acc)} />
-                <MetricInline label="Val acc" value={fmtAcc(m.val_acc)} />
-                <MetricInline label="Log loss" value={fmtLoss(m.test_log_loss)} />
-              </div>
-              <span style={{ fontSize: 12.5, color: DIM, fontFamily: 'var(--font-sans)', lineHeight: 1.5 }}>
-                {m.desc}
-              </span>
-            </div>
+      {/* Lista */}
+      {isLoading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
+          <Spinner />
+        </div>
+      ) : allModels.length === 0 ? (
+        <div style={{ padding: '48px 0', textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 16, color: DIM, fontFamily: 'var(--font-sans)' }}>
+            Aún no has entrenado ningún modelo — crea el primero
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: '48px 0', textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 16, color: DIM, fontFamily: 'var(--font-sans)' }}>
+            Sin resultados para «{search}».
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(m => (
+            <ModelCard key={m.id} model={m} onView={() => onView(m)} onDelete={() => handleDelete(m)} />
           ))}
         </div>
-      </div>
+      )}
+
+      {allModels.length > 0 && <RankingSection customModels={allModels} />}
     </div>
   )
 }
@@ -316,6 +483,7 @@ function ListView({ onCreate, onShowAuth }: { onCreate: () => void; onShowAuth: 
 // ─── Vista create ─────────────────────────────────────────────────────────────
 interface CreateFormState {
   name: string
+  description: string
   features: Set<string>
   algorithm: Algorithm | null
 }
@@ -327,6 +495,8 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
   onBack: () => void
   onSubmit: () => void
 }) {
+  const [openBlock, setOpenBlock] = useState<string | null>(null)
+
   const toggleFeature = (f: string) => {
     setForm(prev => {
       const next = new Set(prev.features)
@@ -336,10 +506,12 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
     })
   }
 
+  const atMax = form.name.length >= NAME_MAX
+  const descAtMax = form.description.length >= DESC_MAX
   const canSubmit = form.name.trim() !== '' && form.features.size > 0 && form.algorithm !== null && !isTraining
 
   return (
-    <div>
+    <div style={{ maxWidth: 860, margin: '0 auto' }}>
       <BackButton onClick={onBack} disabled={isTraining} />
 
       <h1 style={{
@@ -348,118 +520,223 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
       }}>
         Nuevo modelo
       </h1>
-      <p style={{ margin: '8px 0 36px', fontSize: 18, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
-        Elige las features y el algoritmo — entrenamos con split temporal y te damos las métricas en test.
+      <p style={{ margin: '8px 0 36px', fontSize: 19, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
+        Configura tu modelo. Se entrena y evalúa con el mismo split temporal que los preentrenados.
       </p>
 
       {/* Nombre */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, maxWidth: 420, marginBottom: 40 }}>
+      <div style={{ marginBottom: 44 }}>
         <label htmlFor="model-name" style={{
-          fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-sans)',
+          display: 'block', marginBottom: 14,
+          fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em',
+          color: SECTION, fontFamily: 'var(--font-sans)',
         }}>
-          Nombre del modelo
+          Nombre
         </label>
         <input
           id="model-name"
+          className="studio-name-input"
           type="text"
-          placeholder="Mi modelo"
+          placeholder="Random Forest · xG + ELO"
           value={form.name}
-          maxLength={100}
+          maxLength={NAME_MAX}
+          size={NAME_MAX}
           disabled={isTraining}
           onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
           style={{
-            width: '100%', padding: '10px 12px',
-            background: '#1a1a1c', border: '1px solid #2a2a2a',
+            maxWidth: 320, padding: '13px 16px',
+            background: '#1a1a1c',
+            border: `1px solid ${atMax ? 'var(--color-error)' : '#2a2a2a'}`,
+            boxShadow: atMax ? '0 0 0 3px var(--color-error-subtle)' : 'none',
             borderRadius: 6, color: '#f0f0f0',
-            fontSize: '0.9375rem', fontFamily: 'var(--font-sans)', outline: 'none',
-            transition: 'border-color 120ms',
+            fontSize: '1.0625rem', fontFamily: 'var(--font-sans)', outline: 'none',
+            transition: 'border-color 120ms, box-shadow 120ms',
           }}
-          onFocus={e => { e.currentTarget.style.borderColor = '#4a4a4a' }}
-          onBlur={e => { e.currentTarget.style.borderColor = '#2a2a2a' }}
+          onFocus={e => { if (!atMax) e.currentTarget.style.borderColor = '#4a4a4a' }}
+          onBlur={e => { if (!atMax) e.currentTarget.style.borderColor = '#2a2a2a' }}
         />
+        {atMax && (
+          <p style={{
+            width: '100%', maxWidth: 320, margin: '6px 0 0', textAlign: 'right',
+            fontSize: 13.5, fontWeight: 500, color: 'var(--color-error)',
+            fontFamily: 'var(--font-sans)', fontFeatureSettings: 'normal',
+          }}>
+            Máximo {NAME_MAX} caracteres
+          </p>
+        )}
+      </div>
+
+      {/* Descripción — opcional */}
+      <div style={{ marginBottom: 44 }}>
+        <label htmlFor="model-desc" style={{
+          display: 'block', marginBottom: 14,
+          fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em',
+          color: SECTION, fontFamily: 'var(--font-sans)',
+        }}>
+          Descripción <span style={{ fontSize: '0.95rem', fontWeight: 400, color: SECONDARY }}>· opcional</span>
+        </label>
+        <input
+          id="model-desc"
+          type="text"
+          placeholder="Forma reciente y señal de mercado, sin H2H"
+          value={form.description}
+          maxLength={DESC_MAX}
+          disabled={isTraining}
+          onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
+          style={{
+            width: '100%', maxWidth: 520, padding: '13px 16px',
+            background: '#1a1a1c',
+            border: `1px solid ${descAtMax ? 'var(--color-error)' : '#2a2a2a'}`,
+            boxShadow: descAtMax ? '0 0 0 3px var(--color-error-subtle)' : 'none',
+            borderRadius: 6, color: '#f0f0f0',
+            fontSize: '1.0625rem', fontFamily: 'var(--font-sans)', outline: 'none',
+            transition: 'border-color 120ms, box-shadow 120ms',
+          }}
+          onFocus={e => { if (!descAtMax) e.currentTarget.style.borderColor = '#4a4a4a' }}
+          onBlur={e => { if (!descAtMax) e.currentTarget.style.borderColor = '#2a2a2a' }}
+        />
+        <p style={{
+          width: '100%', maxWidth: 520, margin: '6px 0 0', textAlign: 'right',
+          fontSize: 13.5, fontWeight: 500,
+          color: descAtMax ? 'var(--color-error)' : SECONDARY,
+          fontFamily: 'var(--font-sans)', fontFeatureSettings: 'normal',
+        }}>
+          {descAtMax ? `Máximo ${DESC_MAX} caracteres` : 'Aparecerá en la tarjeta del selector'}
+        </p>
       </div>
 
       {/* Features por bloque */}
       <div style={{ marginBottom: 44 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 18 }}>
-          <h2 style={{ margin: 0, fontSize: '1.375rem', fontWeight: 600, letterSpacing: '-0.01em', color: PRIMARY, fontFamily: 'var(--font-sans)' }}>
-            Features
-          </h2>
-          <span style={{ fontSize: 14, color: form.features.size > 0 ? SECONDARY : DIM, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
-            {form.features.size}/12
-          </span>
-        </div>
+        <h2 style={{ margin: '0 0 6px', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
+          Features
+        </h2>
+        <p style={{ margin: '0 0 18px', fontSize: 17, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
+          Cada feature compara al equipo local con el visitante (valor del local menos el del visitante).
+        </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '28px 36px' }}>
-          {FEATURE_BLOCKS.map(block => (
-            <div key={block.title}>
-              <div style={{
-                marginBottom: 10, fontSize: 12, fontWeight: 600, letterSpacing: '0.08em',
-                textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-sans)',
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {FEATURE_BLOCKS.map(block => {
+            const isOpen = openBlock === block.title
+            const selectedInBlock = block.features.filter(f => form.features.has(f)).length
+            const bodyId = `feat-block-${block.title.replace(/[^a-zA-Z0-9]+/g, '-')}`
+            return (
+              <div key={block.title} style={{
+                borderRadius: 12, overflow: 'hidden',
+                border: `1px solid ${isOpen ? 'oklch(0.63 0.21 272 / 0.45)' : 'var(--color-border-subtle)'}`,
+                background: isOpen ? 'oklch(0.63 0.21 272 / 0.04)' : 'var(--color-surface)',
+                transition: 'border-color 150ms, background 150ms',
               }}>
-                {block.title}
-              </div>
-              {block.features.map(f => {
-                const checked = form.features.has(f)
-                return (
-                  <button
-                    key={f}
-                    type="button"
-                    role="checkbox"
-                    aria-checked={checked}
-                    disabled={isTraining}
-                    onClick={() => toggleFeature(f)}
+                {/* Cabecera del bloque */}
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={bodyId}
+                  disabled={isTraining}
+                  onClick={() => setOpenBlock(isOpen ? null : block.title)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                    padding: '17px 20px', textAlign: 'left',
+                    background: 'transparent', border: 'none',
+                    cursor: isTraining ? 'default' : 'pointer',
+                    fontFamily: 'var(--font-sans)', transition: 'background 150ms',
+                  }}
+                  onMouseEnter={e => { if (!isTraining && !isOpen) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                >
+                  <ChevronDown
+                    size={19}
+                    aria-hidden="true"
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 11,
-                      width: '100%', textAlign: 'left',
-                      padding: '8px 10px', borderRadius: 8,
-                      background: checked ? 'rgba(255,255,255,0.05)' : 'transparent',
-                      border: `1px solid ${checked ? 'rgba(255,255,255,0.10)' : 'transparent'}`,
-                      cursor: isTraining ? 'default' : 'pointer',
-                      fontFamily: 'var(--font-sans)',
-                      transition: 'background 150ms, border-color 150ms',
-                      marginBottom: 2,
+                      flexShrink: 0,
+                      color: isOpen ? '#a5b4fc' : 'rgba(255,255,255,0.35)',
+                      transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                      transition: 'transform 180ms ease, color 150ms',
                     }}
-                    onMouseEnter={e => { if (!checked && !isTraining) e.currentTarget.style.background = 'rgba(255,255,255,0.025)' }}
-                    onMouseLeave={e => { if (!checked) e.currentTarget.style.background = 'transparent' }}
-                  >
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                      background: checked ? 'rgba(255,255,255,0.85)' : 'transparent',
-                      border: `1.5px solid ${checked ? 'rgba(255,255,255,0.85)' : '#3a3a3a'}`,
-                      transition: 'background 150ms, border-color 150ms',
-                    }}>
-                      {checked && <Check size={11} strokeWidth={3} color="#111" />}
-                    </span>
-                    <span style={{
-                      flex: 1, fontSize: 15,
-                      color: checked ? '#e8e8e8' : 'rgba(255,255,255,0.5)',
-                      transition: 'color 150ms',
-                    }}>
-                      {FEATURE_LABELS[f] ?? f}
-                    </span>
-                    <span style={{
-                      fontSize: 11.5, color: 'rgba(255,255,255,0.18)',
-                      fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap',
-                    }}>
-                      {f}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+                  />
+                  <span style={{
+                    flex: 1, fontSize: 16, fontWeight: 600, letterSpacing: '0.005em',
+                    color: isOpen ? '#a5b4fc' : 'rgba(255,255,255,0.75)',
+                    transition: 'color 150ms',
+                  }}>
+                    {block.title}
+                  </span>
+                  <span style={{
+                    flexShrink: 0, fontSize: 16, fontWeight: 500,
+                    color: isOpen ? '#a5b4fc' : 'rgba(255,255,255,0.35)',
+                    fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {selectedInBlock}/{block.features.length}
+                  </span>
+                </button>
+
+                {/* Cuerpo: features del bloque en rejilla de 2 columnas */}
+                {isOpen && (
+                  <div id={bodyId} style={{
+                    padding: '6px 14px 16px',
+                    display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '2px 24px',
+                  }}>
+                    {block.features.map(f => {
+                      const checked = form.features.has(f)
+                      return (
+                        <button
+                          key={f}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={checked}
+                          disabled={isTraining}
+                          onClick={() => toggleFeature(f)}
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 12,
+                            width: '100%', textAlign: 'left',
+                            padding: '14px 10px', borderRadius: 8,
+                            background: 'transparent', border: 'none',
+                            cursor: isTraining ? 'default' : 'pointer',
+                            fontFamily: 'var(--font-sans)', transition: 'background 150ms',
+                          }}
+                          onMouseEnter={e => { if (!isTraining) e.currentTarget.style.background = 'rgba(255,255,255,0.055)' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                        >
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 2,
+                            background: checked ? '#a5b4fc' : 'transparent',
+                            border: `1.5px solid ${checked ? '#a5b4fc' : '#3a3a3a'}`,
+                            transition: 'background 150ms, border-color 150ms',
+                          }}>
+                            {checked && <Check size={12} strokeWidth={3} color="#111" />}
+                          </span>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{
+                              display: 'block', fontSize: 17,
+                              color: checked ? '#f0f0f0' : 'rgba(255,255,255,0.82)',
+                              transition: 'color 150ms',
+                            }}>
+                              {FEATURE_LABELS[f] ?? f}
+                            </span>
+                            <span style={{
+                              display: 'block', marginTop: 4, fontSize: 15, lineHeight: 1.45,
+                              color: 'rgba(255,255,255,0.34)',
+                            }}>
+                              {FEATURE_DESC[f] ?? ''}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
       {/* Algoritmo */}
       <div style={{ marginBottom: 44 }}>
-        <h2 style={{ margin: '0 0 18px', fontSize: '1.375rem', fontWeight: 600, letterSpacing: '-0.01em', color: PRIMARY, fontFamily: 'var(--font-sans)' }}>
+        <h2 style={{ margin: '0 0 18px', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
           Algoritmo
         </h2>
-        <div role="radiogroup" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+        <div role="radiogroup" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
           {ALGORITHMS.map(a => {
             const isActive = form.algorithm === a.key
             return (
@@ -471,29 +748,30 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
                 disabled={isTraining}
                 onClick={() => setForm(prev => ({ ...prev, algorithm: a.key }))}
                 style={{
-                  display: 'flex', flexDirection: 'column', gap: 7,
-                  textAlign: 'left', padding: '14px 16px', borderRadius: 10,
-                  background: isActive ? 'var(--color-accent-subtle)' : 'transparent',
+                  display: 'flex', flexDirection: 'column', gap: 8,
+                  textAlign: 'left', padding: '16px 18px', borderRadius: 10,
+                  background: isActive ? 'var(--color-accent-subtle)' : 'rgba(255,255,255,0.04)',
                   border: `1px solid ${isActive ? 'var(--color-accent)' : 'var(--color-border-subtle)'}`,
                   cursor: isTraining ? 'default' : 'pointer',
                   fontFamily: 'var(--font-sans)',
                   transition: 'background 150ms, border-color 150ms',
                 }}
-                onMouseEnter={e => { if (!isActive && !isTraining) e.currentTarget.style.borderColor = 'var(--color-border)' }}
-                onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = 'var(--color-border-subtle)' }}
+                onMouseEnter={e => { if (!isActive && !isTraining) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' } }}
+                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--color-border-subtle)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)' } }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 16, fontWeight: isActive ? 600 : 500, color: isActive ? '#e8e8e8' : 'rgba(255,255,255,0.75)' }}>
+                    {a.name}
+                  </span>
                   <span style={{
-                    fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-mono)',
-                    color: isActive ? '#a5b4fc' : 'rgba(255,255,255,0.4)',
+                    fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.06em',
+                    color: isActive ? '#a5b4fc' : 'rgba(255,255,255,0.33)',
                   }}>
                     {a.short}
                   </span>
-                  <span style={{ fontSize: 15, fontWeight: isActive ? 600 : 500, color: isActive ? '#e8e8e8' : 'rgba(255,255,255,0.6)' }}>
-                    {a.name}
-                  </span>
                 </div>
-                <span style={{ fontSize: 12.5, lineHeight: 1.45, color: isActive ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.25)' }}>
+                <span style={{ fontSize: 15, lineHeight: 1.45, color: isActive ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.42)' }}>
                   {a.desc}
                 </span>
               </button>
@@ -503,15 +781,15 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
       </div>
 
       {/* Submit */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
         <button
           type="button"
           onClick={onSubmit}
           disabled={!canSubmit}
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: 10,
-            padding: '13px 28px', borderRadius: 6,
-            fontSize: '1rem', fontWeight: 500, fontFamily: 'var(--font-sans)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            width: 320, padding: '14px 30px', borderRadius: 6,
+            fontSize: '1.0625rem', fontWeight: 500, fontFamily: 'var(--font-sans)',
             cursor: canSubmit ? 'pointer' : 'not-allowed',
             transition: 'background 120ms, border-color 120ms, color 120ms',
             ...(canSubmit
@@ -523,8 +801,8 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
           onMouseLeave={e => { if (canSubmit) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)' } }}
         >
           {isTraining
-            ? <><Spinner size={14} /> Entrenando — puede tardar hasta 30s...</>
-            : <>Entrenar modelo <ArrowRight size={15} aria-hidden="true" /></>
+            ? <><Spinner size={16} /> Entrenando — puede tardar hasta 30s...</>
+            : <>Entrenar modelo <ArrowRight size={16} aria-hidden="true" /></>
           }
         </button>
       </div>
@@ -541,26 +819,37 @@ function ImportanceChart({ importance }: { importance: { feature: string; import
     <div>
       {sorted.map((row, i) => (
         <div key={row.feature} style={{
-          paddingTop: 14, paddingBottom: 14,
+          paddingTop: 20, paddingBottom: 20,
           borderBottom: i === sorted.length - 1 ? 'none' : `0.5px solid ${SEP}`,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
-            <span style={{ fontSize: 15, fontWeight: 400, color: 'rgba(255,255,255,0.85)', fontFamily: 'var(--font-sans)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+            <span style={{ fontSize: 16.5, fontWeight: 600, letterSpacing: '0.01em', color: 'rgba(255,255,255,0.78)', fontFamily: 'var(--font-sans)' }}>
               {FEATURE_LABELS[row.feature] ?? row.feature}
             </span>
-            <span style={{
-              fontSize: 14, fontWeight: 600, color: SECONDARY,
-              fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
-            }}>
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: i * 0.06 + 1.7, duration: 1.0, ease: 'easeOut' }}
+              style={{
+                fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.7)',
+                fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+              }}
+            >
               {row.importance.toFixed(3)}
-            </span>
+            </motion.span>
           </div>
-          <div style={{ display: 'flex', height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 99, overflow: 'hidden' }}>
-            <div style={{
-              width: `${(Math.abs(row.importance) / maxAbs) * 100}%`,
-              background: 'var(--color-accent)', borderRadius: 99,
-              boxShadow: '0 0 8px 0px rgba(99,102,241,0.30)',
-            }} />
+          <div style={{ display: 'flex', height: 11, background: 'rgba(255,255,255,0.07)', borderRadius: 99, overflow: 'hidden' }}>
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 2.0, ease: [0.33, 1, 0.68, 1], delay: i * 0.06 }}
+              style={{
+                width: `${(Math.abs(row.importance) / maxAbs) * 100}%`,
+                background: 'var(--color-accent)', borderRadius: 99,
+                boxShadow: '0 0 10px 0px oklch(0.63 0.21 272 / 0.35)',
+                transformOrigin: 'left',
+              }}
+            />
           </div>
         </div>
       ))}
@@ -568,90 +857,174 @@ function ImportanceChart({ importance }: { importance: { feature: string; import
   )
 }
 
+const CHART_H = 360
+
 function ComparisonChart({ result }: { result: TrainResult }) {
   const entries = [
     { label: result.name, acc: result.test_accuracy, loss: result.test_log_loss, mine: true },
     ...PRETRAINED.map(m => ({ label: m.label, acc: m.test_acc, loss: m.test_log_loss, mine: false })),
   ]
+  // Eje Y dinámico: padding fijo de 0.8pp sin redondear para no inflar el rango
   const accs = entries.map(e => e.acc)
-  const min = Math.min(...accs) - 0.012
-  const max = Math.max(...accs) + 0.012
-  const toX = (v: number) => ((v - min) / (max - min)) * 100
-  const myX = toX(result.test_accuracy)
-  const beaten = PRETRAINED.filter(m => result.test_accuracy > m.test_acc).length
+  const pad = 0.008
+  const axisMin = Math.min(...accs) - pad
+  const axisMax = Math.max(...accs) + pad
+  const axisRange = axisMax - axisMin
+  const toY = (v: number) => ((v - axisMin) / axisRange) * CHART_H
+
+  // Guías en múltiplos de step estrictamente dentro del rango (máx ~5 líneas)
+  const step = axisRange <= 0.08 ? 0.01 : axisRange <= 0.16 ? 0.02 : 0.05
+  const guides: number[] = []
+  for (
+    let g = Math.ceil((axisMin + step * 0.5) / step) * step;
+    g < axisMax - step * 0.1;
+    g = Math.round((g + step) * 10000) / 10000
+  ) {
+    guides.push(g)
+  }
+
 
   return (
     <div>
-      <div style={{ position: 'relative' }}>
-        {/* Línea de referencia del modelo del usuario, cruza todas las filas */}
-        <div style={{
-          position: 'absolute', top: 0, bottom: 0,
-          left: `calc(150px + (100% - 150px - 64px) * ${myX / 100})`,
-          width: 0, borderLeft: '1px dashed rgba(99,102,241,0.45)',
-          pointerEvents: 'none',
-        }} />
-
-        {entries.map(e => (
-          <div key={e.label} style={{ display: 'flex', alignItems: 'center', height: 56 }}>
+      {/* Área del gráfico */}
+      <div style={{ position: 'relative', height: CHART_H }}>
+        {/* Guías horizontales con etiqueta en el eje Y */}
+        {guides.map(g => (
+          <div key={g} style={{
+            position: 'absolute', left: 0, right: 0, bottom: toY(g),
+            display: 'flex', alignItems: 'center', gap: 12, pointerEvents: 'none',
+            transform: 'translateY(50%)',
+          }}>
             <span style={{
-              width: 150, minWidth: 150, paddingRight: 14,
-              fontSize: 15, fontWeight: e.mine ? 600 : 400,
-              color: e.mine ? PRIMARY : SECONDARY, fontFamily: 'var(--font-sans)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              width: 38, flexShrink: 0, textAlign: 'left',
+              fontSize: 12, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+              color: DIM,
+            }}>
+              {(g * 100).toFixed(0)}%
+            </span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.05)' }} />
+          </div>
+        ))}
+
+        {/* Línea base del eje — en el suelo, donde nacen los stems */}
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0,
+          display: 'flex', alignItems: 'center', gap: 20, pointerEvents: 'none',
+          transform: 'translateY(50%)',
+        }}>
+          <span style={{
+            width: 38, flexShrink: 0, textAlign: 'left',
+            fontSize: 12, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+            color: DIM,
+          }}>
+            {(axisMin * 100).toFixed(0)}%
+          </span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
+        </div>
+
+        {/* Zona "tu territorio" — relleno desde el eje hasta el nivel de tu modelo.
+            El borde superior es el listón a batir; los dots preentrenados que sobresalen te superan. */}
+        <motion.div
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 1, opacity: 1 }}
+          transition={{ delay: entries.length * 0.06 + 2.2, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            position: 'absolute', left: 50, right: 0, bottom: 0,
+            height: toY(result.test_accuracy),
+            background: 'linear-gradient(to top, oklch(0.63 0.21 272 / 0) 0%, oklch(0.63 0.21 272 / 0.03) 70%, oklch(0.63 0.21 272 / 0.07) 100%)',
+            borderTop: '1px solid oklch(0.63 0.21 272 / 0.28)',
+            pointerEvents: 'none', transformOrigin: 'left',
+          }}
+        />
+
+        {/* Columnas: una por modelo */}
+        <div style={{
+          position: 'absolute', top: 0, bottom: 0, left: 50, right: 0,
+          display: 'flex', gap: 12,
+        }}>
+          {entries.map((e, i) => {
+            const yPx = toY(e.acc)
+            const delay = i * 0.06
+            const dotSize = e.mine ? 18 : 15
+            // Oficial que supera a tu modelo — sobresale de la zona, se resalta.
+            const beatsMine = !e.mine && e.acc > result.test_accuracy
+
+            return (
+              <div key={e.label} style={{ flex: 1, position: 'relative' }}>
+                {/* Stem — crece desde la base hasta el dot */}
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height: yPx }}
+                  transition={{ duration: 2.0, ease: [0.33, 1, 0.68, 1], delay }}
+                  style={{
+                    position: 'absolute', bottom: 0, left: '50%',
+                    width: e.mine ? 2 : 1.5,
+                    background: e.mine ? 'oklch(0.63 0.21 272 / 0.4)' : 'rgba(255,255,255,0.18)',
+                    transform: 'translateX(-50%)',
+                  }}
+                />
+                {/* Dot + label — sube sincronizado con el stem */}
+                <motion.div
+                  initial={{ bottom: 0 }}
+                  animate={{ bottom: yPx }}
+                  transition={{ duration: 2.0, ease: [0.33, 1, 0.68, 1], delay }}
+                  style={{ position: 'absolute', left: '50%', width: 0, height: 0 }}
+                >
+                  {/* % encima del dot */}
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: delay + 1.7, duration: 1.0, ease: 'easeOut' }}
+                    style={{
+                      position: 'absolute',
+                      bottom: dotSize / 2 + 7,
+                      left: '50%', transform: 'translateX(-50%)',
+                      fontSize: 17, fontWeight: e.mine ? 700 : beatsMine ? 600 : 500,
+                      color: e.mine ? '#a5b4fc' : beatsMine ? 'rgba(255,255,255,0.9)' : DIM,
+                      fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {fmtAcc(e.acc)}
+                  </motion.span>
+                  {/* Dot */}
+                  <div style={{
+                    position: 'absolute',
+                    width: dotSize, height: dotSize, borderRadius: '50%',
+                    background: e.mine ? 'var(--color-accent)' : beatsMine ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.3)',
+                    boxShadow: e.mine
+                      ? '0 0 14px 3px oklch(0.63 0.21 272 / 0.55)'
+                      : beatsMine ? '0 0 10px 2px rgba(255,255,255,0.18)' : 'none',
+                    transform: 'translate(-50%, -50%)',
+                  }} />
+                </motion.div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Nombres de modelos + log loss */}
+      <div style={{ display: 'flex', paddingLeft: 50, gap: 12, marginTop: 15 }}>
+        {entries.map(e => (
+          <div key={e.label} style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{
+              fontSize: 16.5, fontWeight: e.mine ? 600 : 400,
+              color: e.mine ? 'rgba(255,255,255,0.78)' : SECONDARY,
+              fontFamily: 'var(--font-sans)',
             }}>
               {e.mine ? 'Tu modelo' : e.label}
-            </span>
-            <div style={{ flex: 1, position: 'relative', height: '100%', marginRight: 64 }}>
-              {/* Pista */}
-              <div style={{
-                position: 'absolute', left: 0, right: 0, top: '50%', height: 1,
-                background: 'rgba(255,255,255,0.08)',
-              }} />
-              <div style={{
-                position: 'absolute', left: `${toX(e.acc)}%`, top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: e.mine ? 11 : 9, height: e.mine ? 11 : 9, borderRadius: '50%',
-                background: e.mine ? 'var(--color-accent)' : 'rgba(255,255,255,0.40)',
-                boxShadow: e.mine ? '0 0 10px 1px rgba(99,102,241,0.45)' : 'none',
-              }} />
-              <span style={{
-                position: 'absolute', left: `calc(${toX(e.acc)}% + 12px)`, top: '50%',
-                transform: 'translateY(-50%)',
-                fontSize: 13.5, fontWeight: e.mine ? 700 : 500,
-                color: e.mine ? '#a5b4fc' : DIM,
-                fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
-                whiteSpace: 'nowrap',
-              }}>
-                {fmtAcc(e.acc)}
-              </span>
             </div>
-            <span style={{
-              width: 64, textAlign: 'right',
-              fontSize: 13, color: e.mine ? SECONDARY : DIM,
-              fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+            <div style={{
+              fontSize: 13, color: e.mine ? 'rgba(255,255,255,0.7)' : DIM, fontFamily: 'var(--font-mono)',
+              fontVariantNumeric: 'tabular-nums', marginTop: 3,
             }}>
               {fmtLoss(e.loss)}
-            </span>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Leyenda de la columna log loss + lectura */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 14 }}>
-        <span style={{ fontSize: 13.5, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
-          {beaten === 3
-            ? 'Tu modelo supera a los 3 preentrenados en test accuracy.'
-            : beaten > 0
-              ? `Tu modelo supera a ${beaten} de los 3 preentrenados en test accuracy.`
-              : 'Tu modelo no supera a ningún preentrenado en test accuracy.'}
-        </span>
-        <span style={{
-          fontSize: 11, fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase',
-          color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-sans)',
-        }}>
-          Log loss →
-        </span>
-      </div>
     </div>
   )
 }
@@ -661,95 +1034,88 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
     <div>
       <BackButton onClick={onBack} />
 
-      {/* Cabecera: nombre + badge + chips de features */}
-      <div style={{ margin: '18px 0 40px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <h1 style={{
-            margin: 0, fontSize: '2.125rem', fontWeight: 700,
-            letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
-          }}>
-            {result.name}
-          </h1>
-          <AlgoBadge algorithm={result.algorithm} />
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 16 }}>
-          {result.features.map(f => (
-            <span key={f} style={{
-              padding: '3px 10px', borderRadius: 20,
-              fontSize: 12.5, fontWeight: 400,
-              background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.55)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap',
-            }}>
-              {FEATURE_LABELS[f] ?? f}
-            </span>
-          ))}
+      {/* Cabecera */}
+      <div style={{ margin: '12px 0 26px' }}>
+        <h1 style={{
+          margin: '0 0 8px', fontSize: '2.125rem', fontWeight: 700,
+          letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
+        }}>
+          {result.name}
+        </h1>
+        <div style={{ fontSize: 17, color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-sans)' }}>
+          {ALGORITHMS.find(a => a.key === result.algorithm)?.name ?? result.algorithm}
+          <span style={{ margin: '0 10px', opacity: 0.85 }}>·</span>
+          {result.features.length} features
         </div>
       </div>
 
-      {/* Métricas — test accuracy manda */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-end', gap: 56, flexWrap: 'wrap',
-        paddingBottom: 36, marginBottom: 44, borderBottom: `0.5px solid ${SEP}`,
-      }}>
-        <div>
-          <div style={{
-            fontSize: 12, fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: SECONDARY, fontFamily: 'var(--font-sans)', marginBottom: 8,
-          }}>
-            Test accuracy
-          </div>
-          <span style={{
-            fontSize: 64, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em',
-            color: PRIMARY, fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums',
-          }}>
-            {fmtAcc(result.test_accuracy)}
-          </span>
-        </div>
-        {[
-          { label: 'Test log loss', value: fmtLoss(result.test_log_loss) },
-          { label: 'Val accuracy',  value: fmtAcc(result.val_accuracy) },
-          { label: 'Val log loss',  value: fmtLoss(result.val_log_loss) },
-        ].map(m => (
-          <div key={m.label}>
+      {/* Métricas — 4 homogéneas, agrupadas test | val. Jerarquía por color, no por tamaño:
+          test (el resultado) brillante, val (diagnóstico) atenuado. */}
+      {(() => {
+        const Metric = ({ label, value, sub, dim }: { label: string; value: string; sub: string; dim: boolean }) => (
+          <div style={{ minWidth: 138 }}>
             <div style={{
-              fontSize: 12, fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-sans)', marginBottom: 8,
+              fontSize: 13, fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase',
+              color: dim ? DIM : 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-sans)', marginBottom: 12,
             }}>
-              {m.label}
+              {label}
             </div>
-            <span style={{
-              fontSize: 30, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em',
-              color: SECONDARY, fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums',
+            <div style={{
+              fontSize: 50, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em',
+              color: dim ? SECONDARY : PRIMARY,
+              fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums',
             }}>
-              {m.value}
-            </span>
+              {value}
+            </div>
+            <div style={{
+              fontSize: 13.5, color: dim ? DIM : 'rgba(255,255,255,0.45)',
+              fontFamily: 'var(--font-sans)', marginTop: 10,
+            }}>
+              {sub}
+            </div>
           </div>
-        ))}
-      </div>
+        )
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 60,
+            paddingBottom: 26, marginBottom: 30, borderBottom: `0.5px solid ${SEP}`,
+          }}>
+            <div style={{ display: 'flex', gap: 44 }}>
+              <Metric label="Test accuracy" value={fmtAcc(result.test_accuracy)} sub="Predicciones correctas en test" dim={false} />
+              <Metric label="Test log loss" value={fmtLoss(result.test_log_loss)} sub="Más bajo = mejor calibración" dim={false} />
+            </div>
+            <div style={{ display: 'flex', gap: 44 }}>
+              <Metric label="Val accuracy" value={fmtAcc(result.val_accuracy)} sub="Acierto en validación" dim />
+              <Metric label="Val log loss" value={fmtLoss(result.val_log_loss)} sub="Calibración en validación" dim />
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Dos columnas: importancia + comparativa */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ ...{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', color: PRIMARY, fontFamily: 'var(--font-sans)' }, display: 'block', marginBottom: 6 }}>
+          <span style={{ display: 'block', marginBottom: 8, fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
             Importancia de features
           </span>
-          <p style={{ margin: '0 0 10px', fontSize: 14.5, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
-            Magnitud relativa de cada variable en el modelo entrenado.
+          <p style={{ margin: '0 0 14px', fontSize: 18, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
+            Peso relativo de cada variable en el modelo.
           </p>
           <ImportanceChart importance={result.feature_importance} />
         </div>
 
-        <div style={{ width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 48px' }} />
+        <div style={{ width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 64px' }} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ ...{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', color: PRIMARY, fontFamily: 'var(--font-sans)' }, display: 'block', marginBottom: 6 }}>
-            Frente a los oficiales
+          <span style={{ display: 'block', marginBottom: 8, fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
+            Frente a los preentrenados
           </span>
-          <p style={{ margin: '0 0 10px', fontSize: 14.5, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
-            Test accuracy de tu modelo frente a los 3 preentrenados.
+          <p style={{ margin: '0 0 14px', fontSize: 18, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
+            Métricas de test frente a los 3 preentrenados.
           </p>
-          <ComparisonChart result={result} />
+          <div style={{ paddingTop: 20 }}>
+            <ComparisonChart result={result} />
+          </div>
         </div>
       </div>
     </div>
@@ -765,7 +1131,7 @@ function BackButton({ onClick, disabled = false }: { onClick: () => void; disabl
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 7,
         padding: '5px 10px', marginLeft: -10, borderRadius: 6,
-        fontSize: '0.875rem', fontFamily: 'var(--font-sans)',
+        fontSize: '0.9375rem', fontFamily: 'var(--font-sans)',
         background: 'transparent', border: 'none',
         color: 'var(--color-ink-muted)', cursor: disabled ? 'default' : 'pointer',
         opacity: disabled ? 0.4 : 1,
@@ -774,36 +1140,127 @@ function BackButton({ onClick, disabled = false }: { onClick: () => void; disabl
       onMouseEnter={e => { if (!disabled) e.currentTarget.style.color = 'var(--color-ink)' }}
       onMouseLeave={e => { e.currentTarget.style.color = 'var(--color-ink-muted)' }}
     >
-      <ArrowLeft size={14} /> Mis modelos
+      <ArrowLeft size={15} /> Mis modelos
     </button>
   )
+}
+
+// ─── Ruta result — resuelve el modelo por :id (soporta enlace directo) ──────────
+function ResultRoute({ cached, onBack }: { cached: TrainResult | null; onBack: () => void }) {
+  const { id } = useParams<{ id: string }>()
+  const { isAuthenticated, token } = useAuth()
+  const modelId = Number(id)
+
+  const { data: models, isLoading } = useQuery({
+    queryKey: ['models', token],
+    queryFn: () => api.models(token ?? undefined),
+    enabled: isAuthenticated,
+  })
+
+  if (!isAuthenticated) return <Navigate to="/studio" replace />
+
+  // Prioriza el resultado recién entrenado si su id coincide con la URL;
+  // si no, lo reconstruye desde la lista de modelos (enlace directo / recarga).
+  let result: TrainResult | null = cached && cached.model_id === modelId ? cached : null
+  if (!result) {
+    const m = models?.custom.find(m => m.id === modelId)
+    if (m) {
+      result = {
+        model_id: m.id,
+        name: m.name,
+        algorithm: m.algorithm,
+        features: m.features,
+        val_accuracy: m.val_accuracy ?? 0,
+        val_log_loss: m.val_log_loss ?? 0,
+        test_accuracy: m.test_accuracy ?? 0,
+        test_log_loss: m.test_log_loss ?? 0,
+        feature_importance: m.feature_importance,
+      }
+    }
+  }
+
+  if (!result) {
+    if (isLoading) {
+      return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}><Spinner /></div>
+    }
+    return <Navigate to="/studio" replace />
+  }
+
+  return <ResultView result={result} onBack={onBack} />
 }
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 export default function StudioPage() {
   const { isAuthenticated, token } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  const [view, setView] = useState<View>('list')
   const [authOpen, setAuthOpen] = useState(false)
   const [isTraining, setIsTraining] = useState(false)
   const [result, setResult] = useState<TrainResult | null>(null)
-  const [form, setForm] = useState<CreateFormState>({ name: '', features: new Set(), algorithm: null })
-  const [prevAuth, setPrevAuth] = useState(isAuthenticated)
+  const [form, setForm] = useState<CreateFormState>({ name: '', description: '', features: new Set(), algorithm: null })
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const isCreateRoute = location.pathname === '/studio/new'
+  const isResultRoute = location.pathname.startsWith('/studio/models/')
 
   // Limpia el polling al desmontar
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
-  // Al cerrar sesión, vuelve a la vista list — ajuste de estado en render
-  if (prevAuth !== isAuthenticated) {
-    setPrevAuth(isAuthenticated)
-    if (!isAuthenticated) setView('list')
-  }
+  // Recupera un job en curso si el usuario recargó mientras entrenaba
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const savedJobId = sessionStorage.getItem('studio_job_id')
+    if (!savedJobId) return
+    if (!token) {
+      sessionStorage.removeItem('studio_job_id')
+      return
+    }
+    setIsTraining(true)
+    toast.info('Recuperando entrenamiento en curso...')
+    pollRef.current = setInterval(async () => {
+      try {
+        const job = await api.trainJob(savedJobId, token)
+        if (job.status === 'done' && job.result) {
+          if (pollRef.current) clearInterval(pollRef.current)
+          sessionStorage.removeItem('studio_job_id')
+          setIsTraining(false)
+          setResult(job.result)
+          queryClient.invalidateQueries({ queryKey: ['models'] })
+          navigate(`/studio/models/${job.result.model_id}`, { replace: true })
+          toast.success(`Modelo «${job.result.name}» entrenado`)
+        } else if (job.status === 'error') {
+          if (pollRef.current) clearInterval(pollRef.current)
+          sessionStorage.removeItem('studio_job_id')
+          setIsTraining(false)
+          toast.error(job.error ?? 'Error entrenando el modelo')
+        }
+      } catch {
+        if (pollRef.current) clearInterval(pollRef.current)
+        sessionStorage.removeItem('studio_job_id')
+        setIsTraining(false)
+        toast.error('No se pudo recuperar el entrenamiento.')
+      }
+    }, 2000)
+  }, []) // token disponible síncronamente desde localStorage en el primer render
+
+  // Avisa al salir si el formulario tiene cambios y no hay entrenamiento en curso
+  useEffect(() => {
+    const formDirty = form.name !== '' || form.description !== '' || form.features.size > 0 || form.algorithm !== null
+    if (!isCreateRoute || isTraining || !formDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isCreateRoute, isTraining, form.name, form.description, form.features.size, form.algorithm])
 
   const handleCreate = () => {
-    setForm({ name: '', features: new Set(), algorithm: null })
-    setView('create')
+    setForm({ name: '', description: '', features: new Set(), algorithm: null })
+    navigate('/studio/new')
+  }
+
+  const handleViewModel = (model: CustomModel) => {
+    navigate(`/studio/models/${model.id}`)
   }
 
   const handleSubmit = async () => {
@@ -811,26 +1268,30 @@ export default function StudioPage() {
     setIsTraining(true)
     try {
       const { job_id } = await api.train(
-        { features: Array.from(form.features), algorithm: form.algorithm, name: form.name.trim() },
+        { features: Array.from(form.features), algorithm: form.algorithm, name: form.name.trim(), description: form.description.trim() },
         token,
       )
+      sessionStorage.setItem('studio_job_id', job_id)
       pollRef.current = setInterval(async () => {
         try {
           const job = await api.trainJob(job_id, token)
           if (job.status === 'done' && job.result) {
             if (pollRef.current) clearInterval(pollRef.current)
+            sessionStorage.removeItem('studio_job_id')
             setIsTraining(false)
             setResult(job.result)
-            setView('result')
             queryClient.invalidateQueries({ queryKey: ['models'] })
+            navigate(`/studio/models/${job.result.model_id}`, { replace: true })
             toast.success(`Modelo «${job.result.name}» entrenado`)
           } else if (job.status === 'error') {
             if (pollRef.current) clearInterval(pollRef.current)
+            sessionStorage.removeItem('studio_job_id')
             setIsTraining(false)
             toast.error(job.error ?? 'Error entrenando el modelo')
           }
         } catch (err) {
           if (pollRef.current) clearInterval(pollRef.current)
+          sessionStorage.removeItem('studio_job_id')
           setIsTraining(false)
           toast.error(err instanceof Error ? err.message : 'Error consultando el entrenamiento')
         }
@@ -842,23 +1303,34 @@ export default function StudioPage() {
   }
 
   return (
-    <div style={{ minHeight: 'calc(100svh - 48px)', background: 'var(--color-bg)', paddingBottom: 80 }}>
-      <div style={{ maxWidth: '82.5vw', margin: '0 auto', paddingTop: 48 }}>
-        {view === 'list' && (
-          <ListView onCreate={handleCreate} onShowAuth={() => setAuthOpen(true)} />
-        )}
-        {view === 'create' && (
-          <CreateView
-            form={form}
-            setForm={setForm}
-            isTraining={isTraining}
-            onBack={() => setView('list')}
-            onSubmit={handleSubmit}
+    <div style={{ minHeight: 'calc(100svh - 60px)', background: 'var(--color-bg)', paddingBottom: 80, fontFeatureSettings: '"ss09" 1' }}>
+      <title>{isCreateRoute ? 'Nuevo modelo · PitchLens' : isResultRoute ? 'Mi modelo · PitchLens' : 'Studio · PitchLens'}</title>
+      <div style={{ maxWidth: isResultRoute ? 1100 : 900, margin: '0 auto', paddingTop: 48, paddingLeft: 24, paddingRight: 24 }}>
+        <Routes>
+          <Route
+            index
+            element={<ListView onCreate={handleCreate} onShowAuth={() => setAuthOpen(true)} onView={handleViewModel} />}
           />
-        )}
-        {view === 'result' && result && (
-          <ResultView result={result} onBack={() => setView('list')} />
-        )}
+          <Route
+            path="new"
+            element={
+              isAuthenticated
+                ? <CreateView
+                    form={form}
+                    setForm={setForm}
+                    isTraining={isTraining}
+                    onBack={() => navigate('/studio')}
+                    onSubmit={handleSubmit}
+                  />
+                : <Navigate to="/studio" replace />
+            }
+          />
+          <Route
+            path="models/:id"
+            element={<ResultRoute cached={result} onBack={() => navigate('/studio')} />}
+          />
+          <Route path="*" element={<Navigate to="/studio" replace />} />
+        </Routes>
       </div>
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />

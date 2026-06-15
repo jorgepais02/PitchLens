@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Generator, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, select
 
 from src.api.deps import CurrentUserDep
@@ -81,6 +81,7 @@ class TrainRequest(BaseModel):
     features: list[str]
     algorithm: Literal["lr", "dt", "rf", "xgb"]
     name: str = ""
+    description: str = Field(default="", max_length=280)
 
     @field_validator("features")
     @classmethod
@@ -132,6 +133,7 @@ def _run_training_job(
     features: list[str],
     algorithm: str,
     name: str,
+    description: str,
 ) -> None:
     """Entrena, aplica el límite por usuario y persiste. Nunca lanza: registra el error."""
     _set_job(job_id, status="running")
@@ -165,9 +167,10 @@ def _run_training_job(
             modelo = CustomModel(
                 user_id=user_id,
                 name=name,
+                description=description,
                 algorithm=algorithm,
                 features=features,
-                metrics={"val": metrics["val"], "test": metrics["test"]},
+                metrics={"val": metrics["val"], "test": metrics["test"], "feature_importance": metrics["feature_importance"]},
                 artifact_path=artifact_path,
             )
             session.add(modelo)
@@ -221,6 +224,7 @@ def post_train(
     user: "User" = current_user  # type: ignore[assignment]
 
     nombre = body.name.strip() or f"{_ALGORITHM_LABELS[body.algorithm]} ({len(body.features)} features)"
+    descripcion = body.description.strip()
     job_id = uuid.uuid4().hex
 
     _set_job(
@@ -239,6 +243,7 @@ def post_train(
         features=body.features,
         algorithm=body.algorithm,
         name=nombre,
+        description=descripcion,
     )
 
     return TrainJobAccepted(job_id=job_id, status="pending")

@@ -3,7 +3,7 @@ y los guarda en frontend/public/crests/.
 Luego aplica la migración de columna y actualiza crest_url en la BD.
 
 Uso:
-    python scripts/fetch_crests.py [--dry-run]
+    python scripts/fetch_crests.py [--dry-run] [--force]
 """
 
 import argparse
@@ -31,6 +31,12 @@ _CRESTS_DIR = _ROOT / "frontend" / "public" / "crests"
 # TheSportsDB API v1 (key "3" = free)
 _TSDB_URL = "https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t={}"
 
+# Filtros para descartar falsos positivos del buscador (homónimos)
+_VALID_SPORT = "Soccer"  # descarta rugby, baloncesto, etc.
+# Países de las ligas del dataset. Wales incluido porque Cardiff y Swansea
+# juegan en la liga inglesa pero TheSportsDB los marca como galeses.
+_VALID_COUNTRIES = {"England", "Spain", "Germany", "Wales"}
+
 # Mapeo nombre-dataset → término de búsqueda en TheSportsDB
 ALIASES: dict[str, str] = {
     "Ath Bilbao":        "Athletic Club Bilbao",
@@ -49,12 +55,14 @@ ALIASES: dict[str, str] = {
     "Huesca":            "SD Huesca",
     "La Coruna":         "Deportivo La Coruna",
     "Las Palmas":        "Las Palmas",
+    "Leeds":             "Leeds United",
     "Leganes":           "CD Leganes",
     "Leverkusen":        "Bayer Leverkusen",
     "Levante":           "Levante UD",
     "M'gladbach":        "Borussia Monchengladbach",
     "Malaga":            "Malaga CF",
     "Mallorca":          "RCD Mallorca",
+    "Newcastle":         "Newcastle United",
     "Man City":          "Manchester City",
     "Man United":        "Manchester United",
     "Nott'm Forest":     "Nottingham Forest",
@@ -65,8 +73,10 @@ ALIASES: dict[str, str] = {
     "Schalke 04":        "Schalke 04",
     "Sociedad":          "Real Sociedad",
     "Sp Gijon":          "Sporting Gijon",
+    "Valladolid":        "Real Valladolid",
     "Vallecano":         "Rayo Vallecano",
     "West Brom":         "West Bromwich Albion",
+    "Wolves":            "Wolverhampton Wanderers",
 }
 
 
@@ -79,7 +89,13 @@ def _slug(name: str) -> str:
 
 
 def _fetch_badge_url(search_term: str) -> str | None:
-    """Llama a TheSportsDB y devuelve la URL del badge, o None si no encuentra."""
+    """Llama a TheSportsDB y devuelve la URL del badge del mejor candidato.
+
+    Filtra los resultados que no sean de fútbol (evita clubes de rugby o
+    baloncesto con el mismo nombre) y prioriza los de las ligas del dataset
+    (Inglaterra, España, Alemania) para evitar homónimos de otros países.
+    Devuelve None si no hay ningún candidato de fútbol válido.
+    """
     import json
 
     url = _TSDB_URL.format(urllib.parse.quote(search_term))
@@ -92,9 +108,26 @@ def _fetch_badge_url(search_term: str) -> str | None:
         return None
 
     teams = data.get("teams") or []
-    if not teams:
+    # 1) Solo equipos de fútbol — descarta rugby/baloncesto homónimos
+    soccer = [t for t in teams if t.get("strSport") == _VALID_SPORT]
+    # 2) Solo de los países del dataset — descarta homónimos extranjeros (p.ej. Newcastle Jets)
+    candidates = [t for t in soccer if t.get("strCountry") in _VALID_COUNTRIES]
+    if not candidates:
+        # No colar nada a ciegas: si solo hay homónimos fuera del dataset, avisar y abortar
+        if soccer:
+            foraneos = ", ".join(
+                f"{t.get('strTeam')} ({t.get('strCountry')})" for t in soccer[:3]
+            )
+            log.warning("  '%s': solo homónimos fuera del dataset (%s) — añade un alias", search_term, foraneos)
         return None
-    return teams[0].get("strBadge") or teams[0].get("strTeamBadge")
+    # 3) Avisar si queda más de un candidato válido, en vez de elegir a ciegas
+    if len(candidates) > 1:
+        opciones = ", ".join(
+            f"{t.get('strTeam')} ({t.get('strCountry')})" for t in candidates[:3]
+        )
+        log.warning("  Varios candidatos para '%s': %s — uso el primero", search_term, opciones)
+    chosen = candidates[0]
+    return chosen.get("strBadge") or chosen.get("strTeamBadge")
 
 
 def _download(badge_url: str, dest: Path) -> bool:
@@ -119,7 +152,7 @@ def _migrate_column() -> None:
     log.info("Columna crest_url OK")
 
 
-def main(dry_run: bool) -> None:
+def main(dry_run: bool, force: bool = False) -> None:
     import urllib.parse  # noqa: F401 — importado aquí para que _fetch_badge_url lo vea
 
     _CRESTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -139,7 +172,7 @@ def main(dry_run: bool) -> None:
         dest = _CRESTS_DIR / f"{slug}.png"
         crest_path = f"/crests/{slug}.png"
 
-        if dest.exists():
+        if dest.exists() and not force:
             log.info("  ✓ ya existe  %s", team.name)
             if not dry_run:
                 with Session(engine) as s:
@@ -186,5 +219,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="Solo muestra URLs, no descarga")
+    parser.add_argument("--force", action="store_true", help="Re-descarga aunque el fichero ya exista")
     args = parser.parse_args()
-    main(dry_run=args.dry_run)
+    main(dry_run=args.dry_run, force=args.force)

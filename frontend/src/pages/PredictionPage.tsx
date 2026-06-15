@@ -20,7 +20,8 @@ export default function PredictionPage() {
   if (!pred) return <Navigate to="/new" replace />
 
   return (
-    <div style={{ minHeight: 'calc(100svh - 48px)', background: '#0c0d0f', paddingBottom: 80 }}>
+    <div style={{ minHeight: 'calc(100svh - 60px)', background: '#0c0d0f', paddingBottom: 80 }}>
+      <title>{`${pred.home.display_name ?? pred.home.name} vs ${pred.away.display_name ?? pred.away.name} · PitchLens`}</title>
       <div style={{ zoom: 1.1 }}>
         <PredictionHero
           home_team={pred.home.display_name ?? pred.home.name}
