@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type H2HMatch, type TeamBriefMatch } from '../lib/api'
+import { api, type H2HMatch, type TeamBriefMatch } from '../../lib/api'
 
 const HOME_C    = '#4D93F8'
 const AWAY_C    = '#F35A5A'

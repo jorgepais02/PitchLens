@@ -1,4 +1,4 @@
-import type { ActivePrediction } from '../context/PredictionContext'
+import type { ActivePrediction } from '../../context/PredictionContext'
 
 const HOME_C  = '#4D93F8'
 const AWAY_C  = '#F35A5A'

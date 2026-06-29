@@ -187,7 +187,6 @@ class PredictResponse(BaseModel):
     feature_importance: list[dict]
     feature_values: dict[str, float]
     feature_values_split: dict[str, dict[str, float]] | None = None
-    cold_start_warning: bool
     h2h_cold_start: bool = False
 
 

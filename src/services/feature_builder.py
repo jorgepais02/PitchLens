@@ -157,8 +157,8 @@ def compute_prediction_features(
 ) -> tuple[dict[str, float], bool, bool, dict[str, dict[str, float]]]:
     """Calcula las 12 features para un partido hipotético futuro.
 
-    Devuelve (feature_dict, cold_start_warning, h2h_cold_start, split_values).
-    cold_start_warning=True si alguno de los equipos tiene < WINDOW partidos en la BD.
+    Devuelve (feature_dict, cold_start, h2h_cold_start, split_values).
+    cold_start=True si alguno de los equipos tiene < WINDOW partidos en la BD.
     h2h_cold_start=True si el par tiene < H2H_WINDOW enfrentamientos directos.
     split_values: {feature: {"home": val, "away": val}} para visualización butterfly.
     """

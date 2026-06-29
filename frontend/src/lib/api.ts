@@ -1,4 +1,6 @@
-const BASE = 'http://localhost:8000'
+// URL raíz del backend. Configurable por entorno con VITE_API_URL; en desarrollo
+// local cae a localhost por defecto, así no hace falta ningún fichero .env para arrancar.
+const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const { headers: optHeaders, ...restOptions } = options ?? {}
@@ -94,7 +96,6 @@ export interface PredictResponse {
   feature_importance: FeatureImportance[]
   feature_values: Record<string, number>
   feature_values_split: Record<string, { home: number; away: number }> | null
-  cold_start_warning: boolean
   h2h_cold_start: boolean
 }
 

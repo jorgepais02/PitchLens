@@ -62,11 +62,17 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     PSH, PSD, PSA, PSCH, PSCD, PSCA, B365H, B365D, B365A.
 
     Devuelve core_features con columnas: match_id, League, Season, Date, HomeTeam,
-    AwayTeam, FTR + 13 features (12 originales + prob_diff_market).
+    AwayTeam, FTR + las 12 features de FEATURES (incluye prob_diff_market).
     Filas cold start eliminadas en FEATURES_ROLLING.
     Las features H2H se imputan a 0 en cold start (pares sin historial previo).
     """
-    df = df.sort_values("Date").reset_index(drop=True)
+    # Orden cronológico con desempate determinista por match_id: en una misma
+    # fecha hay varios partidos, y sin segundo criterio su orden relativo
+    # quedaría sin fijar (sort_values no es estable por defecto). match_id es
+    # único, así que el orden de salida es 100% reproducible y no depende del
+    # orden de entrada. No afecta a las features (rolling/elo/h2h son por
+    # equipo/par y un equipo no juega dos veces el mismo día).
+    df = df.sort_values(["Date", "match_id"]).reset_index(drop=True)
 
     tv = _build_team_view(df)
 

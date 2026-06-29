@@ -57,7 +57,7 @@ def _create_auth_tables() -> None:
 def create_app() -> FastAPI:
     """Construye y configura la aplicación FastAPI."""
     app = FastAPI(
-        title="Football Analytics API",
+        title="PitchLens API",
         version="0.1.0",
         lifespan=lifespan,
     )

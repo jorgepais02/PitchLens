@@ -67,9 +67,10 @@ def build_team_mapping(
     cuya nomenclatura difiere entre Understat y football-data.
 
     Estrategia en 3 rondas:
-      1. Fuzzy match (difflib.get_close_matches) con cutoff configurable.
-      2. Substring match (nombre core contenido en nombre xG).
-      3. Mejor fuzzy match sin cutoff para emparejar los restantes.
+
+    1. Fuzzy match (difflib.get_close_matches) con cutoff configurable.
+    2. Substring match (nombre core contenido en nombre xG).
+    3. Mejor fuzzy match sin cutoff para emparejar los restantes.
 
     Parámetros:
         df_xg: DataFrame xG con MultiIndex (league, season, game)

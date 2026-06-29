@@ -1,8 +1,8 @@
 import { useParams, Navigate } from 'react-router-dom'
-import { usePrediction } from '../context/PredictionContext'
-import PredictionHero from '../components/PredictionHero'
-import WhySection from '../components/WhySection'
-import ContextSection from '../components/ContextSection'
+import { usePrediction } from '../../context/PredictionContext'
+import PredictionHero from './PredictionHero'
+import WhySection from './WhySection'
+import ContextSection from './ContextSection'
 
 export default function PredictionPage() {
   const { id } = useParams<{ id: string }>()

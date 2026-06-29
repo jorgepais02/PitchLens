@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 import pytest
 from sqlmodel import Session
 
-from src.api.feature_builder import compute_prediction_features
+from src.services.feature_builder import compute_prediction_features
 from src.db.models import League, Match, Season, Team
 from src.features._constants import FEATURES, WINDOW
 
@@ -138,7 +138,7 @@ def test_market_value_coincide_con_el_pipeline() -> None:
     """El override de prob_diff_market usa la misma fórmula que market.compute_market_feature."""
     import pandas as pd
 
-    from src.api.feature_builder import _market_value
+    from src.services.feature_builder import _market_value
     from src.features.market import compute_market_feature
 
     df = pd.DataFrame({"match_id": [1], "PSCH": [1.5], "PSCD": [4.0], "PSCA": [6.0]})
@@ -151,7 +151,7 @@ def test_features_cacheadas_iguales_a_build_features_completo(session: Session) 
     de la fila virtual con las cuotas reales. Garantiza que cachear no altera salidas."""
     import pandas as pd
 
-    from src.api.feature_builder import (
+    from src.services.feature_builder import (
         _LEAGUE_PLACEHOLDER,
         _VIRTUAL_ID,
         _get_league_history,

@@ -85,8 +85,8 @@ def predict(model_name: ModelName, features: dict[str, float]) -> dict[str, floa
 def compute_feature_importance(pipeline: Pipeline, features: list[str]) -> list[dict]:
     """Extrae importancia normalizada de features según el tipo de estimador.
 
-    LR: media de |coeficientes| entre clases, normalizada a [0, 1].
-    DT/RF/XGBoost: media de feature_importances_ entre folds de CalibratedClassifierCV.
+    LR: media del valor absoluto de los coeficientes entre clases, normalizada a [0, 1].
+    DT/RF/XGBoost: media de ``feature_importances_`` entre folds de CalibratedClassifierCV.
     Orden descendente por importancia.
 
     Args:
@@ -156,7 +156,7 @@ def compute_local_contributions(
 ) -> dict[str, dict[str, float]] | None:
     """Contribuciones locales por grupo (exactas para LR y modelos árbol).
 
-    LR: coef_ * x_scaled — analítico, sin aproximación.
+    LR: ``coef_ * x_scaled`` — analítico, sin aproximación.
     DT/RF/XGBoost: SHAP TreeExplainer promediado sobre folds de CalibratedClassifierCV.
 
     El grupo 'market' se omite si prob_diff_market == 0.0 (sin cuotas reales).

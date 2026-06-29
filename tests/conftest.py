@@ -163,7 +163,7 @@ def team_mapping():
 @pytest.fixture(autouse=True)
 def _clear_feature_cache():
     """Vacía la caché del historial por liga entre tests (es estado de módulo)."""
-    from src.api.feature_builder import clear_history_cache
+    from src.services.feature_builder import clear_history_cache
 
     clear_history_cache()
     yield

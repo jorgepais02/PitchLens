@@ -3,9 +3,6 @@
 Aplicación web de predicción de resultados de fútbol (H/D/A) con machine learning.
 Pipeline completo: EDA → limpieza → xG → features → BD → modelado → FastAPI → React.
 
-> Guía de desarrollo y convenciones: [`CLAUDE.md`](CLAUDE.md).
-> Auditoría técnica del backend: [`AUDITORIA.md`](AUDITORIA.md).
-
 ## Stack
 
 Python 3.13 · pandas/numpy/scikit-learn · FastAPI + SQLModel + PostgreSQL · React + Vite (Fase 9).

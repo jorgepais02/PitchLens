@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from src.api.deps import CurrentUserDep, SessionDep
-from src.api.feature_builder import compute_prediction_features
+from src.services.feature_builder import compute_prediction_features
 from src.api.schemas import PredictResponse
 from src.db.models import Team
 from src.ml._config import MODELS_CONFIG
@@ -41,7 +41,7 @@ def _resolve_features(
     adecuado (422/404/500) y nunca filtra detalle interno al cliente en el 500.
 
     Returns:
-        Tupla (features, cold_start_warning).
+        Tupla (features, cold_start, h2h_cold_start, split).
     """
     if home_team_id == away_team_id:
         raise HTTPException(status_code=422, detail="Los equipos local y visitante deben ser distintos")
@@ -104,7 +104,7 @@ def post_predict(body: PredictRequest, session: SessionDep) -> PredictResponse:
     obligatorias para 'market' (422 si faltan) e ignoradas para baseline/extended.
     """
     requires_market = body.model == "market"
-    features, cold_start, h2h_cold_start, split = _resolve_features(
+    features, _cold_start, h2h_cold_start, split = _resolve_features(
         session,
         body.home_team_id,
         body.away_team_id,
@@ -135,7 +135,6 @@ def post_predict(body: PredictRequest, session: SessionDep) -> PredictResponse:
         feature_importance=importance,
         feature_values={k: round(v, 4) for k, v in features.items() if k in model_features},
         feature_values_split=split,
-        cold_start_warning=cold_start,
         h2h_cold_start=h2h_cold_start,
     )
 
@@ -171,7 +170,7 @@ def post_predict_custom(
     model_features: list[str] = modelo.features
     requires_market = "prob_diff_market" in model_features
 
-    features, cold_start, h2h_cold_start, split = _resolve_features(
+    features, _cold_start, h2h_cold_start, split = _resolve_features(
         session,
         body.home_team_id,
         body.away_team_id,
@@ -198,6 +197,5 @@ def post_predict_custom(
         feature_importance=importance,
         feature_values={k: round(v, 4) for k, v in features.items() if k in model_features},
         feature_values_split=split,
-        cold_start_warning=cold_start,
         h2h_cold_start=h2h_cold_start,
     )

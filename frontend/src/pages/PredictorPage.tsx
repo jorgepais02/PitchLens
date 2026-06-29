@@ -430,7 +430,12 @@ export default function PredictorPage() {
   const [isOddsClosing,    setIsOddsClosing]    = useState(false)
   const [isOddsEntering,   setIsOddsEntering]   = useState(false)
   const [predictError,     setPredictError]     = useState<string | null>(null)
+  // Altura real del contenido del panel de modelos (header + tarjetas + botón).
+  // Se mide en vivo porque varía con el ancho (las descripciones de las tarjetas
+  // hacen wrap en columnas estrechas). El hero usa este valor para cederle hueco.
+  const [panelContentH, setPanelContentH] = useState(0)
   const oddsPopoverRef = useRef<HTMLDivElement>(null)
+  const modelInnerRef  = useRef<HTMLDivElement>(null)
 
   // deselect=true → vuelve a ningún modelo seleccionado (comportamiento por defecto al descartar)
   // deselect=false → solo cierra el overlay (usado tras predicción exitosa, ya navegamos)
@@ -606,6 +611,41 @@ export default function PredictorPage() {
 
   const teamsReady = !!home && !!away
 
+  // Mide en vivo la altura intrínseca del contenido del panel (header + tarjetas
+  // + botón) y la altura del viewport. El contenido varía con el ancho (las
+  // descripciones de las tarjetas hacen wrap en columnas estrechas) y el viewport
+  // con el navegador (barra de direcciones/marcadores).
+  const [viewportH, setViewportH] = useState(() =>
+    typeof window !== 'undefined' ? window.innerHeight : 0)
+  useEffect(() => {
+    const el = modelInnerRef.current
+    const measure = () => {
+      if (el) setPanelContentH(el.scrollHeight)
+      setViewportH(window.innerHeight)
+    }
+    measure()
+    const ro = el ? new ResizeObserver(measure) : null
+    if (el && ro) ro.observe(el)
+    window.addEventListener('resize', measure)
+    return () => { ro?.disconnect(); window.removeEventListener('resize', measure) }
+  }, [isAuthenticated, customModels.length])
+
+  // Reparto de altura entre hero y panel. Con equipos elegidos el hero ocupa
+  // 44svh, pero cede lo justo para que el panel (con su botón Predecir) quepa
+  // entero en viewports bajos. En viewports altos (Arc, monitor grande) gana
+  // 44svh y se ve idéntico al diseño aprobado. Si ni con el hero al mínimo cabe
+  // el panel (ventanas muy bajas), el panel hace scroll interno como red de
+  // seguridad —gated, así nunca aparece la barra en viewports normales—.
+  const HERO_FLOOR = 120
+  const PANEL_PAD  = 16  // colchón sobre la altura medida del contenido
+  const heroPx = teamsReady && panelContentH > 0 && viewportH > 0
+    ? Math.max(HERO_FLOOR, Math.min(0.44 * viewportH, viewportH - panelContentH - PANEL_PAD))
+    : null
+  const heroHeight = !teamsReady ? '100svh' : (heroPx != null ? `${Math.round(heroPx)}px` : '44svh')
+  // El panel necesita scroll solo si, con el hero ya en su mínimo, el contenido
+  // no entra en el hueco restante.
+  const needsPanelScroll = heroPx != null && panelContentH > viewportH - heroPx + 1
+
   // Durante el retorno a reposo tras "No tengo cuotas", las cards usan una transición
   // larga y gentil; en uso normal (hover/selección) mantienen su duración ágil.
   const cardBgTransition = isDeselecting
@@ -646,7 +686,7 @@ export default function PredictorPage() {
 
       {/* ── Hero — ocupa todo hasta elegir equipos ───────────────────── */}
       <div style={{
-        height: teamsReady ? '44svh' : '100svh',
+        height: heroHeight,
         flexShrink: 0, position: 'relative', overflow: 'hidden', background: '#28282d',
         transition: 'height 760ms cubic-bezier(0.65, 0, 0.35, 1)',
       }}>
@@ -946,12 +986,13 @@ export default function PredictorPage() {
         flex: 1, minHeight: 0,
         background: '#0a0a0c', borderTop: '1px solid #1e1e1e', position: 'relative',
         opacity: teamsReady ? 1 : 0,
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: needsPanelScroll ? 'auto' : 'hidden',
         // Fundido rápido del panel (borde/fondo); la entrada visible la hacen
         // los hijos en cascada, no este contenedor — así no aparece todo de golpe.
         transition: `opacity 200ms ease-out ${teamsReady ? '120ms' : '0ms'}`,
       }}>
-        <div className="model-section-inner">
+        <div className="model-section-inner" ref={modelInnerRef}>
 
           {/* ── Two equal columns ────────────────────────────────────── */}
           <div className="model-cols">
