@@ -25,11 +25,7 @@ from sqlmodel import Session, select
 from src.db.models import Match, Season, Team
 from src.features._constants import WINDOW
 
-# ID reservado para el partido virtual — nunca existe en BD
 _VIRTUAL_ID = -1
-# Valor constante para la columna League — build_features no agrupa por liga,
-# solo la arrastra como metadata. Al cargar una sola liga de BD, todos los
-# partidos reales tendrían el mismo valor de todas formas.
 _LEAGUE_PLACEHOLDER = "league"
 
 
@@ -41,11 +37,7 @@ class _LeagueHistory:
     latest_season_label: str
 
 
-# Caché por league_id — protegida por lock porque /predict corre en el threadpool
 _HIST_CACHE: dict[int, _LeagueHistory] = {}
-# Caché de las features deterministas (todas menos prob_diff_market) por enfrentamiento
-# (home_team_id, away_team_id). Las features no de mercado solo dependen del historial,
-# así que repetir el mismo partido es O(1); prob_diff_market se aplica desde las cuotas.
 _FEATURE_CACHE: dict[tuple[int, int], tuple[dict[str, float], bool]] = {}
 _CACHE_LOCK = threading.Lock()
 
@@ -127,8 +119,6 @@ def _load_league_history(session: Session, league_id: int) -> _LeagueHistory:
 
     df_hist = _matches_to_df(all_matches, teams_map, seasons_map)
 
-    # Última temporada por end_year — NO por max(season_id), que depende del orden
-    # de inserción de las PK y es frágil.
     latest_season_label = max(seasons, key=lambda s: s.end_year).label if seasons else ""
 
     return _LeagueHistory(df_hist=df_hist, latest_season_label=latest_season_label)
@@ -176,7 +166,6 @@ def compute_prediction_features(
         feature_dict, cold_start, h2h_cold_start = cached
         result = dict(feature_dict)
         result["prob_diff_market"] = market
-        # Reconstruir split con las cuotas actuales (prob_diff_market depende de ellas)
         history = _get_league_history(session, home_team.league_id)
         df_hist = history.df_hist
         virtual_row = pd.DataFrame([{
@@ -223,7 +212,6 @@ def _compute_split_values(
     df = df_full.sort_values("Date").reset_index(drop=True)
     tv = _build_team_view(df)
 
-    # ─── ELO individual ──────────────────────────────────────────────────
     elo: dict[str, float] = {}
     for row in df.itertuples():
         h_name, a_name = row.HomeTeam, row.AwayTeam
@@ -238,7 +226,6 @@ def _compute_split_values(
         elo[h_name] = elo_h + delta
         elo[a_name] = elo_a - delta
 
-    # ─── Rolling form (global) ────────────────────────────────────────────
     tv2 = tv.copy()
     tv2["gd"]      = tv2["gf"] - tv2["gc"]
     tv2["xgd"]     = tv2["xgf"] - tv2["xgc"]
@@ -267,7 +254,6 @@ def _compute_split_values(
         split["xg_scored_last5"]                 = {"home": round(float(h["xgf_roll"]),     2), "away": round(float(a["xgf_roll"]),     2)}
         split["xg_conceded_last5"]               = {"home": round(float(h["xgc_roll"]),     2), "away": round(float(a["xgc_roll"]),     2)}
 
-    # ─── Puntos acumulados en la temporada actual ─────────────────────────
     virtual_season = df.loc[df["match_id"] == _VIRTUAL_ID, "Season"]
     if not virtual_season.empty:
         season_label = virtual_season.iloc[0]
@@ -287,7 +273,6 @@ def _compute_split_values(
 
         split["points_diff_global"] = {"home": _pts(home_name), "away": _pts(away_name)}
 
-    # ─── Cuotas Pinnacle → probabilidades implícitas ──────────────────────
     _psch = psch if psch is not None else 3.0
     _pscd = pscd if pscd is not None else 3.0
     _psca = psca if psca is not None else 3.0
@@ -298,7 +283,6 @@ def _compute_split_values(
         "away": round(p_a_r / ov, 4),
     }
 
-    # ─── H2H ─────────────────────────────────────────────────────────────
     h2h = df[
         (
             ((df["HomeTeam"] == home_name) & (df["AwayTeam"] == away_name)) |
@@ -315,7 +299,6 @@ def _compute_split_values(
             ftr  = m["FTR"]
             gd   = float(m["FTHG"] - m["FTAG"]) if is_h else float(m["FTAG"] - m["FTHG"])
             home_gd_sum += gd
-            # goles anotados por cada equipo (perspectiva independiente)
             if is_h:
                 home_goals += float(m["FTHG"])
                 away_goals += float(m["FTAG"])
@@ -353,7 +336,6 @@ def _build_cold_start_features(df_full: pd.DataFrame) -> dict[str, float]:
     partidos (NaN en features rolling). Esta función recupera elo_diff_pre, points
     y H2H — que son siempre computables — e imputa las features rolling a 0.
     """
-    # Import lazy igual que _build_deterministic_features
     from src.features._constants import (  # noqa: PLC0415
         ELO_BASE, ELO_K, FEATURES, FEATURES_H2H, FEATURES_ROLLING, H2H_WINDOW, WINDOW,
     )
@@ -416,7 +398,6 @@ def _build_deterministic_features(
     history = _get_league_history(session, league_id)
     df_hist = history.df_hist
 
-    # Cold start individual: algún equipo con < WINDOW partidos en BD
     if df_hist.empty:
         home_count = away_count = h2h_count = 0
     else:
@@ -430,11 +411,6 @@ def _build_deterministic_features(
     from src.features._constants import H2H_WINDOW  # noqa: PLC0415
     h2h_cold_start = bool(h2h_count < H2H_WINDOW)
 
-    # Partido virtual: resultado y stats dummy — no se usan en sus propias features
-    # gracias al shift(1) de todos los bloques vectorizados. Cuotas neutras (3.0):
-    # prob_diff_market se recalcula desde las cuotas reales en compute_prediction_features.
-    # Se usa la última temporada real del historial para que compute_rest_days pueda
-    # calcular días de descanso desde el último partido de esa temporada.
     virtual_row = pd.DataFrame(
         [
             {
@@ -444,7 +420,7 @@ def _build_deterministic_features(
                 "AwayTeam": away_name,
                 "Season": history.latest_season_label,
                 "League": _LEAGUE_PLACEHOLDER,
-                "FTR": "H",   # dummy — no afecta las features del propio partido
+                "FTR": "H",
                 "FTHG": 0,
                 "FTAG": 0,
                 "HST": 0,
@@ -461,18 +437,13 @@ def _build_deterministic_features(
     df_full = pd.concat([df_hist, virtual_row], ignore_index=True)
     df_full["Date"] = pd.to_datetime(df_full["Date"])
 
-    # Import lazy — evita cargar pandas/sklearn al arrancar la API
     from src.features.build_features import build_features  # noqa: PLC0415
     from src.features._constants import FEATURES  # noqa: PLC0415
 
     df_features = build_features(df_full)
 
-    # build_features hace reset_index() al final — match_id es columna, no índice
     virtual_row_features = df_features[df_features["match_id"] == _VIRTUAL_ID]
     if virtual_row_features.empty:
-        # build_features eliminó el partido virtual por NaN en FEATURES_ROLLING (cold start).
-        # Reconstruimos sin dropna para conservar elo_diff_pre, points y H2H;
-        # las features rolling se imputan a 0 (sin historial = rendimiento neutro).
         feature_dict = _build_cold_start_features(df_full)
         return feature_dict, True, h2h_cold_start, df_full
 

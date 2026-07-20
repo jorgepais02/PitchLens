@@ -4,7 +4,6 @@
  */
 import { useState } from 'react'
 
-// Paleta de gráficos partido (idéntica a PredictionHero / WhySection / ContextSection)
 export const HOME_C = '#4D93F8'
 export const AWAY_C = '#F35A5A'
 export const SEP    = 'rgba(255,255,255,0.11)'
@@ -46,7 +45,6 @@ export function fmtDate(iso: string): string {
   return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${rest}`
 }
 
-// Etiquetas legibles de las 12 features del modelo (coherentes con WhySection)
 export const FEATURE_LABELS: Record<string, string> = {
   elo_diff_pre:                  'ELO histórico',
   points_diff_global:            'Puntos en temporada',

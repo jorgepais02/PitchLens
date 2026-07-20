@@ -16,16 +16,17 @@ from sqlmodel import Session, select
 
 from src.db.auth_models import CustomModel, User
 
-# ── Auth: POST /auth/register ─────────────────────────────────────────────────
 
 
 def test_register_devuelve_token(client: TestClient) -> None:
-    r = client.post("/auth/register", json={"email": "u@test.es", "password": "pass1234"})
+    r = client.post(
+        "/auth/register", json={"email": "u@test.es", "password": "pass1234"}
+    )
     assert r.status_code == 201
     body = r.json()
     assert "access_token" in body
     assert body["token_type"] == "bearer"
-    assert len(body["access_token"].split(".")) == 3  # header.payload.signature
+    assert len(body["access_token"].split(".")) == 3
 
 
 def test_register_email_duplicado(client: TestClient) -> None:
@@ -46,7 +47,6 @@ def test_register_email_invalido(client: TestClient) -> None:
     assert r.status_code == 422
 
 
-# ── Auth: POST /auth/login ────────────────────────────────────────────────────
 
 
 def test_login_correcto(client: TestClient) -> None:
@@ -63,11 +63,12 @@ def test_login_contrasena_incorrecta(client: TestClient) -> None:
 
 
 def test_login_email_inexistente(client: TestClient) -> None:
-    r = client.post("/auth/login", json={"email": "noexiste@test.es", "password": "pass1234"})
+    r = client.post(
+        "/auth/login", json={"email": "noexiste@test.es", "password": "pass1234"}
+    )
     assert r.status_code == 401
 
 
-# ── Auth: rutas protegidas ────────────────────────────────────────────────────
 
 
 def test_train_sin_jwt_devuelve_401(client: TestClient) -> None:
@@ -76,7 +77,9 @@ def test_train_sin_jwt_devuelve_401(client: TestClient) -> None:
 
 
 def test_predict_custom_sin_jwt_devuelve_401(client: TestClient) -> None:
-    r = client.post("/predict/custom", json={"home_team_id": 1, "away_team_id": 2, "model_id": 1})
+    r = client.post(
+        "/predict/custom", json={"home_team_id": 1, "away_team_id": 2, "model_id": 1}
+    )
     assert r.status_code == 401
 
 
@@ -89,7 +92,6 @@ def test_token_invalido_devuelve_401(client: TestClient) -> None:
     assert r.status_code == 401
 
 
-# ── GET /models ───────────────────────────────────────────────────────────────
 
 
 def test_models_sin_auth_devuelve_preentrenados(client: TestClient) -> None:
@@ -119,7 +121,6 @@ def test_models_preentrenados_tienen_metricas(client: TestClient) -> None:
         assert m["test_log_loss"] is not None
 
 
-# ── GET /features/available ───────────────────────────────────────────────────
 
 
 def test_features_available_devuelve_12(client: TestClient) -> None:
@@ -134,7 +135,6 @@ def test_features_available_devuelve_12(client: TestClient) -> None:
         assert len(f["used_in_models"]) >= 1
 
 
-# ── POST /predict — validaciones (no requieren historial real) ────────────────
 
 
 def test_predict_home_igual_away_devuelve_422(client_with_teams: TestClient) -> None:
@@ -144,7 +144,9 @@ def test_predict_home_igual_away_devuelve_422(client_with_teams: TestClient) -> 
     assert r.status_code == 422
 
 
-def test_predict_equipos_de_distintas_ligas_devuelve_422(client_with_teams: TestClient) -> None:
+def test_predict_equipos_de_distintas_ligas_devuelve_422(
+    client_with_teams: TestClient,
+) -> None:
     r = client_with_teams.post(
         "/predict", json={"home_team_id": 10, "away_team_id": 20, "model": "baseline"}
     )
@@ -162,12 +164,12 @@ def test_predict_market_sin_cuotas_devuelve_422(client_with_teams: TestClient) -
 
 def test_predict_equipo_inexistente_devuelve_404(client_with_teams: TestClient) -> None:
     r = client_with_teams.post(
-        "/predict", json={"home_team_id": 99999, "away_team_id": 11, "model": "baseline"}
+        "/predict",
+        json={"home_team_id": 99999, "away_team_id": 11, "model": "baseline"},
     )
     assert r.status_code == 404
 
 
-# ── POST /train — validaciones ────────────────────────────────────────────────
 
 
 def _get_token(client: TestClient, email: str = "u@test.es") -> str:
@@ -206,11 +208,11 @@ def test_train_algoritmo_invalido_devuelve_422(client: TestClient) -> None:
     assert r.status_code == 422
 
 
-# ── POST /train — flujo en background (con train_custom y sesión simulados) ───
 
 
 def _patch_training(monkeypatch, session: Session) -> None:
     """Sustituye el entrenamiento real y la sesión del job por stubs de test."""
+
     def _fake_train_custom(features, algorithm, artifact_path):
         return {
             "val": {"accuracy": 0.55, "log_loss": 0.90},
@@ -220,13 +222,15 @@ def _patch_training(monkeypatch, session: Session) -> None:
 
     @contextmanager
     def _fake_scope():
-        yield session  # no cerrar: el fixture es dueño de la sesión
+        yield session
 
     monkeypatch.setattr("src.ml.custom_trainer.train_custom", _fake_train_custom)
     monkeypatch.setattr("src.api.routers.train._session_scope", _fake_scope)
 
 
-def test_train_devuelve_202_y_job_completa(client: TestClient, session: Session, monkeypatch) -> None:
+def test_train_devuelve_202_y_job_completa(
+    client: TestClient, session: Session, monkeypatch
+) -> None:
     """POST /train acepta el job (202) y, tras el background, queda 'done' con resultado."""
     _patch_training(monkeypatch, session)
     token = _get_token(client)
@@ -240,7 +244,9 @@ def test_train_devuelve_202_y_job_completa(client: TestClient, session: Session,
     job_id = r.json()["job_id"]
     assert r.json()["status"] == "pending"
 
-    status_r = client.get(f"/train/jobs/{job_id}", headers={"Authorization": f"Bearer {token}"})
+    status_r = client.get(
+        f"/train/jobs/{job_id}", headers={"Authorization": f"Bearer {token}"}
+    )
     assert status_r.status_code == 200
     body = status_r.json()
     assert body["status"] == "done"
@@ -254,7 +260,9 @@ def test_train_job_sin_jwt_devuelve_401(client: TestClient) -> None:
     assert r.status_code == 401
 
 
-def test_train_job_ajeno_devuelve_404(client: TestClient, session: Session, monkeypatch) -> None:
+def test_train_job_ajeno_devuelve_404(
+    client: TestClient, session: Session, monkeypatch
+) -> None:
     """El usuario B no puede consultar el estado de un job del usuario A."""
     _patch_training(monkeypatch, session)
     token_a = _get_token(client, email="a@test.es")
@@ -266,14 +274,17 @@ def test_train_job_ajeno_devuelve_404(client: TestClient, session: Session, monk
     ).json()["job_id"]
 
     token_b = _get_token(client, email="b@test.es")
-    r = client.get(f"/train/jobs/{job_id}", headers={"Authorization": f"Bearer {token_b}"})
+    r = client.get(
+        f"/train/jobs/{job_id}", headers={"Authorization": f"Bearer {token_b}"}
+    )
     assert r.status_code == 404
 
 
-# ── POST /predict/custom — aislamiento entre usuarios ────────────────────────
 
 
-def test_predict_custom_model_id_inexistente_devuelve_404(client_with_teams: TestClient) -> None:
+def test_predict_custom_model_id_inexistente_devuelve_404(
+    client_with_teams: TestClient,
+) -> None:
     token = _get_token(client_with_teams)
     r = client_with_teams.post(
         "/predict/custom",
@@ -292,7 +303,6 @@ def test_predict_custom_model_ajeno_devuelve_404(
     pertenece al usuario A; el usuario B (autenticado) debe recibir 404 por
     propiedad, no por ausencia.
     """
-    # Usuario A con un modelo propio insertado directamente en BD
     user_a = User(email="a@test.es", password_hash="x")
     session.add(user_a)
     session.commit()
@@ -310,7 +320,6 @@ def test_predict_custom_model_ajeno_devuelve_404(
     session.commit()
     session.refresh(modelo_a)
 
-    # Usuario B (distinto) autenticado intenta usar el modelo de A
     token_b = _get_token(client_with_teams, email="b@test.es")
     r = client_with_teams.post(
         "/predict/custom",
@@ -325,7 +334,6 @@ def test_predict_custom_artefacto_borrado_devuelve_503(
     client_with_teams: TestClient, session: Session, monkeypatch
 ) -> None:
     """Si el .pkl del modelo se borró en disco, /predict/custom devuelve 503."""
-    # El propio usuario autenticado tiene un modelo cuyo artefacto no existe
     token = _get_token(client_with_teams)
     user = session.exec(select(User)).first()
     modelo = CustomModel(
@@ -340,7 +348,6 @@ def test_predict_custom_artefacto_borrado_devuelve_503(
     session.commit()
     session.refresh(modelo)
 
-    # Aislamos el branch del artefacto: la construcción de features se simula
     monkeypatch.setattr(
         "src.api.routers.predict.compute_prediction_features",
         lambda **kwargs: ({"elo_diff_pre": 0.0}, False, False, {}),
@@ -354,13 +361,13 @@ def test_predict_custom_artefacto_borrado_devuelve_503(
     assert r.status_code == 503
 
 
-# ── Tests de integración (requieren Postgres + datos reales) ──────────────────
 
 
 @pytest.mark.integration
 def test_predict_baseline_probabilidades_validas() -> None:
     """Con datos reales de BD, las probabilidades deben sumar 1."""
     import httpx
+
     r = httpx.post(
         "http://127.0.0.1:8000/predict",
         json={"home_team_id": 60, "away_team_id": 67, "model": "baseline"},
@@ -374,11 +381,16 @@ def test_predict_baseline_probabilidades_validas() -> None:
 def test_predict_market_con_cuotas_incluye_prob_diff_market() -> None:
     """El modelo market debe incluir prob_diff_market en feature_importance."""
     import httpx
+
     r = httpx.post(
         "http://127.0.0.1:8000/predict",
         json={
-            "home_team_id": 60, "away_team_id": 67,
-            "model": "market", "psch": 2.1, "pscd": 3.4, "psca": 4.2,
+            "home_team_id": 60,
+            "away_team_id": 67,
+            "model": "market",
+            "psch": 2.1,
+            "pscd": 3.4,
+            "psca": 4.2,
         },
     )
     assert r.status_code == 200

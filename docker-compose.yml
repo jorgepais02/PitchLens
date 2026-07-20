@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_USER: kraken
       POSTGRES_PASSWORD: kraken
-      POSTGRES_DB: football_analytics
+      POSTGRES_DB: pitchlens
     ports:
       - "5432:5432"
     volumes:

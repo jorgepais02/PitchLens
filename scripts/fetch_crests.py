@@ -100,7 +100,7 @@ def _fetch_badge_url(search_term: str) -> str | None:
 
     url = _TSDB_URL.format(urllib.parse.quote(search_term))
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "football-analytics-tfg/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "pitchlens-tfg/1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
     except Exception as exc:
@@ -133,7 +133,7 @@ def _fetch_badge_url(search_term: str) -> str | None:
 def _download(badge_url: str, dest: Path) -> bool:
     """Descarga badge_url a dest. Devuelve True si éxito."""
     try:
-        req = urllib.request.Request(badge_url, headers={"User-Agent": "football-analytics-tfg/1.0"})
+        req = urllib.request.Request(badge_url, headers={"User-Agent": "pitchlens-tfg/1.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             dest.write_bytes(resp.read())
         return True

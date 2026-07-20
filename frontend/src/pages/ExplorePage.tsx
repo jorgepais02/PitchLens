@@ -7,7 +7,6 @@ import { Crest, SEP, fmtDate } from '../components/shared'
 
 const PAGE_SIZE = 20
 
-// ─── Select de filtro — botón + panel, lenguaje del TeamDropdown ──────────────
 interface FilterOption {
   value: string
   label: string
@@ -147,7 +146,6 @@ function FilterSelect({ value, options, placeholder, disabled, onChange }: {
   )
 }
 
-// ─── Fila de partido ──────────────────────────────────────────────────────────
 function MatchRow({ match, teamById, onClick }: {
   match: MatchListItem
   teamById: Map<number, Team>
@@ -176,14 +174,11 @@ function MatchRow({ match, teamById, onClick }: {
       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
       onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
-      {/* Fecha */}
       <span style={{ fontSize: 13, color: 'var(--color-ink-muted)', lineHeight: 1, paddingLeft: '12%' }}>
         {fmtDate(match.date)}
       </span>
 
-      {/* Partido */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* Local */}
         <span style={{
           flex: 1, display: 'flex', alignItems: 'center',
           justifyContent: 'flex-end', gap: 10, minWidth: 0,
@@ -193,7 +188,6 @@ function MatchRow({ match, teamById, onClick }: {
           <Crest url={home?.crest_url ?? null} name={homeName} size={32} />
         </span>
 
-        {/* Marcador */}
         <span style={{
           flexShrink: 0, minWidth: 52, textAlign: 'center',
           fontSize: 17, fontWeight: 600,
@@ -203,7 +197,6 @@ function MatchRow({ match, teamById, onClick }: {
           {match.fthg}–{match.ftag}
         </span>
 
-        {/* Visitante */}
         <span style={{
           flex: 1, display: 'flex', alignItems: 'center',
           justifyContent: 'flex-start', gap: 10, minWidth: 0,
@@ -429,7 +422,6 @@ function SkeletonRows({ count = 8 }: { count?: number }) {
   )
 }
 
-// ─── Página ───────────────────────────────────────────────────────────────────
 export default function ExplorePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -498,7 +490,6 @@ export default function ExplorePage() {
       <div style={{ paddingTop: 48 }}>
         <div style={{ maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
 
-        {/* Cabecera */}
         <div style={{ marginBottom: 36 }}>
           <h1 style={{
             margin: 0, fontSize: '2.125rem', fontWeight: 700,
@@ -514,7 +505,6 @@ export default function ExplorePage() {
           </p>
         </div>
 
-        {/* Barra de filtros */}
         <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <FilterSelect
             label="Liga"
@@ -532,7 +522,6 @@ export default function ExplorePage() {
             onChange={handleSeasonChange}
           />
 
-          {/* Divisor vertical + filtro equipo — empujado a la derecha */}
           {filtersReady && (
             <>
               <div style={{ marginLeft: 'auto' }} />

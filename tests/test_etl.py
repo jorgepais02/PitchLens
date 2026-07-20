@@ -38,7 +38,6 @@ def test_run_seed_idempotente_skip_si_poblada(monkeypatch, sqlite_engine) -> Non
     """Sin --wipe sobre BD ya poblada: no inserta, no lee parquet y no lanza."""
     engine = sqlite_engine
     monkeypatch.setattr(etl, "engine", engine)
-    # Si intentara leer el parquet, fallaría — el skip debe ocurrir antes
     monkeypatch.setattr(etl, "_ENRICHED", Path("no/existe/core_enriched.parquet"))
 
     SQLModel.metadata.create_all(engine)
@@ -46,7 +45,7 @@ def test_run_seed_idempotente_skip_si_poblada(monkeypatch, sqlite_engine) -> Non
         s.add(League(code="premier", name="Premier League"))
         s.commit()
 
-    etl.run_seed(wipe=False)  # debe hacer skip silencioso
+    etl.run_seed(wipe=False)
 
     with Session(engine) as s:
         assert len(s.exec(select(League)).all()) == 1

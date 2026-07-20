@@ -13,7 +13,6 @@ MATCHES_PER_LEAGUE = {
 }
 
 
-# ── Estructura y esquema ────────────────────────────────────────────
 
 
 class TestXgStructure:
@@ -36,7 +35,6 @@ class TestXgStructure:
         assert df_xg["season"].nunique() == EXPECTED_SEASONS
 
 
-# ── Cobertura ───────────────────────────────────────────────────────
 
 
 class TestXgCoverage:
@@ -76,7 +74,6 @@ class TestXgCoverage:
         ).all(), f"{league}: partidos por temporada inconsistentes"
 
 
-# ── Integridad ──────────────────────────────────────────────────────
 
 
 class TestXgIntegrity:
@@ -112,7 +109,6 @@ class TestXgIntegrity:
         assert str(df_xg["date"].dtype).startswith("datetime64")
 
 
-# ── Compatibilidad con el core ──────────────────────────────────────
 
 
 class TestXgCompatibility:

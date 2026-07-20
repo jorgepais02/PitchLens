@@ -17,10 +17,8 @@ router = APIRouter(tags=["models"])
 
 _METRICS_PATH = Path("models/metrics.json")
 
-# Bearer opcional: auto_error=False devuelve None si no hay header, sin lanzar 401
 _optional_bearer = HTTPBearer(auto_error=False)
 
-# Descripciones legibles por feature para el frontend
 _FEATURE_DESCRIPTIONS: dict[str, str] = {
     "elo_diff_pre": "Diferencia de ELO histórico (home − away) pre-partido",
     "points_diff_global": "Diferencia de puntos acumulados en la temporada (global)",
@@ -83,7 +81,6 @@ def get_models(
         try:
             user_id = decode_access_token(credentials.credentials)
         except (ValueError, JWTError):
-            # Token inválido o expirado — se devuelven solo los preentrenados
             return ModelsResponse(pretrained=pretrained, custom=custom)
 
         modelos = session.exec(

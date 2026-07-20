@@ -1,5 +1,3 @@
-// URL raíz del backend. Configurable por entorno con VITE_API_URL; en desarrollo
-// local cae a localhost por defecto, así no hace falta ningún fichero .env para arrancar.
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

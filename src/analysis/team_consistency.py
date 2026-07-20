@@ -91,7 +91,6 @@ def build_team_mapping(
         only_xg = sorted(teams_xg - teams_core)
         only_core = sorted(teams_core - teams_xg)
 
-        # Ronda 1: fuzzy match
         unmatched_xg: list[str] = []
         for name_xg in only_xg:
             matches = difflib.get_close_matches(name_xg, only_core, n=1, cutoff=fuzzy_cutoff)
@@ -101,7 +100,6 @@ def build_team_mapping(
             else:
                 unmatched_xg.append(name_xg)
 
-        # Ronda 2: substring match
         still_unmatched: list[str] = []
         for name_xg in unmatched_xg:
             found = None
@@ -116,7 +114,6 @@ def build_team_mapping(
             else:
                 still_unmatched.append(name_xg)
 
-        # Ronda 3: mejor fuzzy match sin cutoff
         while still_unmatched and only_core:
             best_score, best_xg, best_core = 0.0, "", ""
             for name_xg in still_unmatched:

@@ -25,7 +25,6 @@ DROPPED_COLS = [
 ]
 
 
-# ── Estructura y esquema ────────────────────────────────────────────
 
 
 class TestCleanStructure:
@@ -42,7 +41,6 @@ class TestCleanStructure:
             assert actual == expected
 
 
-# ── Transformaciones ────────────────────────────────────────────────
 
 
 class TestCleanTransformations:
@@ -79,7 +77,6 @@ class TestCleanTransformations:
             assert col in df_clean.columns, f"{col} debería estar en el dataset"
 
 
-# ── Integridad de datos ─────────────────────────────────────────────
 
 
 class TestCleanIntegrity:

@@ -39,7 +39,6 @@ def get_matches(
         query = query.where(Match.league_id == league.id)
 
     if season is not None:
-        # end_year puede aparecer en hasta 3 ligas simultáneamente
         season_ids = [
             s.id for s in session.exec(
                 select(Season).where(Season.end_year == season)
@@ -50,7 +49,6 @@ def get_matches(
         query = query.where(Match.season_id.in_(season_ids))
 
     if team_id is not None:
-        # Partidos donde el equipo jugó como local O visitante
         query = query.where(
             or_(Match.home_team_id == team_id, Match.away_team_id == team_id)
         )

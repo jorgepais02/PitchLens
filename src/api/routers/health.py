@@ -16,6 +16,5 @@ def health_check() -> JSONResponse:
         "status": "ok",
         "db": "ok" if db_ok else "error",
     }
-    # 503 si la BD no responde
     status_code = 200 if db_ok else 503
     return JSONResponse(content=payload, status_code=status_code)

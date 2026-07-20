@@ -1,4 +1,4 @@
-# Pitch Lens
+# PitchLens
 
 SPA de predicción de resultados de fútbol (Home / Draw / Away) con Machine Learning.
 Es la capa de presentación del TFG: consume la API FastAPI del proyecto y permite

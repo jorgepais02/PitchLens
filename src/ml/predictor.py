@@ -11,7 +11,6 @@ from src.ml._config import CONTRIBUTION_GROUPS, MODELS_CONFIG, MODELS_DIR
 
 ModelName = Literal["baseline", "extended", "market"]
 
-# Caché en memoria — se carga cada modelo solo una vez por proceso
 _cache: dict[str, Pipeline] = {}
 
 
@@ -125,7 +124,7 @@ def _shap_contributions(
     Devuelve array de shape (n_features, n_classes) con los SHAP values
     para la muestra X (una sola fila).
     """
-    import shap  # import lazy — solo en predicciones con modelos árbol
+    import shap
 
     ccv = pipeline.named_steps["clf"]
     n_classes = len(classes)
@@ -134,16 +133,14 @@ def _shap_contributions(
     for cal_clf in ccv.calibrated_classifiers_:
         explainer = shap.TreeExplainer(cal_clf.estimator)
         sv = explainer.shap_values(X)
-        # sv puede ser lista (una array por clase) o array 3D (n_samples, n_feat, n_classes)
         if isinstance(sv, list):
-            # orden de clases del estimador base — puede diferir del pipeline
             est_classes = list(cal_clf.estimator.classes_) if hasattr(cal_clf.estimator, "classes_") else classes
             for cls_local_idx, cls in enumerate(est_classes):
                 if cls in classes:
                     cls_global_idx = classes.index(cls)
                     shap_sum[:, cls_global_idx] += sv[cls_local_idx][0]
         else:
-            shap_sum += sv[0]  # shape (n_feat, n_classes)
+            shap_sum += sv[0]
 
     return shap_sum / len(ccv.calibrated_classifiers_)
 
@@ -180,9 +177,8 @@ def compute_local_contributions(
         lr = pipeline.named_steps["lr"]
         classes: list[str] = list(lr.classes_)
         X_scaled = pipeline[:-1].transform(X)
-        coef = lr.coef_  # shape (n_classes, n_features)
-        # contrib[feat_idx, cls_idx] = coef[cls_idx, feat_idx] * x_scaled[feat_idx]
-        contrib_matrix = (coef * X_scaled).T  # shape (n_features, n_classes)
+        coef = lr.coef_
+        contrib_matrix = (coef * X_scaled).T
     elif "clf" in pipeline.named_steps:
         classes = list(pipeline.named_steps["clf"].classes_)
         contrib_matrix = _shap_contributions(pipeline, X, classes)

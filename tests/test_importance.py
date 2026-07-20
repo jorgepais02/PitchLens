@@ -19,9 +19,8 @@ def _toy_calibrated_dt() -> tuple[Pipeline, list[str]]:
     rng = np.random.default_rng(0)
     n = 150
     f1 = rng.normal(size=n)
-    f2 = rng.normal(size=n)  # ruido sin relación con y
+    f2 = rng.normal(size=n)
     X = pd.DataFrame({"f1": f1, "f2": f2})
-    # y depende solo de f1 → f1 debe dominar la importancia
     y = np.where(f1 > 0.5, "H", np.where(f1 < -0.5, "A", "D"))
 
     clf = DecisionTreeClassifier(max_depth=3, min_samples_leaf=5, random_state=0)
@@ -34,12 +33,9 @@ def test_importancia_no_lr_usa_estimator_y_orden_desc() -> None:
     pipe, features = _toy_calibrated_dt()
     imp = compute_feature_importance(pipe, features)
 
-    # Cubre las 2 features, ordenadas de mayor a menor
     assert {d["feature"] for d in imp} == {"f1", "f2"}
     valores = [d["importance"] for d in imp]
     assert valores == sorted(valores, reverse=True)
-    # f1 (señal) por encima de f2 (ruido)
     assert imp[0]["feature"] == "f1"
-    # Normalizada a [0, 1]
     assert imp[0]["importance"] == 1.0
     assert all(0.0 <= d["importance"] <= 1.0 for d in imp)

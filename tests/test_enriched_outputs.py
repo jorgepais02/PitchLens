@@ -13,7 +13,6 @@ from conftest import (
 EXPECTED_COLS = 35
 
 
-# ── Estructura y esquema ────────────────────────────────────────────
 
 
 class TestEnrichedStructure:
@@ -45,7 +44,6 @@ class TestEnrichedStructure:
             assert n == EXPECTED_SEASONS, f"{league}: {n} temporadas"
 
 
-# ── xG ──────────────────────────────────────────────────────────────
 
 
 class TestEnrichedXg:
@@ -66,7 +64,6 @@ class TestEnrichedXg:
         assert str(df_enriched["away_xg"].dtype).startswith("float")
 
 
-# ── Integridad del merge ────────────────────────────────────────────
 
 
 class TestEnrichedMerge:
@@ -90,7 +87,6 @@ class TestEnrichedMerge:
         assert (merged.loc[common] == original.loc[common]).all().all()
 
 
-# ── Integridad de datos ─────────────────────────────────────────────
 
 
 class TestEnrichedIntegrity:

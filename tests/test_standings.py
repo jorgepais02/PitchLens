@@ -31,9 +31,9 @@ def _make_match(slug: str, date: datetime, home_id: int, away_id: int, fthg: int
 def _seed_matches(session: Session) -> None:
     """3 partidos: Arsenal gana 2 (2-0, 1-0 fuera) y empata 1 (1-1)."""
     session.add_all([
-        _make_match("m1", datetime(2023, 9, 1), 10, 11, 2, 0),   # Arsenal 2-0 Chelsea
-        _make_match("m2", datetime(2023, 10, 1), 11, 10, 0, 1),  # Chelsea 0-1 Arsenal
-        _make_match("m3", datetime(2023, 11, 1), 10, 11, 1, 1),  # Arsenal 1-1 Chelsea
+        _make_match("m1", datetime(2023, 9, 1), 10, 11, 2, 0),
+        _make_match("m2", datetime(2023, 10, 1), 11, 10, 0, 1),
+        _make_match("m3", datetime(2023, 11, 1), 10, 11, 1, 1),
     ])
     session.commit()
 

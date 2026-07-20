@@ -5,16 +5,9 @@ import { ChevronDown, LogOut, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import AuthModal from './AuthModal'
 
-// La altura es fija (60px): PredictorPage sangra su hero con marginTop: -60
 const NAV_H = 60
-// Alto del item dentro de la isla — deja aire arriba/abajo dentro de la barra
 const SEG_H = 38
 
-// Color de marca único por usuario: el tono (hue) se deriva del hash del email,
-// pero luminancia y chroma quedan FIJOS en un rango medio controlado. Así cada
-// cuenta tiene su color propio y estable entre sesiones, y todos quedan cohesionados
-// sobre el fondo dark sin que ninguno chille. OKLCH → igual brillo percibido por tono.
-// Iniciales a partir del email (no hay nombre en el contexto de auth)
 function initialsFromEmail(email: string): string {
   const local = email.split('@')[0] ?? ''
   const parts = local.split(/[._-]+/).filter(Boolean)
@@ -60,7 +53,6 @@ function DeleteAccountModal({ open, onClose }: { open: boolean; onClose: () => v
     return () => document.removeEventListener('keydown', onKey)
   }, [open, loading, onClose])
 
-  // Limpia el error al cerrar para no arrastrarlo a la siguiente apertura
   useEffect(() => { if (!open) setError(null) }, [open])
 
   if (!open) return null
@@ -69,7 +61,6 @@ function DeleteAccountModal({ open, onClose }: { open: boolean; onClose: () => v
     setLoading(true)
     setError(null)
     try {
-      // Al tener éxito, deleteAccount limpia la sesión y este menú se desmonta solo
       await deleteAccount()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo eliminar la cuenta')
@@ -224,7 +215,6 @@ function AccountMenu() {
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
         onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'transparent' }}
       >
-        {/* Iniciales en blanco, sin contenedor */}
         <span style={{
           fontSize: '0.8125rem', fontWeight: 600, letterSpacing: '0.01em',
           color: 'var(--color-ink)',
@@ -234,7 +224,6 @@ function AccountMenu() {
         <ChevronDown
           size={13}
           style={{
-            // Mismo color que el divisor vertical de la navbar
             color: 'rgba(255,255,255,0.26)',
             transform: open ? 'rotate(180deg)' : 'none',
             transition: 'transform var(--duration-fast) var(--ease-out)',
@@ -349,7 +338,6 @@ export default function Navbar() {
   const { pathname } = useLocation()
   const { isAuthenticated } = useAuth()
   const [authOpen, setAuthOpen] = useState(false)
-  // La isla se asienta (fondo más sólido + sombra) en cuanto hay scroll bajo ella
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -359,8 +347,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // La pestaña "Predicción" es el verbo: lleva siempre al formulario (/new) desde
-  // cualquier pantalla. El resultado sigue accesible por su URL mientras exista.
   const predictionTo = '/new'
   const predictionActive = pathname.startsWith('/new') || pathname.startsWith('/prediction')
 
@@ -377,7 +363,6 @@ export default function Navbar() {
         transition: 'background 220ms var(--ease-out), border-color 220ms var(--ease-out), padding 220ms var(--ease-out)',
       }}
     >
-      {/* Isla central única — logo + nav + cuenta */}
       <div
         className="flex items-center"
         style={{
@@ -394,7 +379,6 @@ export default function Navbar() {
           transition: 'background 220ms var(--ease-out), border-color 220ms var(--ease-out), box-shadow 220ms var(--ease-out), gap 220ms var(--ease-out), padding 220ms var(--ease-out), border-radius 220ms var(--ease-out)',
         }}
       >
-        {/* Logo */}
         <NavLink
           to="/"
           aria-label="PitchLens — inicio"
@@ -417,7 +401,6 @@ export default function Navbar() {
 
         <span aria-hidden="true" style={{ display: scrolled ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
 
-        {/* Nav */}
         <nav aria-label="Navegación principal" className="flex items-center" style={{ gap: 3 }}>
           <NavItem to={predictionTo} label="Predicción" active={predictionActive} />
           <NavItem to="/explore" label="Explorar" active={pathname.startsWith('/explore')} />
@@ -426,7 +409,6 @@ export default function Navbar() {
 
         <span aria-hidden="true" style={{ display: scrolled ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
 
-        {/* Cuenta */}
         {isAuthenticated ? (
           <AccountMenu />
         ) : (
@@ -435,7 +417,6 @@ export default function Navbar() {
             onClick={() => setAuthOpen(true)}
             className="cursor-pointer"
             style={{
-              // Texto simple, mismo peso visual que los links de navegación
               padding: '8px 10px',
               fontSize: '0.9375rem', fontWeight: 400,
               fontFamily: 'var(--font-sans)',

@@ -20,7 +20,6 @@ const DISPLAY_LABELS: Record<string, string> = {
   xg_conceded_last5:        'xG encajado (últ. 5)',
 }
 
-// Métricas donde menos = mejor (barra invertida)
 const CONCEDED_FEATURES = new Set(['goals_conceded_last5', 'h2h_goals_conceded_last5', 'xg_conceded_last5'])
 
 const MODEL_DISPLAY_FEATURES: Record<string, string[]> = {
@@ -49,7 +48,6 @@ function fmt(feature: string, value: number): string {
   }
 }
 
-// ─── Butterfly chart ──────────────────────────────────────────────────────────
 interface ChartRow {
   feature:  string
   rawValue: number
@@ -70,9 +68,6 @@ function ButterflyRow({ row, isLast }: { row: ChartRow; isLast: boolean }) {
   const posH = Math.max(0, adjH)
   const posA = Math.max(0, adjA)
 
-  // h2h_result_diff_last5: valores son win-rates [0,1] — Arsenal 4/5 = 0.8 debe
-  // llenar el 80% de la barra (máximo = 1.0), no el 100% (máximo = posH+posA).
-  // El espaciador gris representa la fracción de partidos no ganados (empates/derrotas).
   let homeSpacer: number, homeFillFlex: number
   let awaySpacer: number, awayFillFlex: number
 
@@ -83,7 +78,6 @@ function ButterflyRow({ row, isLast }: { row: ChartRow; isLast: boolean }) {
     awaySpacer   = 1 - posA         // 1.0  → 100% gris
   } else {
     const total = posH + posA
-    // CSS flex-grow: si la suma es < 1 el contenedor no se rellena del todo.
     const scale  = total > 0 && total < 1 ? 1 / total : 1
     homeFillFlex = (total > 0 ? posH : 1) * scale
     awayFillFlex = (total > 0 ? posA : 1) * scale
@@ -107,7 +101,6 @@ function ButterflyRow({ row, isLast }: { row: ChartRow; isLast: boolean }) {
       borderBottom: isLast ? 'none' : '0.5px solid rgba(255,255,255,0.07)',
       position: 'relative',
     }}>
-      {/* Valores + nombre del factor */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
         <span style={{
           fontSize: 22, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
@@ -134,16 +127,13 @@ function ButterflyRow({ row, isLast }: { row: ChartRow; isLast: boolean }) {
         </span>
       </div>
 
-      {/* Dos barras en la misma línea con gap central */}
       <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
 
-        {/* Barra local: gris exterior (izquierda), relleno crece desde el gap (derecha) */}
         <div style={{ ...trackBase, opacity: homeWins || tied ? 1 : 0.35 }}>
           <div style={{ flex: homeSpacer }} />
           <div style={{ flex: homeFillFlex, background: homeFill }} />
         </div>
 
-        {/* Barra visitante: relleno crece desde el gap (izquierda), gris exterior (derecha) */}
         <div style={{ ...trackBase, opacity: awayWins || tied ? 1 : 0.35 }}>
           <div style={{ flex: awayFillFlex, background: awayFill }} />
           <div style={{ flex: awaySpacer }} />
@@ -166,7 +156,6 @@ function ButterflyChart({ rows }: {
   )
 }
 
-// ─── Market diverging chart ───────────────────────────────────────────────────
 const MKT_LABEL_W = 180
 const MKT_BAR_H   = 40
 const MKT_ROW_H   = 80
@@ -286,7 +275,6 @@ function MarketDivergingChart({ diffs }: {
   )
 }
 
-// ─── Sección principal ────────────────────────────────────────────────────────
 export default function WhySection({ pred }: { pred: ActivePrediction }) {
   const { home, away, model, result } = pred
 

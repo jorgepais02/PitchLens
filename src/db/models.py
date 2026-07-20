@@ -31,7 +31,7 @@ class Season(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     end_year: int = Field(index=True)
-    label: str  # e.g. '2014/15'
+    label: str
     league_id: int = Field(foreign_key="leagues.id", index=True)
 
     league: Optional[League] = Relationship(back_populates="seasons")
@@ -79,7 +79,6 @@ class Match(SQLModel, table=True):
     home_team_id: int = Field(foreign_key="teams.id", index=True)
     away_team_id: int = Field(foreign_key="teams.id", index=True)
 
-    # Resultado final
     fthg: int
     ftag: int
     ftr: str = Field(max_length=1)
@@ -87,7 +86,6 @@ class Match(SQLModel, table=True):
     htag: int
     htr: str = Field(max_length=1)
 
-    # Stats
     home_shots: int
     away_shots: int
     home_shots_on_target: int
@@ -101,26 +99,21 @@ class Match(SQLModel, table=True):
     home_reds: int
     away_reds: int
 
-    # Cuotas Bet365
     b365h: float
     b365d: float
     b365a: float
 
-    # Cuotas Pinnacle apertura
     psh: float
     psd: float
     psa: float
 
-    # Cuotas Pinnacle cierre (usadas en prob_diff_market)
     psch: float
     pscd: float
     psca: float
 
-    # Expected Goals
     home_xg: float
     away_xg: float
 
-    # Número de jornada de liga
     round_number: Optional[int] = Field(default=None)
 
     league: Optional[League] = Relationship(back_populates="matches")

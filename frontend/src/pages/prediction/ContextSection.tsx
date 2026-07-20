@@ -21,7 +21,6 @@ function fmtDate(iso: string): string {
   return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${rest}`
 }
 
-// ─── Crest ────────────────────────────────────────────────────────────────────
 function Crest({ url, name, size = 22 }: { url: string | null; name: string; size?: number }) {
   const [failed, setFailed] = useState(false)
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
@@ -42,7 +41,6 @@ function Crest({ url, name, size = 22 }: { url: string | null; name: string; siz
   )
 }
 
-// ─── Columna izquierda — Historial directo ────────────────────────────────────
 function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName, homeCrestUrl, awayCrestUrl }: {
   matches: H2HMatch[]
   homeId: number
@@ -55,9 +53,6 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
 }) {
   const [atBottom, setAtBottom] = useState(false)
 
-  // Cold start de H2H: el par no se ha enfrentado en el historial disponible.
-  // Se mantiene la columna con su cabecera y se muestra un empty-state, en vez
-  // de ocultar el bloque (mismo estilo de texto que el empty-state del Predictor).
   if (matches.length === 0) {
     return (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -91,10 +86,8 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
 
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      {/* Subtítulo */}
       <span style={{ ...COL_LABEL, display: 'block', textAlign: 'center' }}>H2H</span>
 
-      {/* Agregado: tres bloques iguales */}
       <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', margin: '28px 0 0' }}>
         {([
           { color: HOME_C, num: homeWins, label: homeDisplayName },
@@ -115,10 +108,8 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
         ))}
       </div>
 
-      {/* Separador */}
       <div style={{ borderTop: `0.5px solid ${SEP}`, margin: '24px 0 0' }} />
 
-      {/* Lista de partidos */}
       <div style={{ position: 'relative' }}>
       <div
         className={scrollable ? 'h2h-scroll' : undefined}
@@ -145,7 +136,6 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
               paddingBottom: 16,
               borderTop: i === 0 ? 'none' : `0.5px solid ${SEP}`,
             }}>
-              {/* Fecha — justo tras el separador */}
               <span style={{
                 display: 'block', width: '100%',
                 fontSize: 13, lineHeight: 1, color: 'var(--color-ink-muted)',
@@ -154,9 +144,7 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
                 {fmtDate(m.date)}
               </span>
 
-              {/* Partido — línea propia, centrado */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                {/* Local: nombre → crest */}
                 <span style={{
                   flex: 1, display: 'flex', alignItems: 'center',
                   justifyContent: 'flex-end', gap: 10, minWidth: 0,
@@ -169,7 +157,6 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
                   <Crest url={crestOf(m.home_team_id)} name={m.home_team_name} size={34} />
                 </span>
 
-                {/* Score */}
                 <span style={{
                   fontSize: 18, fontWeight: 600, letterSpacing: '0.03em',
                   color: SECONDARY, fontFamily: 'var(--font-sans)',
@@ -179,7 +166,6 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
                   {m.fthg}–{m.ftag}
                 </span>
 
-                {/* Visitante: crest → nombre */}
                 <span style={{
                   flex: 1, display: 'flex', alignItems: 'center',
                   justifyContent: 'flex-start', gap: 10, minWidth: 0,
@@ -209,7 +195,6 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
   )
 }
 
-// ─── Columna derecha — Forma reciente ─────────────────────────────────────────
 const RESULT_LETTER: Record<string, string> = { W: 'V', D: 'E', L: 'D' }
 const WIN_C  = '#4ADE80'
 const LOSS_C = '#E05D3A'
@@ -234,7 +219,6 @@ function FormBlock({ matches, teamName, color, mt }: {
         padding: '20px',
         boxShadow: '0 2px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)',
       }}>
-        {/* Nombre + resumen */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 3, height: 24, background: color, borderRadius: 2, flexShrink: 0 }} />
@@ -247,7 +231,6 @@ function FormBlock({ matches, teamName, color, mt }: {
           </span>
         </div>
 
-        {/* 5 columnas: escudo rival arriba, tile resultado abajo */}
         <div style={{ display: 'flex', gap: 10 }}>
           {ordered.map((m, i) => {
             const isWin  = m.result === 'W'
@@ -311,7 +294,6 @@ function FormColumn({ homeForm, awayForm, homeDisplayName, awayDisplayName }: {
   )
 }
 
-// ─── Sección principal ────────────────────────────────────────────────────────
 export default function ContextSection({ homeId, awayId, homeName, awayName, homeDisplayName, awayDisplayName, homeCrestUrl, awayCrestUrl }: {
   homeId: number
   awayId: number
@@ -340,7 +322,6 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
 
   return (
     <div style={{ marginTop: 64 }}>
-      {/* Cabecera */}
       <div style={{ marginBottom: 40 }}>
         <h2 style={{
           margin: 0, fontSize: '2.125rem', fontWeight: 700,
@@ -356,7 +337,6 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
         </p>
       </div>
 
-      {/* Dos columnas */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
         {h2h && (
           <H2HColumn

@@ -30,8 +30,6 @@ def get_teams(session: SessionDep, league_code: str | None = None) -> list[Team]
 @router.get("/{team_id}", response_model=TeamDetailRead)
 def get_team(team_id: int, session: SessionDep) -> TeamDetailRead:
     """Devuelve un equipo con su liga embebida."""
-    # selectinload carga la relación league en una segunda query,
-    # evitando el problema N+1 si en el futuro se llama en bucle
     team = session.exec(
         select(Team)
         .where(Team.id == team_id)

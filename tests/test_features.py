@@ -28,7 +28,6 @@ CORE_FEATURES_SCHEMA_PATH = (
 )
 
 
-# ─── Fixtures ────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture(scope="session")
@@ -50,7 +49,6 @@ def ml_subset(df_subset) -> pd.DataFrame:
     return build_features(df_subset)
 
 
-# ─── build_features — output schema ─────────────────────────────────────────
 
 
 class TestBuildFeaturesSchema:
@@ -96,7 +94,6 @@ class TestBuildFeaturesSchema:
         assert ml_subset["Date"].is_monotonic_increasing
 
 
-# ─── build_features — anti-leakage ──────────────────────────────────────────
 
 
 class TestAntiLeakage:
@@ -125,7 +122,6 @@ class TestAntiLeakage:
             ), f"Season {row['Season']}: points_diff_global={val} (esperado 0)"
 
 
-# ─── ELO properties ──────────────────────────────────────────────────────────
 
 
 class TestELOProperties:
@@ -136,7 +132,6 @@ class TestELOProperties:
         assert (ml_subset["elo_diff_pre"].abs() < 5000).all()
 
 
-# ─── H2H features ────────────────────────────────────────────────────────────
 
 
 class TestH2HFeatures:
@@ -187,13 +182,11 @@ class TestH2HFeatures:
             home1 = grupo.iloc[0]["HomeTeam"]
             home2 = grupo.iloc[1]["HomeTeam"]
             if home1 == home2:
-                continue  # no hubo inversión de localía
+                continue
             v1 = df_h2h.loc[m1, "h2h_goal_diff_last5"]
             v2 = df_h2h.loc[m2, "h2h_goal_diff_last5"]
-            # m1 siempre es NaN (primer H2H). m2 usa solo m1 → rolling con 1 valor.
-            # Como rolling(window=5).mean() requiere window observaciones, m2 también es NaN.
             assert pd.isna(v1) and pd.isna(v2)
-            break  # un par basta para validar el invariante estructural
+            break
 
     def test_h2h_result_in_range(self, ml_subset):
         """h2h_result_diff_last5 ∈ [-1, 1] — es (wins_home − wins_away) / window."""
@@ -205,7 +198,6 @@ class TestH2HFeatures:
         assert (ml_subset["h2h_goal_diff_last5"].abs() < 10).all()
 
 
-# ─── Market feature ──────────────────────────────────────────────────────────
 
 
 class TestMarketFeature:
@@ -232,7 +224,6 @@ class TestMarketFeature:
         assert overround_ps < overround_b365
 
 
-# ─── core_features.parquet (si ya existe en disco) ──────────────────────────────
 
 
 @pytest.mark.skipif(

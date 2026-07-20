@@ -6,8 +6,6 @@ import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import { Spinner } from './components/shared'
 
-// Páginas cargadas bajo demanda — cada ruta es su propio chunk, así el código
-// de cada pantalla solo se descarga al navegar a ella.
 const PredictorPage    = lazy(() => import('./pages/PredictorPage'))
 const PredictionPage   = lazy(() => import('./pages/prediction/PredictionPage'))
 const ExplorePage      = lazy(() => import('./pages/ExplorePage'))
@@ -15,8 +13,6 @@ const ExploreMatchPage = lazy(() => import('./pages/ExploreMatchPage'))
 const StudioPage       = lazy(() => import('./pages/StudioPage'))
 const NotFoundPage     = lazy(() => import('./pages/NotFoundPage'))
 
-// Restablece el scroll al inicio en cada cambio de ruta — React Router conserva
-// la posición por defecto, lo que dejaba la pantalla nueva a media altura.
 function ScrollToTop() {
   const { pathname } = useLocation()
   useLayoutEffect(() => {

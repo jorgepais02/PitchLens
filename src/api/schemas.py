@@ -112,14 +112,12 @@ class MatchDetailRead(BaseModel):
     season_id: int
     home_team_id: int
     away_team_id: int
-    # Resultado
     fthg: int
     ftag: int
     ftr: str
     hthg: int
     htag: int
     htr: str
-    # Stats
     home_shots: int
     away_shots: int
     home_shots_on_target: int
@@ -132,22 +130,17 @@ class MatchDetailRead(BaseModel):
     away_yellows: int
     home_reds: int
     away_reds: int
-    # Cuotas Bet365
     b365h: float
     b365d: float
     b365a: float
-    # Cuotas Pinnacle apertura
     psh: float
     psd: float
     psa: float
-    # Cuotas Pinnacle cierre
     psch: float
     pscd: float
     psca: float
-    # xG
     home_xg: float
     away_xg: float
-    # Features opcionales (null en cold start)
     features: MatchFeaturesRead | None = None
 
 
@@ -175,7 +168,7 @@ class H2HMatchRead(BaseModel):
     away_team_name: str
     fthg: int
     ftag: int
-    ftr: str  # H/D/A relativo al local de ese partido concreto
+    ftr: str
 
 
 class PredictResponse(BaseModel):

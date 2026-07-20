@@ -8,7 +8,6 @@ export default function PredictionPage() {
   const { id } = useParams<{ id: string }>()
   const { activePrediction } = usePrediction()
 
-  // Fallback: si el contexto se perdió (recarga de página), intentar sessionStorage
   let pred = activePrediction
   if (!pred && id) {
     const raw = sessionStorage.getItem(`pred-${id}`)
@@ -36,7 +35,6 @@ export default function PredictionPage() {
         />
       </div>
 
-      {/* Why section */}
       <div style={{ maxWidth: '82.5vw', margin: '40px auto 0' }}>
         <WhySection pred={pred} />
         <ContextSection

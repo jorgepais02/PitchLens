@@ -9,10 +9,8 @@ from pathlib import Path
 MODELS_DIR = Path("models")
 CUSTOM_MODELS_DIR = Path("models/custom")
 
-# Dataset de features (output Fase 4) — fuente única para train_models y custom_trainer
 DATA_PATH = Path("data/processed/features/core_features.parquet")
 
-# Candidatos de regularización para LogisticRegressionCV
 CV_Cs: list[float] = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
 
 FEATURES_BASELINE: list[str] = [
@@ -47,9 +45,6 @@ MODELS_CONFIG: dict[str, list[str]] = {
     "market": FEATURES_MARKET,
 }
 
-# Agrupación de features en factores futbolísticos para la UI.
-# Las features internas (points_diff_*, rest_days_diff) no se mapean a ningún grupo.
-# El grupo "market" se omite cuando prob_diff_market == 0.0 (sin cuotas reales).
 CONTRIBUTION_GROUPS: dict[str, list[str]] = {
     "elo":      ["elo_diff_pre"],
     "form":     ["goal_diff_last5_global", "goal_diff_last5_venue", "sot_diff_last5_global"],

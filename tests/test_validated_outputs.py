@@ -9,7 +9,6 @@ from conftest import (
 )
 
 
-# ── Estructura y esquema ────────────────────────────────────────────
 
 
 class TestValidatedStructure:
@@ -25,7 +24,6 @@ class TestValidatedStructure:
             assert actual == schema_validated["matches_per_league"][league]
 
 
-# ── Integridad de datos ─────────────────────────────────────────────
 
 
 class TestValidatedIntegrity:

@@ -42,7 +42,6 @@ _ALGORITHM_LABELS: dict[str, str] = {
     "xgb": "XGBoost",
 }
 
-# ── Registro de jobs en memoria ───────────────────────────────────────────────
 
 _JOBS: dict[str, dict] = {}
 _JOBS_LOCK = threading.Lock()
@@ -72,7 +71,6 @@ def _session_scope() -> Generator[Session, None, None]:
         yield session
 
 
-# ── DTOs ───────────────────────────────────────────────────────────────────
 
 
 class TrainRequest(BaseModel):
@@ -91,7 +89,7 @@ class TrainRequest(BaseModel):
         invalid = [f for f in v if f not in FEATURES]
         if invalid:
             raise ValueError(f"Features no reconocidas: {invalid}. Disponibles: {FEATURES}")
-        return list(dict.fromkeys(v))  # elimina duplicados manteniendo orden
+        return list(dict.fromkeys(v))
 
 
 class TrainResult(BaseModel):
@@ -124,7 +122,6 @@ class TrainJobStatus(BaseModel):
     error: str | None = None
 
 
-# ── Tarea en background ──────────────────────────────────────────────────────
 
 
 def _run_training_job(
@@ -149,9 +146,6 @@ def _run_training_job(
         )
 
         with _session_scope() as session:
-            # Límite de modelos por usuario — borra el más antiguo si se supera.
-            # Se hace tras escribir el artefacto y se confirma en la misma transacción;
-            # si el commit falla, el artefacto recién escrito se limpia abajo.
             modelos_usuario = session.exec(
                 select(CustomModel)
                 .where(CustomModel.user_id == user_id)
@@ -192,7 +186,6 @@ def _run_training_job(
         _set_job(job_id, status="done", result=result.model_dump())
 
     except Exception:
-        # El artefacto pudo escribirse antes del fallo en BD — limpiarlo evita huérfanos
         _remove_artifact(artifact_path)
         log.exception("Fallo entrenando job %s (user %s)", job_id, user_id)
         _set_job(job_id, status="error", error="Error entrenando el modelo")
@@ -206,7 +199,6 @@ def _remove_artifact(path: str) -> None:
         pass
 
 
-# ── Endpoints ────────────────────────────────────────────────────────────────
 
 
 @router.post("/train", response_model=TrainJobAccepted, status_code=status.HTTP_202_ACCEPTED)

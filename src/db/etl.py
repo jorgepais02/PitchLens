@@ -18,25 +18,14 @@ from sqlmodel import Session, SQLModel, select
 from src.db.database import engine
 from src.db.models import League, Match, MatchFeatures, Season, Team
 
-# ---------------------------------------------------------------------------
-# Rutas de datos
-# ---------------------------------------------------------------------------
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ENRICHED = _ROOT / "data" / "processed" / "enriched" / "core_enriched.parquet"
 _FEATURES = _ROOT / "data" / "processed" / "features" / "core_features.parquet"
 
-# ---------------------------------------------------------------------------
-# Logger
-# ---------------------------------------------------------------------------
 
-# Logger de módulo — la configuración de handlers se hace solo en el bloque CLI
-# (__main__) para no reconfigurar el root logger al importar este módulo.
 log = logging.getLogger("seed")
 
-# ---------------------------------------------------------------------------
-# Counts esperados
-# ---------------------------------------------------------------------------
 
 _EXPECTED_LEAGUES = 3
 _EXPECTED_SEASONS = 30
@@ -44,9 +33,6 @@ _EXPECTED_TEAMS = 93
 _EXPECTED_MATCHES = 10_660
 _EXPECTED_FEATURES = 9_792
 
-# ---------------------------------------------------------------------------
-# Mapeo de ligas (code en parquet → nombre completo)
-# ---------------------------------------------------------------------------
 
 _LEAGUE_NAMES = {
     "premier": "Premier League",
@@ -55,9 +41,6 @@ _LEAGUE_NAMES = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Funciones de seed por dimensión
-# ---------------------------------------------------------------------------
 
 
 def seed_ligas(session: Session) -> dict[str, int]:
@@ -160,14 +143,12 @@ def seed_partidos(
             season_id=season_id,
             home_team_id=home_id,
             away_team_id=away_id,
-            # Resultado
             fthg=int(row["FTHG"]),
             ftag=int(row["FTAG"]),
             ftr=row["FTR"],
             hthg=int(row["HTHG"]),
             htag=int(row["HTAG"]),
             htr=row["HTR"],
-            # Stats
             home_shots=int(row["HS"]),
             away_shots=int(row["AS"]),
             home_shots_on_target=int(row["HST"]),
@@ -180,19 +161,15 @@ def seed_partidos(
             away_yellows=int(row["AY"]),
             home_reds=int(row["HR"]),
             away_reds=int(row["AR"]),
-            # Cuotas Bet365
             b365h=float(row["B365H"]),
             b365d=float(row["B365D"]),
             b365a=float(row["B365A"]),
-            # Cuotas Pinnacle apertura
             psh=float(row["PSH"]),
             psd=float(row["PSD"]),
             psa=float(row["PSA"]),
-            # Cuotas Pinnacle cierre
             psch=float(row["PSCH"]),
             pscd=float(row["PSCD"]),
             psca=float(row["PSCA"]),
-            # xG
             home_xg=float(row["home_xg"]),
             away_xg=float(row["away_xg"]),
         ))
@@ -249,9 +226,6 @@ def seed_features(
     return n
 
 
-# ---------------------------------------------------------------------------
-# Función principal de seed
-# ---------------------------------------------------------------------------
 
 
 def run_seed(wipe: bool = False) -> None:
@@ -270,8 +244,6 @@ def run_seed(wipe: bool = False) -> None:
     log.info("creando tablas si no existen...")
     SQLModel.metadata.create_all(engine)
 
-    # Idempotencia: sin --wipe, una re-ejecución sobre BD ya poblada no inserta nada
-    # (evita el IntegrityError del unique de leagues.code). Usa --wipe para recrear.
     if not wipe:
         with Session(engine) as session:
             ya_poblada = session.exec(select(League)).first() is not None
@@ -314,9 +286,6 @@ def run_seed(wipe: bool = False) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 
 if __name__ == "__main__":

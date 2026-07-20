@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
-// Pantalla 404 — capturada por la ruta comodín en App.tsx para cualquier URL desconocida.
 export default function NotFoundPage() {
   const navigate = useNavigate()
 

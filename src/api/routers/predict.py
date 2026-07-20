@@ -85,7 +85,6 @@ class PredictRequest(BaseModel):
     home_team_id: int
     away_team_id: int
     model: Literal["baseline", "extended", "market"]
-    # Cuotas Pinnacle de cierre — requeridas para modelo market, ignoradas en los demás
     psch: float | None = Field(default=None, gt=1.0, description="Cuota Pinnacle cierre local")
     pscd: float | None = Field(default=None, gt=1.0, description="Cuota Pinnacle cierre empate")
     psca: float | None = Field(default=None, gt=1.0, description="Cuota Pinnacle cierre visitante")

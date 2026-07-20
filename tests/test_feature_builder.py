@@ -162,10 +162,8 @@ def test_features_cacheadas_iguales_a_build_features_completo(session: Session) 
     _seed(session, n_matches=7)
     psch, pscd, psca = 1.6, 3.8, 5.5
 
-    # Ruta optimizada
     optim, *_ = compute_prediction_features(session, _TEAM_A, _TEAM_B, psch=psch, pscd=pscd, psca=psca)
 
-    # Referencia: build_features sobre la misma fila virtual con cuotas reales
     history = _get_league_history(session, 1)
     virtual = pd.DataFrame([{
         "match_id": _VIRTUAL_ID, "Date": pd.Timestamp.utcnow().tz_localize(None),
@@ -180,5 +178,5 @@ def test_features_cacheadas_iguales_a_build_features_completo(session: Session) 
 
     for f in FEATURES:
         if f == "rest_days_diff":
-            continue  # se imputa a 0 a propósito en la API
+            continue
         assert optim[f] == pytest.approx(float(ref_row[f])), f

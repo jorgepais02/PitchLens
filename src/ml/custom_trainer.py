@@ -117,7 +117,6 @@ def train_custom(
 
     pipeline = _build_pipeline(algorithm)
 
-    # XGB/DT/RF requieren labels numéricos; LR los maneja como string directamente.
     if algorithm != "lr":
         le = LabelEncoder()
         y_train_fit = le.fit_transform(y_train)

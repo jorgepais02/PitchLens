@@ -8,10 +8,8 @@ import { usePrediction, type ModelKey } from '../context/PredictionContext'
 import { useAuth } from '../context/AuthContext'
 import AuthModal from '../components/AuthModal'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type EnrichedTeam = Team & { league: League }
 
-// ─── Colors ──────────────────────────────────────────────────────────────────
 const HOME_BG        = '#091524'
 const AWAY_BG        = '#190909'
 const HOME_LABEL     = 'rgba(77, 147, 248, 0.65)'
@@ -19,14 +17,12 @@ const AWAY_LABEL     = 'rgba(243, 90, 90, 0.65)'
 const LABEL_PRIMARY  = 'rgba(255,255,255,0.7)'
 const LABEL_SECONDARY = 'rgba(255,255,255,0.22)'
 
-// ─── Models ───────────────────────────────────────────────────────────────────
 const PRESET_MODELS: { key: ModelKey; label: string; desc: string; acc: string }[] = [
   { key: 'baseline', label: 'Baseline', acc: '53.8%', desc: 'ELO histórico · puntos en temporada · historial H2H' },
   { key: 'extended', label: 'Extended', acc: '54.7%', desc: 'Baseline + xG generado/encajado · tiros a puerta · descanso' },
   { key: 'market',   label: 'Market',   acc: '57.3%', desc: 'Extended + probabilidad implícita de cierre Pinnacle' },
 ]
 
-// ─── Spinner ──────────────────────────────────────────────────────────────────
 function Spinner({ size = 16 }: { size?: number }) {
   return (
     <span
@@ -37,17 +33,12 @@ function Spinner({ size = 16 }: { size?: number }) {
   )
 }
 
-// ─── TeamCrest — escudo con fallback de iniciales ────────────────────────────
 function TeamCrest({ url, name, size }: { url: string | null; name: string; size: number }) {
   const [failed, setFailed] = useState(false)
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 3).toUpperCase()
 
   const transition = 'width 760ms cubic-bezier(0.65,0,0.35,1), height 760ms cubic-bezier(0.65,0,0.35,1)'
 
-  // El escudo arranca en el tamaño grande (108) y anima hasta su size objetivo en
-  // el siguiente frame. Así el segundo equipo —que se monta cuando teamsReady ya es
-  // true (size=72)— entra grande y encoge igual que el primero, en lugar de aparecer
-  // pequeño de golpe. El primer equipo cambia de prop y transiciona como siempre.
   const [displaySize, setDisplaySize] = useState(() => Math.max(size, 108))
   useEffect(() => {
     const id = requestAnimationFrame(() => setDisplaySize(size))
@@ -86,7 +77,6 @@ function TeamCrest({ url, name, size }: { url: string | null; name: string; size
 }
 
 
-// ─── Team Dropdown Portal ─────────────────────────────────────────────────────
 interface DropdownProps {
   teams: EnrichedTeam[]
   selectedId: number | null
@@ -156,13 +146,11 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
     if (team) itemRefs.current.get(team.id)?.scrollIntoView({ block: 'nearest' })
   }, [focusedIdx, flatList])
 
-  // Typing resets list highlight and returns to input zone
   useEffect(() => {
     setFocusedIdx(-1)
     if (query) setFocusZone('input')
   }, [query])
 
-  // Devuelve el foco al input. skipInputFocus previene que onFocus sobreescriba la zona.
   const moveFocusToInput = () => {
     skipInputFocus.current = true
     setFocusZone('input')
@@ -170,7 +158,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
     skipInputFocus.current = false
   }
 
-  // ── Zona input: flechas eligen equipo, Tab cambia de liga ─────────────────
   const handleInputNav = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') { onClose(); return }
 
@@ -198,7 +185,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
     }
   }
 
-  // ── Zona pills: ← → cambian liga, Tab vuelve al input ────────────────────
   const handlePillNav = (e: React.KeyboardEvent, idx: number) => {
     if (e.key === 'Escape') { onClose(); return }
 
@@ -218,7 +204,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
       setActivePill(prev => prev === l.id ? null : l.id)
       setFocusedIdx(0) // auto-resalta el primer equipo de la liga seleccionada
     } else if (e.key === 'Tab' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      // cualquier tecla de avance devuelve el foco al input
       e.preventDefault()
       moveFocusToInput()
     }
@@ -229,17 +214,11 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
   const VW = window.innerWidth
   const VH = window.innerHeight
 
-  // Centrado bajo el contenido visible del trigger (círculo/label), no bajo el
-  // borde del botón — que ocupa el 100% de su mitad y dejaría el panel descolgado.
   const anchorCenter = anchorRect.left + anchorRect.width / 2
   const left = Math.max(16, Math.min(anchorCenter - PW / 2, VW - PW - 16))
 
-  // La card se acota al hueco disponible (abajo o arriba) y la lista scrollea
-  // dentro — así nunca se corta por el borde de la pantalla.
   const M = 16   // margen al borde del viewport
   const GAP = 10 // separación al ancla
-  // Emerge desde el círculo (≈140px de alto), no desde el final del botón —
-  // así la card sale del slot pulsado en vez de quedar descolgada bajo el label.
   const originBelowY = Math.min(anchorRect.top + 150, anchorRect.bottom)
   const spaceBelow = VH - originBelowY - GAP - M
   const spaceAbove = anchorRect.top - GAP - M
@@ -266,7 +245,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
         overflow: 'hidden',
       }}
     >
-      {/* Búsqueda */}
       <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid #1c1c1c' }}>
         <div style={{ position: 'relative' }}>
           <Search
@@ -296,7 +274,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
         </div>
       </div>
 
-      {/* Pills de liga — solo cuando hay más de una disponible */}
       {hasPills && (
         <div style={{
           display: 'flex', gap: 6, padding: '8px 10px',
@@ -338,7 +315,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
         </div>
       )}
 
-      {/* Lista de equipos */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 0' }}>
         {grouped.size === 0 ? (
           <p style={{ padding: '18px 16px', textAlign: 'center', color: '#444', fontSize: '0.9375rem' }}>
@@ -406,7 +382,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function PredictorPage() {
   const navigate           = useNavigate()
   const { setActivePrediction } = usePrediction()
@@ -416,7 +391,6 @@ export default function PredictorPage() {
   const [away,         setAway]         = useState<EnrichedTeam | null>(null)
   const [hoveredSide,  setHoveredSide]  = useState<'home' | 'away' | null>(null)
   const [model,        setModel]        = useState<ModelKey | null>(null)
-  // Qué modelo custom está seleccionado (model === 'custom' apunta a este id)
   const [customModelId, setCustomModelId] = useState<number | null>(null)
   const [authOpen,     setAuthOpen]     = useState(false)
   const [odds,         setOdds]         = useState({ psch: '', pscd: '', psca: '' })
@@ -430,21 +404,13 @@ export default function PredictorPage() {
   const [isOddsClosing,    setIsOddsClosing]    = useState(false)
   const [isOddsEntering,   setIsOddsEntering]   = useState(false)
   const [predictError,     setPredictError]     = useState<string | null>(null)
-  // Altura real del contenido del panel de modelos (header + tarjetas + botón).
-  // Se mide en vivo porque varía con el ancho (las descripciones de las tarjetas
-  // hacen wrap en columnas estrechas). El hero usa este valor para cederle hueco.
   const [panelContentH, setPanelContentH] = useState(0)
   const oddsPopoverRef = useRef<HTMLDivElement>(null)
   const modelInnerRef  = useRef<HTMLDivElement>(null)
 
-  // deselect=true → vuelve a ningún modelo seleccionado (comportamiento por defecto al descartar)
-  // deselect=false → solo cierra el overlay (usado tras predicción exitosa, ya navegamos)
   const closeOddsPopover = useCallback((deselect = true) => {
     setIsOddsClosing(true)
     setPredictError(null)
-    // La card empieza a volver a reposo bastante antes (220ms) de que el popover
-    // termine de irse (360ms), para que no haya pausa entre ambos gestos. El botón
-    // Predecir no participa: reaparece directamente deshabilitado (ver canClick).
     if (deselect) {
       setTimeout(() => {
         setModel(null)
@@ -464,7 +430,6 @@ export default function PredictorPage() {
   const homeButtonRef = useRef<HTMLButtonElement>(null)
   const awayButtonRef = useRef<HTMLButtonElement>(null)
 
-  // ── Un solo request carga todas las ligas y todos los equipos ──
   const { data: leagues = [] } = useQuery({
     queryKey: ['leagues'], queryFn: api.leagues,
   })
@@ -472,7 +437,6 @@ export default function PredictorPage() {
     queryKey: ['teams-all'], queryFn: api.allTeams, staleTime: Infinity,
   })
 
-  // Modelos custom del usuario — solo con sesión; al loguear, refresca la columna Studio en sitio
   const { data: modelsData } = useQuery({
     queryKey: ['models', token],
     queryFn: () => api.models(token ?? undefined),
@@ -482,12 +446,10 @@ export default function PredictorPage() {
   const selectedCustom = customModelId != null
     ? customModels.find(m => m.id === customModelId) ?? null
     : null
-  // El modelo (preset Market o custom con prob_diff_market) necesita cuotas Pinnacle
   const requiresMarketOdds =
     model === 'market' ||
     (model === 'custom' && !!selectedCustom?.features.includes('prob_diff_market'))
 
-  // Si se cierra sesión con un modelo custom seleccionado, se deselecciona
   useEffect(() => {
     if (!isAuthenticated && model === 'custom') {
       setModel(null)
@@ -508,7 +470,6 @@ export default function PredictorPage() {
     [rawTeams, leagueById]
   )
 
-  // ── Filtered lists: second selector follows the first's league ──
   const awayTeams = allTeams.filter(t =>
     t.id !== home?.id && (!home || t.league.id === home.league.id)
   )
@@ -516,7 +477,6 @@ export default function PredictorPage() {
     t.id !== away?.id && (!away || t.league.id === away.league.id)
   )
 
-  // ── Dropdown handlers ──
   const handleOpenDropdown = (side: 'home' | 'away') => {
     const btn = side === 'home' ? homeButtonRef.current : awayButtonRef.current
     if (btn) setAnchorRect(btn.getBoundingClientRect())
@@ -536,7 +496,6 @@ export default function PredictorPage() {
     setOpenSide(null)
   }
 
-  // Cierra el popover de cuotas al hacer click fuera
   useEffect(() => {
     if (!showOddsPopover) return
     const handler = (e: MouseEvent) => {
@@ -548,7 +507,6 @@ export default function PredictorPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showOddsPopover])
 
-  // ── Predict ──
   const parseOdd   = (v: string) => parseFloat(v.replace(',', '.'))
   const pschVal    = parseOdd(odds.psch)
   const pscdVal    = parseOdd(odds.pscd)
@@ -560,7 +518,6 @@ export default function PredictorPage() {
   const handlePredict = async () => {
     if (!home || !away || !model) return
     if (model === 'custom' && customModelId == null) return
-    // Modelos con señal de mercado piden las cuotas antes de predecir
     if (requiresMarketOdds && !oddsValid) {
       setShowOddsPopover(true)
       setIsOddsEntering(true)
@@ -611,10 +568,6 @@ export default function PredictorPage() {
 
   const teamsReady = !!home && !!away
 
-  // Mide en vivo la altura intrínseca del contenido del panel (header + tarjetas
-  // + botón) y la altura del viewport. El contenido varía con el ancho (las
-  // descripciones de las tarjetas hacen wrap en columnas estrechas) y el viewport
-  // con el navegador (barra de direcciones/marcadores).
   const [viewportH, setViewportH] = useState(() =>
     typeof window !== 'undefined' ? window.innerHeight : 0)
   useEffect(() => {
@@ -630,40 +583,23 @@ export default function PredictorPage() {
     return () => { ro?.disconnect(); window.removeEventListener('resize', measure) }
   }, [isAuthenticated, customModels.length])
 
-  // Reparto de altura entre hero y panel. Con equipos elegidos el hero ocupa
-  // 44svh, pero cede lo justo para que el panel (con su botón Predecir) quepa
-  // entero en viewports bajos. En viewports altos (Arc, monitor grande) gana
-  // 44svh y se ve idéntico al diseño aprobado. Si ni con el hero al mínimo cabe
-  // el panel (ventanas muy bajas), el panel hace scroll interno como red de
-  // seguridad —gated, así nunca aparece la barra en viewports normales—.
   const HERO_FLOOR = 120
   const PANEL_PAD  = 16  // colchón sobre la altura medida del contenido
   const heroPx = teamsReady && panelContentH > 0 && viewportH > 0
     ? Math.max(HERO_FLOOR, Math.min(0.44 * viewportH, viewportH - panelContentH - PANEL_PAD))
     : null
   const heroHeight = !teamsReady ? '100svh' : (heroPx != null ? `${Math.round(heroPx)}px` : '44svh')
-  // El panel necesita scroll solo si, con el hero ya en su mínimo, el contenido
-  // no entra en el hueco restante.
   const needsPanelScroll = heroPx != null && panelContentH > viewportH - heroPx + 1
 
-  // Durante el retorno a reposo tras "No tengo cuotas", las cards usan una transición
-  // larga y gentil; en uso normal (hover/selección) mantienen su duración ágil.
   const cardBgTransition = isDeselecting
     ? 'background 800ms var(--ease-out), border-color 800ms var(--ease-out)'
     : 'background 300ms var(--ease-out), border-color 300ms var(--ease-out)'
   const cardColorTransition = isDeselecting
     ? 'color 800ms var(--ease-out)'
     : 'color 300ms var(--ease-out)'
-  // El botón Predecir no se anima al cerrar el popover: queda quieto y disabled.
-  // La transición solo cubre hover en uso normal.
   const predictBtnTransition =
     'background 180ms var(--ease-out), border-color 300ms var(--ease-out), color 300ms var(--ease-out)'
 
-  // ── Entrada del contenido de modelos ─────────────────────────────────────
-  // Un solo gesto: todo entra junto, suave, montado sobre la apertura de la
-  // sección. Sin cascada por elemento — es una pantalla de uso repetido y la
-  // coreografía escalonada estorbaría al pulsar "Predecir" una y otra vez.
-  // El parámetro order se mantiene por firma pero ya no escalona.
   const REVEAL_EASE = 'cubic-bezier(0.33, 0, 0.2, 1)'
   const reveal = (_order: number): React.CSSProperties => {
     const delay = teamsReady ? 200 : 0
@@ -675,7 +611,6 @@ export default function PredictorPage() {
     }
   }
 
-  // ── Layout ────────────────────────────────────────────────────────────────
   return (
     <div style={{
       height: '100svh', marginTop: -60,
@@ -684,28 +619,24 @@ export default function PredictorPage() {
     }}>
       <title>PitchLens — Predicción de resultados</title>
 
-      {/* ── Hero — ocupa todo hasta elegir equipos ───────────────────── */}
       <div style={{
         height: heroHeight,
         flexShrink: 0, position: 'relative', overflow: 'hidden', background: '#28282d',
         transition: 'height 760ms cubic-bezier(0.65, 0, 0.35, 1)',
       }}>
 
-        {/* Home background — navy tint, clipped to left diagonal */}
         <div style={{
           position: 'absolute', inset: 0,
           background: HOME_BG,
           clipPath: 'polygon(0 0, calc(50% + 68px) 0, calc(50% - 68px) 100%, 0 100%)',
         }} />
 
-        {/* Away background — crimson tint, clipped to right diagonal */}
         <div style={{
           position: 'absolute', inset: 0,
           background: AWAY_BG,
           clipPath: 'polygon(calc(50% + 70px) 0, 100% 0, 100% 100%, calc(50% - 66px) 100%)',
         }} />
 
-        {/* LOCAL label — alineado con el borde izquierdo del nombre de equipo */}
         <div className="hero-side-label" style={{
           position: 'absolute', left: '5%',
           fontSize: '1.25rem', fontWeight: 500,
@@ -715,7 +646,6 @@ export default function PredictorPage() {
           LOCAL
         </div>
 
-        {/* VISITANTE label — alineado con el borde derecho del nombre de equipo */}
         <div className="hero-side-label" style={{
           position: 'absolute', right: '5%',
           fontSize: '1.25rem', fontWeight: 500,
@@ -725,7 +655,6 @@ export default function PredictorPage() {
           VISITANTE
         </div>
 
-        {/* Home team button — left half */}
         <div
           style={{ position: 'absolute', left: '5%', right: '53%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
         >
@@ -800,7 +729,6 @@ export default function PredictorPage() {
             )}
           </button>
 
-          {/* X táctil — solo visible en dispositivos touch */}
           {home && (
             <button
               type="button"
@@ -821,7 +749,6 @@ export default function PredictorPage() {
 
         </div>
 
-        {/* Away team button — right half */}
         <div
           style={{ position: 'absolute', left: '53%', right: '5%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
         >
@@ -896,7 +823,6 @@ export default function PredictorPage() {
             )}
           </button>
 
-          {/* X táctil — solo visible en dispositivos touch */}
           {away && (
             <button
               type="button"
@@ -917,14 +843,12 @@ export default function PredictorPage() {
 
         </div>
 
-        {/* Stack central: liga · VS · swap */}
         <div style={{
           position: 'absolute', left: '50%', top: '50%',
           transform: 'translate(-50%, -50%)',
           zIndex: 10,
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
         }}>
-          {/* VS badge */}
           <div style={{
             width: 64, height: 64, borderRadius: '50%',
             background: '#171719',
@@ -944,7 +868,6 @@ export default function PredictorPage() {
 
         </div>
 
-        {/* Swap — posición absoluta independiente, no afecta al centrado del stack */}
         <button
           type="button"
           onClick={() => { setHome(away); setAway(home) }}
@@ -978,26 +901,18 @@ export default function PredictorPage() {
         </button>
       </div>
 
-      {/* ── Model selector ───────────────────────────────────────────── */}
-      {/* flex:1 absorbe el espacio que cede el hero — la altura la anima la
-          misma transición del hero (560ms), así el reveal va perfectamente
-          sincronizado en vez del clásico salto del max-height. */}
       <div style={{
         flex: 1, minHeight: 0,
         background: '#0a0a0c', borderTop: '1px solid #1e1e1e', position: 'relative',
         opacity: teamsReady ? 1 : 0,
         overflowX: 'hidden',
         overflowY: needsPanelScroll ? 'auto' : 'hidden',
-        // Fundido rápido del panel (borde/fondo); la entrada visible la hacen
-        // los hijos en cascada, no este contenedor — así no aparece todo de golpe.
         transition: `opacity 200ms ease-out ${teamsReady ? '120ms' : '0ms'}`,
       }}>
         <div className="model-section-inner" ref={modelInnerRef}>
 
-          {/* ── Two equal columns ────────────────────────────────────── */}
           <div className="model-cols">
 
-          {/* ── Left: Preentrenados ──────────────────────────────────── */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2 className="model-header" style={{
               margin: 0,
@@ -1012,9 +927,7 @@ export default function PredictorPage() {
             <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
               {PRESET_MODELS.map((m, idx) => {
                 const isActive = model === m.key
-                // Atenuado solo cuando OTRO modelo está seleccionado; en reposo, legible
                 const dimmed = model !== null && !isActive
-                // Card sutil: reposo apenas perceptible, seleccionado claramente más fuerte
                 const cardBg     = isActive ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)'
                 const cardBorder = isActive ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)'
                 const rv = reveal(idx + 1)
@@ -1039,7 +952,6 @@ export default function PredictorPage() {
                     onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.045)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' } }}
                     onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = cardBg; e.currentTarget.style.borderColor = cardBorder } }}
                   >
-                    {/* Line 1: marcador + name + accuracy */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
                         <span aria-hidden="true" style={{
@@ -1067,7 +979,6 @@ export default function PredictorPage() {
                         {m.acc}
                       </span>
                     </div>
-                    {/* Line 2: description */}
                     <div style={{
                       marginTop: 6,
                       fontSize: '1.0625rem',
@@ -1089,7 +1000,6 @@ export default function PredictorPage() {
             ...reveal(1),
           }} />
 
-          {/* ── Right: Studio ────────────────────────────────────────── */}
           <div style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
             <h2 className="model-header" style={{
               margin: 0,
@@ -1103,7 +1013,6 @@ export default function PredictorPage() {
             </h2>
 
             {!isAuthenticated ? (
-              /* Estado A — sin sesión: atajo a login en el sitio, sin salir del flujo */
               <button
                 type="button"
                 onClick={() => setAuthOpen(true)}
@@ -1137,7 +1046,6 @@ export default function PredictorPage() {
                 </div>
               </button>
             ) : customModels.length === 0 ? (
-              /* Estado B — con sesión, sin modelos: invita a crear el primero */
               <button
                 type="button"
                 onClick={() => navigate('/studio/new')}
@@ -1164,8 +1072,6 @@ export default function PredictorPage() {
                 </div>
               </button>
             ) : (
-              /* Estado C — con sesión y modelos: seleccionables como los preentrenados.
-                 maxHeight ≈ 3 tarjetas (como preentrenados); a partir de ahí scroll interno */
               <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: 15, maxHeight: 282, overflowY: 'auto', ...reveal(1) }}>
                 {customModels.map(m => {
                   const isActive = model === 'custom' && customModelId === m.id
@@ -1238,12 +1144,9 @@ export default function PredictorPage() {
             )}
           </div>
 
-          </div>{/* end two columns */}
+          </div>
 
-          {/* ── Predict row ──────────────────────────────────────────── */}
           {(() => {
-            // En cuanto se abre el popover de cuotas, Predecir se considera deshabilitado:
-            // así reaparece tras cerrarlo ya en estado disabled, sin animarse de habilitado.
             const canClick = !!home && !!away && !!model && (model !== 'custom' || customModelId != null) && !isPredicting && !showOddsPopover
             return (
               <>
@@ -1255,8 +1158,6 @@ export default function PredictorPage() {
                     onClick={handlePredict}
                     disabled={!canClick || showOddsPopover}
                     style={{
-                      // No se anima: queda quieto y deshabilitado mientras el popover está
-                      // abierto (tapado por el velo). Al levantarse el velo, ya está disabled.
                       pointerEvents: showOddsPopover ? 'none' : 'auto',
                       width: '30%',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -1284,17 +1185,13 @@ export default function PredictorPage() {
               </>
             )
           })()}
-          {/* end predict row */}
 
         </div>
 
-        {/* ── Odds overlay — cubre solo la sección de modelos ────────── */}
         {showOddsPopover && (
           <div
             style={{
               position: 'absolute', inset: 0,
-              // El velo (backdrop) se anima por separado de la card y más lento, para
-              // que la card salga primero y el velo revele el estado ya limpio al final.
               background: isOddsClosing || isOddsEntering ? 'rgba(10,10,12,0)' : 'rgba(10,10,12,0.88)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               zIndex: 50,
@@ -1320,7 +1217,6 @@ export default function PredictorPage() {
                 transition: 'opacity 300ms var(--ease-out), transform 340ms var(--ease-out)',
               }}
             >
-              {/* Título + subtítulo */}
               <div>
                 <div style={{ fontSize: '1.1875rem', fontWeight: 600, color: 'var(--color-ink)', letterSpacing: '-0.01em', marginBottom: 5 }}>
                   Cuotas de cierre Pinnacle
@@ -1330,7 +1226,6 @@ export default function PredictorPage() {
                 </div>
               </div>
 
-              {/* Inputs */}
               <div style={{ display: 'flex', gap: 12 }}>
                 {([
                   { key: 'psch' as const, label: 'Local'     },
@@ -1339,9 +1234,6 @@ export default function PredictorPage() {
                 ] as { key: keyof typeof odds; label: string }[]).map(({ key, label }) => {
                   const n = parseOdd(odds[key])
                   const focused = focusedOdd === key
-                  // El error solo aparece al perder el foco: mientras el campo está enfocado
-                  // el usuario puede seguir tecleando (p. ej. 1 → 1,5). Si sale del campo con
-                  // la cuota en ≤ 1, entonces sí avisa.
                   const invalid = touchedOdds[key] && !focused && odds[key] !== '' && (isNaN(n) || n <= 1)
                   const borderColor = invalid ? 'var(--color-error)' : focused ? 'var(--color-ink-faint)' : 'var(--color-border)'
                   return (
@@ -1388,22 +1280,18 @@ export default function PredictorPage() {
                 })}
               </div>
 
-              {/* Hint global — la suma de probabilidades implícitas debe ser ≥ 100%.
-                  La validación por campo (cuota ≤ 1) se muestra bajo cada input. */}
               {oddsFilled && !oddsValid && (
                 <div style={{ fontSize: '0.8125rem', color: 'var(--color-error)', lineHeight: 1.5 }}>
                   La suma de probabilidades implícitas es {(impliedSum * 100).toFixed(1)}% — debe ser ≥ 100%.
                 </div>
               )}
 
-              {/* Error de API */}
               {predictError && (
                 <div style={{ fontSize: '0.8125rem', color: 'var(--color-error)', lineHeight: 1.5 }}>
                   {predictError}
                 </div>
               )}
 
-              {/* Confirmar */}
               <button
                 type="button"
                 onClick={handlePredict}
@@ -1450,7 +1338,6 @@ export default function PredictorPage() {
       </div>
 
 
-      {/* ── Dropdown portal ──────────────────────────────────────────── */}
       {openSide && anchorRect && (
         <TeamDropdown
           teams={openSide === 'home' ? homeTeams : awayTeams}

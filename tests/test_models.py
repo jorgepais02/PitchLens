@@ -80,7 +80,6 @@ def test_feature_importance_orden_descendente(name: str) -> None:
 def test_predict_sanity_equipo_local_dominante(name: str) -> None:
     """Con ventaja extrema del local, prob_h debe superar a prob_a."""
     base_features = {f: 0.0 for f in MODELS_CONFIG[name]}
-    # elo_diff_pre o prob_diff_market muy positivo → local muy superior
     if "elo_diff_pre" in base_features:
         base_features["elo_diff_pre"] = 500.0
     if "prob_diff_market" in base_features:
@@ -170,7 +169,6 @@ def test_preentrenados_no_predicen_empates() -> None:
     metrics = json.loads((MODELS_DIR / "metrics.json").read_text())
     for name in ["baseline", "extended", "market"]:
         cm = metrics[name]["test"]["confusion_matrix"]
-        # columna D (índice 1) = total de predicciones de empate
         d_pred = cm[0][1] + cm[1][1] + cm[2][1]
         assert d_pred == 0, (
             f"{name}: {d_pred} empates predichos — comportamiento cambiado"

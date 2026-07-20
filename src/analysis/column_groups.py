@@ -8,11 +8,11 @@ def classify_columns(columns: list[str]) -> pd.DataFrame:
     basadas en patrones de nombres y conocimiento del dominio.
     """
 
-    match_stats_pat = re.compile(r"^(H|A)[A-Z]")  # HS, HST, AC, AY...
-    odds_ou_pat = re.compile(r"([<>]2\.5)$")  # B365>2.5, Avg<2.5...
-    odds_ah_pat = re.compile(r"AH")  # Asian handicap
-    odds_1x2_pat = re.compile(r"(H|D|A)$")  # Probabilidades 1X2
-    odds_agg_pat = re.compile(r"^(Max|Avg|Bb)")  # Cuotas agregadas
+    match_stats_pat = re.compile(r"^(H|A)[A-Z]")
+    odds_ou_pat = re.compile(r"([<>]2\.5)$")
+    odds_ah_pat = re.compile(r"AH")
+    odds_1x2_pat = re.compile(r"(H|D|A)$")
+    odds_agg_pat = re.compile(r"^(Max|Avg|Bb)")
 
     id_cols = {"Div", "Date", "Time", "HomeTeam", "AwayTeam"}
     result_cols = {"FTHG", "FTAG", "FTR", "HTHG", "HTAG", "HTR"}

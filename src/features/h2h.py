@@ -39,13 +39,10 @@ def compute_h2h_rolling(df: pd.DataFrame, window: int) -> pd.DataFrame:
         ]
     ].copy()
 
-    # Par canónico dentro de la liga: ordenamos alfabéticamente los dos equipos
-    # para que "A vs B" y "B vs A" compartan historial.
     data["team_a"] = data[["HomeTeam", "AwayTeam"]].min(axis=1)
     data["team_b"] = data[["HomeTeam", "AwayTeam"]].max(axis=1)
     data["pair_id"] = data["League"] + "__" + data["team_a"] + "__" + data["team_b"]
 
-    # Perspectiva fija de team_a: gd_a y win_a miden el resultado desde su punto de vista.
     a_is_home = data["HomeTeam"].values == data["team_a"].values
     data["gd_a"] = np.where(
         a_is_home,
@@ -63,7 +60,6 @@ def compute_h2h_rolling(df: pd.DataFrame, window: int) -> pd.DataFrame:
         ),
     )
 
-    # Rolling sobre el historial del par, perspectiva team_a.
     data = data.sort_values(["pair_id", "Date"]).reset_index(drop=True)
     grp = data.groupby("pair_id")
     data["gd_a_roll"] = grp["gd_a"].transform(
@@ -73,8 +69,6 @@ def compute_h2h_rolling(df: pd.DataFrame, window: int) -> pd.DataFrame:
         lambda x: x.shift(1).rolling(window).mean()
     )
 
-    # Proyección a la perspectiva del local del partido actual:
-    # si team_a es el local, la perspectiva ya coincide; si no, invertimos signo.
     sign = np.where(data["HomeTeam"].values == data["team_a"].values, 1, -1)
     data["h2h_goal_diff_last5"] = data["gd_a_roll"] * sign
     data["h2h_result_diff_last5"] = data["win_a_roll"] * sign

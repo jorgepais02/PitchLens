@@ -13,7 +13,6 @@ const SECTION_TITLE: React.CSSProperties = {
   marginBottom: 24,
 }
 
-// ─── Fila de stat ─────────────────────────────────────────────────────────────
 function StatRow({ label, home, away, lowerWins = false, isLast = false }: {
   label: string; home: number; away: number
   lowerWins?: boolean; isLast?: boolean
@@ -60,7 +59,6 @@ function StatRow({ label, home, away, lowerWins = false, isLast = false }: {
 }
 
 
-// ─── Bloque tiros con portería ────────────────────────────────────────────────
 function ShotsBlock({ homeSots, awaySots, homeMisses, awayMisses }: {
   homeSots: number; awaySots: number; homeMisses: number; awayMisses: number
 }) {
@@ -83,7 +81,6 @@ function ShotsBlock({ homeSots, awaySots, homeMisses, awayMisses }: {
       background: 'rgba(255,255,255,0.04)', borderRadius: 12,
       overflow: 'hidden',
     }}>
-      {/* Tiros fuera — números centrados en el espacio entre borde y poste */}
       <div style={{
         display: 'grid', gridTemplateColumns: '24% 52% 24%',
         alignItems: 'center', padding: '18px 0',
@@ -94,7 +91,6 @@ function ShotsBlock({ homeSots, awaySots, homeMisses, awayMisses }: {
         <div style={{ display: 'flex', justifyContent: 'center' }}>{num(awayMisses)}</div>
       </div>
 
-      {/* Portería */}
       <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 0' }}>
         <div style={{
           width: '52%',
@@ -117,7 +113,6 @@ function ShotsBlock({ homeSots, awaySots, homeMisses, awayMisses }: {
   )
 }
 
-// ─── Tarjeta de cuotas — estilo imagen 12 ─────────────────────────────────────
 function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
   psch: number; pscd: number; psca: number
   b365h: number; b365d: number; b365a: number
@@ -198,7 +193,6 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
   )
 }
 
-// ─── Clasificación compacta — solo los dos equipos ───────────────────────────
 const CLASI_GRID: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '34px 32px minmax(0,1fr) 44px 36px 36px 36px 44px 52px',
@@ -230,12 +224,10 @@ function StandingsCompact({ leagueCode, season, homeTeamId, awayTeamId }: {
 
   return (
     <div>
-      {/* Cabecera — nombre de liga */}
       <div style={{ ...SECTION_TITLE, marginBottom: 16 }}>
         Clasificación
       </div>
 
-      {/* Col headers */}
       <div style={{ ...CLASI_GRID, paddingBottom: 8, borderBottom: `0.5px solid ${SEP}` }}>
         <span /><span /><span />
         {COLS.map(c => (
@@ -272,7 +264,6 @@ function StandingsCompact({ leagueCode, season, homeTeamId, awayTeamId }: {
   )
 }
 
-// ─── Header del partido ────────────────────────────────────────────────────────
 function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
   match: MatchDetail; home: Team | undefined; away: Team | undefined
   leagueName: string; seasonLabel: string
@@ -358,7 +349,6 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
   )
 }
 
-// ─── Página ───────────────────────────────────────────────────────────────────
 export default function ExploreMatchPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
@@ -428,13 +418,10 @@ export default function ExploreMatchPage() {
         seasonLabel={season?.label ?? ''}
       />
 
-      {/* ── Contenido: dos columnas arriba + clasificación abajo ─────────────── */}
       <div style={{ maxWidth: '82.5vw', margin: '52px auto 0' }}>
 
-        {/* Fila superior: Stats · Mercado */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, marginTop: 16 }}>
 
-          {/* Stats */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ ...SECTION_TITLE, marginBottom: 6 }}>Stats del partido</div>
             <div>
@@ -455,10 +442,8 @@ export default function ExploreMatchPage() {
             </div>
           </div>
 
-          {/* Separador vertical — idéntico a ContextSection */}
           <div style={{ width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 48px', alignSelf: 'stretch' }} />
 
-          {/* Mercado + Clasificación */}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 52 }}>
             <OddsCard
               psch={match.psch} pscd={match.pscd} psca={match.psca}

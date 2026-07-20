@@ -6,7 +6,6 @@ y 3 equipos, SIN partidos — ideal para validar filtros vacíos y 404 de slugs/
 
 from fastapi.testclient import TestClient
 
-# ── GET /leagues ──────────────────────────────────────────────────────────────
 
 
 def test_leagues_devuelve_las_dos(client_with_teams: TestClient) -> None:
@@ -16,7 +15,6 @@ def test_leagues_devuelve_las_dos(client_with_teams: TestClient) -> None:
     assert codes == {"premier", "laliga"}
 
 
-# ── GET /seasons ──────────────────────────────────────────────────────────────
 
 
 def test_seasons_sin_filtro(client_with_teams: TestClient) -> None:
@@ -38,13 +36,11 @@ def test_seasons_liga_inexistente_404(client_with_teams: TestClient) -> None:
 
 
 def test_seasons_liga_sin_temporadas_devuelve_vacio(client_with_teams: TestClient) -> None:
-    # laliga existe pero no tiene temporadas sembradas
     r = client_with_teams.get("/seasons", params={"league_code": "laliga"})
     assert r.status_code == 200
     assert r.json() == []
 
 
-# ── GET /teams ────────────────────────────────────────────────────────────────
 
 
 def test_teams_sin_filtro_orden_alfabetico(client_with_teams: TestClient) -> None:
@@ -78,7 +74,6 @@ def test_team_inexistente_404(client_with_teams: TestClient) -> None:
     assert r.status_code == 404
 
 
-# ── GET /teams/{id}/stats ─────────────────────────────────────────────────────
 
 
 def test_team_stats_sin_partidos(client_with_teams: TestClient) -> None:
@@ -100,7 +95,6 @@ def test_team_stats_equipo_inexistente_404(client_with_teams: TestClient) -> Non
     assert r.status_code == 404
 
 
-# ── GET /matches ──────────────────────────────────────────────────────────────
 
 
 def test_matches_vacio(client_with_teams: TestClient) -> None:

@@ -14,7 +14,6 @@ const SECTION   = 'rgba(255,255,255,0.85)'  // headers de sección — por debaj
 const SECONDARY = 'rgba(255,255,255,0.45)'
 const DIM       = 'rgba(255,255,255,0.28)'
 
-// Métricas de los 3 preentrenados — fuente de verdad (models/metrics.json)
 const PRETRAINED = [
   { key: 'baseline', label: 'Baseline', val_acc: 0.5428, test_acc: 0.5378, test_log_loss: 0.9565,
     desc: 'ELO histórico · puntos en temporada · historial H2H' },
@@ -32,7 +31,6 @@ const FEATURE_BLOCKS: { title: string; features: string[] }[] = [
   { title: 'BLOQUE D — Mercado',           features: ['prob_diff_market'] },
 ]
 
-// Descripción corta de cada feature — ayuda a decidir sin mostrar el nombre interno.
 const FEATURE_DESC: Record<string, string> = {
   elo_diff_pre:                  'Nivel de cada equipo según su historial de resultados.',
   points_diff_global:            'Puntos sumados en la última temporada jugada por cada equipo.',
@@ -57,9 +55,7 @@ const ALGORITHMS: { key: Algorithm; short: string; name: string; desc: string }[
 
 const ALGO_SHORT: Record<string, string> = { lr: 'LR', dt: 'DT', rf: 'RF', xgb: 'XGB' }
 
-// Tope de caracteres del nombre del modelo — usabilidad y cabe en las tarjetas.
 const NAME_MAX = 30
-// Tope de la descripción opcional — debe caber en una línea de la tarjeta del selector.
 const DESC_MAX = 80
 
 const fmtAcc = (v: number | null | undefined) => v != null ? `${(v * 100).toFixed(1)}%` : '—'
@@ -345,16 +341,13 @@ function ListView({ onCreate, onShowAuth, onView }: { onCreate: () => void; onSh
 
   return (
     <div>
-      {/* Cabecera */}
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ margin: 0, fontSize: '2.125rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)' }}>
           Mis modelos
         </h1>
       </div>
 
-      {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        {/* Buscador — ocupa ~40% */}
         <div style={{
           width: 260, display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 12px', background: '#1a1a1c',
@@ -379,7 +372,6 @@ function ListView({ onCreate, onShowAuth, onView }: { onCreate: () => void; onSh
           )}
         </div>
 
-        {/* Sort — icono junto al buscador */}
         <div ref={sortRef} style={{ position: 'relative' }}>
           <button
             type="button"
@@ -430,7 +422,6 @@ function ListView({ onCreate, onShowAuth, onView }: { onCreate: () => void; onSh
 
         <div style={{ flex: 1 }} />
 
-        {/* Nuevo modelo */}
         <button
           type="button"
           onClick={onCreate}
@@ -450,7 +441,6 @@ function ListView({ onCreate, onShowAuth, onView }: { onCreate: () => void; onSh
         </button>
       </div>
 
-      {/* Lista */}
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
           <Spinner />
@@ -480,7 +470,6 @@ function ListView({ onCreate, onShowAuth, onView }: { onCreate: () => void; onSh
   )
 }
 
-// ─── Vista create ─────────────────────────────────────────────────────────────
 interface CreateFormState {
   name: string
   description: string
@@ -524,7 +513,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
         Configura tu modelo. Se entrena y evalúa con el mismo split temporal que los preentrenados.
       </p>
 
-      {/* Nombre */}
       <div style={{ marginBottom: 44 }}>
         <label htmlFor="model-name" style={{
           display: 'block', marginBottom: 14,
@@ -566,7 +554,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
         )}
       </div>
 
-      {/* Descripción — opcional */}
       <div style={{ marginBottom: 44 }}>
         <label htmlFor="model-desc" style={{
           display: 'block', marginBottom: 14,
@@ -605,7 +592,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
         </p>
       </div>
 
-      {/* Features por bloque */}
       <div style={{ marginBottom: 44 }}>
         <h2 style={{ margin: '0 0 6px', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
           Features
@@ -626,7 +612,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
                 background: isOpen ? 'oklch(0.63 0.21 272 / 0.04)' : 'var(--color-surface)',
                 transition: 'border-color 150ms, background 150ms',
               }}>
-                {/* Cabecera del bloque */}
                 <button
                   type="button"
                   aria-expanded={isOpen}
@@ -669,7 +654,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
                   </span>
                 </button>
 
-                {/* Cuerpo: features del bloque en rejilla de 2 columnas */}
                 {isOpen && (
                   <div id={bodyId} style={{
                     padding: '6px 14px 16px',
@@ -731,7 +715,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
         </div>
       </div>
 
-      {/* Algoritmo */}
       <div style={{ marginBottom: 44 }}>
         <h2 style={{ margin: '0 0 18px', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
           Algoritmo
@@ -780,7 +763,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
         </div>
       </div>
 
-      {/* Submit */}
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <button
           type="button"
@@ -810,7 +792,6 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
   )
 }
 
-// ─── Vista result ─────────────────────────────────────────────────────────────
 function ImportanceChart({ importance }: { importance: { feature: string; importance: number }[] }) {
   const sorted = [...importance].sort((a, b) => Math.abs(b.importance) - Math.abs(a.importance))
   const maxAbs = Math.max(...sorted.map(r => Math.abs(r.importance)), 1e-9)
@@ -864,7 +845,6 @@ function ComparisonChart({ result }: { result: TrainResult }) {
     { label: result.name, acc: result.test_accuracy, loss: result.test_log_loss, mine: true },
     ...PRETRAINED.map(m => ({ label: m.label, acc: m.test_acc, loss: m.test_log_loss, mine: false })),
   ]
-  // Eje Y dinámico: padding fijo de 0.8pp sin redondear para no inflar el rango
   const accs = entries.map(e => e.acc)
   const pad = 0.008
   const axisMin = Math.min(...accs) - pad
@@ -872,7 +852,6 @@ function ComparisonChart({ result }: { result: TrainResult }) {
   const axisRange = axisMax - axisMin
   const toY = (v: number) => ((v - axisMin) / axisRange) * CHART_H
 
-  // Guías en múltiplos de step estrictamente dentro del rango (máx ~5 líneas)
   const step = axisRange <= 0.08 ? 0.01 : axisRange <= 0.16 ? 0.02 : 0.05
   const guides: number[] = []
   for (
@@ -886,9 +865,7 @@ function ComparisonChart({ result }: { result: TrainResult }) {
 
   return (
     <div>
-      {/* Área del gráfico */}
       <div style={{ position: 'relative', height: CHART_H }}>
-        {/* Guías horizontales con etiqueta en el eje Y */}
         {guides.map(g => (
           <div key={g} style={{
             position: 'absolute', left: 0, right: 0, bottom: toY(g),
@@ -906,7 +883,6 @@ function ComparisonChart({ result }: { result: TrainResult }) {
           </div>
         ))}
 
-        {/* Línea base del eje — en el suelo, donde nacen los stems */}
         <div style={{
           position: 'absolute', left: 0, right: 0, bottom: 0,
           display: 'flex', alignItems: 'center', gap: 20, pointerEvents: 'none',
@@ -922,8 +898,6 @@ function ComparisonChart({ result }: { result: TrainResult }) {
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.08)' }} />
         </div>
 
-        {/* Zona "tu territorio" — relleno desde el eje hasta el nivel de tu modelo.
-            El borde superior es el listón a batir; los dots preentrenados que sobresalen te superan. */}
         <motion.div
           initial={{ scaleX: 0, opacity: 0 }}
           animate={{ scaleX: 1, opacity: 1 }}
@@ -937,7 +911,6 @@ function ComparisonChart({ result }: { result: TrainResult }) {
           }}
         />
 
-        {/* Columnas: una por modelo */}
         <div style={{
           position: 'absolute', top: 0, bottom: 0, left: 50, right: 0,
           display: 'flex', gap: 12,
@@ -946,12 +919,10 @@ function ComparisonChart({ result }: { result: TrainResult }) {
             const yPx = toY(e.acc)
             const delay = i * 0.06
             const dotSize = e.mine ? 18 : 15
-            // Oficial que supera a tu modelo — sobresale de la zona, se resalta.
             const beatsMine = !e.mine && e.acc > result.test_accuracy
 
             return (
               <div key={e.label} style={{ flex: 1, position: 'relative' }}>
-                {/* Stem — crece desde la base hasta el dot */}
                 <motion.div
                   initial={{ height: 0 }}
                   animate={{ height: yPx }}
@@ -963,14 +934,12 @@ function ComparisonChart({ result }: { result: TrainResult }) {
                     transform: 'translateX(-50%)',
                   }}
                 />
-                {/* Dot + label — sube sincronizado con el stem */}
                 <motion.div
                   initial={{ bottom: 0 }}
                   animate={{ bottom: yPx }}
                   transition={{ duration: 2.0, ease: [0.33, 1, 0.68, 1], delay }}
                   style={{ position: 'absolute', left: '50%', width: 0, height: 0 }}
                 >
-                  {/* % encima del dot */}
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -987,7 +956,6 @@ function ComparisonChart({ result }: { result: TrainResult }) {
                   >
                     {fmtAcc(e.acc)}
                   </motion.span>
-                  {/* Dot */}
                   <div style={{
                     position: 'absolute',
                     width: dotSize, height: dotSize, borderRadius: '50%',
@@ -1004,7 +972,6 @@ function ComparisonChart({ result }: { result: TrainResult }) {
         </div>
       </div>
 
-      {/* Nombres de modelos + log loss */}
       <div style={{ display: 'flex', paddingLeft: 50, gap: 12, marginTop: 15 }}>
         {entries.map(e => (
           <div key={e.label} style={{ flex: 1, textAlign: 'center' }}>
@@ -1034,7 +1001,6 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
     <div>
       <BackButton onClick={onBack} />
 
-      {/* Cabecera */}
       <div style={{ margin: '12px 0 26px' }}>
         <h1 style={{
           margin: '0 0 8px', fontSize: '2.125rem', fontWeight: 700,
@@ -1049,8 +1015,6 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
         </div>
       </div>
 
-      {/* Métricas — 4 homogéneas, agrupadas test | val. Jerarquía por color, no por tamaño:
-          test (el resultado) brillante, val (diagnóstico) atenuado. */}
       {(() => {
         const Metric = ({ label, value, sub, dim }: { label: string; value: string; sub: string; dim: boolean }) => (
           <div style={{ minWidth: 138 }}>
@@ -1092,7 +1056,6 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
         )
       })()}
 
-      {/* Dos columnas: importancia + comparativa */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'block', marginBottom: 8, fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
@@ -1145,7 +1108,6 @@ function BackButton({ onClick, disabled = false }: { onClick: () => void; disabl
   )
 }
 
-// ─── Ruta result — resuelve el modelo por :id (soporta enlace directo) ──────────
 function ResultRoute({ cached, onBack }: { cached: TrainResult | null; onBack: () => void }) {
   const { id } = useParams<{ id: string }>()
   const { isAuthenticated, token } = useAuth()
@@ -1159,8 +1121,6 @@ function ResultRoute({ cached, onBack }: { cached: TrainResult | null; onBack: (
 
   if (!isAuthenticated) return <Navigate to="/studio" replace />
 
-  // Prioriza el resultado recién entrenado si su id coincide con la URL;
-  // si no, lo reconstruye desde la lista de modelos (enlace directo / recarga).
   let result: TrainResult | null = cached && cached.model_id === modelId ? cached : null
   if (!result) {
     const m = models?.custom.find(m => m.id === modelId)
@@ -1189,7 +1149,6 @@ function ResultRoute({ cached, onBack }: { cached: TrainResult | null; onBack: (
   return <ResultView result={result} onBack={onBack} />
 }
 
-// ─── Página ───────────────────────────────────────────────────────────────────
 export default function StudioPage() {
   const { isAuthenticated, token } = useAuth()
   const queryClient = useQueryClient()
@@ -1205,10 +1164,8 @@ export default function StudioPage() {
   const isCreateRoute = location.pathname === '/studio/new'
   const isResultRoute = location.pathname.startsWith('/studio/models/')
 
-  // Limpia el polling al desmontar
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
-  // Recupera un job en curso si el usuario recargó mientras entrenaba
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const savedJobId = sessionStorage.getItem('studio_job_id')
@@ -1245,7 +1202,6 @@ export default function StudioPage() {
     }, 2000)
   }, []) // token disponible síncronamente desde localStorage en el primer render
 
-  // Avisa al salir si el formulario tiene cambios y no hay entrenamiento en curso
   useEffect(() => {
     const formDirty = form.name !== '' || form.description !== '' || form.features.size > 0 || form.algorithm !== null
     if (!isCreateRoute || isTraining || !formDirty) return

@@ -43,7 +43,6 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
   const [prevOpen,   setPrevOpen]   = useState(open)
   const emailRef = useRef<HTMLInputElement>(null)
 
-  // Resetea el formulario al abrir — ajuste de estado en render, sin efecto
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {
@@ -54,7 +53,6 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
     }
   }
 
-  // Enfoca el email al abrir
   useEffect(() => {
     if (!open) return
     const t = setTimeout(() => emailRef.current?.focus(), 50)
@@ -118,7 +116,6 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
           fontFamily: 'var(--font-sans)',
         }}
       >
-        {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-subtle)' }}>
           {TABS.map(({ key, label }) => {
             const isActive = tab === key
@@ -146,7 +143,6 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
           })}
         </div>
 
-        {/* Formulario */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '24px 28px 28px' }}>
           <div>
             <div style={{ fontSize: '1.125rem', fontWeight: 600, color: '#f0f0f0', marginBottom: 5 }}>

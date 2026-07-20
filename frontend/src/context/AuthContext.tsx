@@ -44,7 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setEmail(null)
   }, [])
 
-  // Elimina la cuenta en el backend y, si tiene éxito, limpia la sesión local
   const deleteAccount = useCallback(async () => {
     if (!token) return
     await api.deleteAccount(token)

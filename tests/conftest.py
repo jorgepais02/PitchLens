@@ -9,8 +9,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-# Importar la app a nivel de módulo registra las tablas de auth (users, custom_models)
-# en SQLModel.metadata antes de que cualquier fixture haga create_all.
 from src.api.main import app
 from src.db.database import get_db
 from src.db.models import League, Season, Team
@@ -20,7 +18,6 @@ DATA_DIR = PROJECT_ROOT / "data" / "processed"
 XG_DIR = DATA_DIR / "xg"
 CONFIG_DIR = PROJECT_ROOT / "config"
 
-# --- Paths ---
 VALIDATED_PARQUET = DATA_DIR / "multi_league" / "core_multi_league_validated.parquet"
 VALIDATED_SCHEMA = DATA_DIR / "multi_league" / "core_multi_league_validated_schema.json"
 CLEAN_PARQUET = DATA_DIR / "multi_league" / "core_multi_league_clean.parquet"
@@ -32,11 +29,8 @@ XG_RAW_SCHEMA = XG_DIR / "xg_validated_schema.json"
 LEAGUE_MAPPING = CONFIG_DIR / "league_mapping.json"
 TEAM_MAPPING = CONFIG_DIR / "team_mapping_xg.json"
 
-# --- Constantes compartidas ─────────────────────────────────────────
 
-# Columnas core (post-clean, con League)
 CORE_COLS = ["League", "Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR"]
-# Columnas core pre-clean (con Div)
 CORE_COLS_RAW = ["Div", "Date", "HomeTeam", "AwayTeam", "FTHG", "FTAG", "FTR"]
 
 HALFTIME_COLS = ["HTHG", "HTAG", "HTR"]
@@ -51,7 +45,6 @@ DIV_TO_LEAGUE = {"SP1": "laliga", "E0": "premier", "D1": "bundesliga"}
 EXPECTED_SEASONS = 10
 
 
-# --- Fixtures: Validated (EDA output) ---
 
 
 @pytest.fixture(scope="session")
@@ -67,7 +60,6 @@ def schema_validated():
         return json.load(f)
 
 
-# --- Fixtures: Clean (03_clean output) ---
 
 
 @pytest.fixture(scope="session")
@@ -83,7 +75,6 @@ def schema_clean():
         return json.load(f)
 
 
-# --- Fixtures: Enriched (04b_merge output) ---
 
 
 @pytest.fixture(scope="session")
@@ -99,7 +90,6 @@ def schema_enriched():
         return json.load(f)
 
 
-# --- Fixtures: xG raw (04_eda_xg output) ---
 
 
 @pytest.fixture(scope="session")
@@ -115,7 +105,6 @@ def schema_xg():
         return json.load(f)
 
 
-# --- Fixtures parametrizados comunes ---
 
 
 @pytest.fixture(params=["validated", "clean", "enriched"])
@@ -140,7 +129,6 @@ def any_df_post_clean(request, df_clean, df_enriched):
     return {"clean": df_clean, "enriched": df_enriched}[request.param]
 
 
-# --- Fixtures: Mappings ---
 
 
 @pytest.fixture(scope="session")
@@ -157,7 +145,6 @@ def team_mapping():
         return json.load(f)
 
 
-# --- Fixtures: API FastAPI (Fase 8) con SQLite en memoria ---
 
 
 @pytest.fixture(autouse=True)
@@ -181,7 +168,7 @@ def session_fixture():
     with Session(engine) as session:
         yield session
     SQLModel.metadata.drop_all(engine)
-    engine.dispose()  # cierra el pool — evita ResourceWarning de conexiones SQLite sin cerrar
+    engine.dispose()
 
 
 @pytest.fixture(name="client")

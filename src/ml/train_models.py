@@ -21,14 +21,10 @@ from sklearn.preprocessing import StandardScaler
 
 from src.ml._config import CV_Cs, DATA_PATH, MODELS_CONFIG, MODELS_DIR
 
-# Logger de módulo — la configuración de handlers se hace solo en el bloque CLI
-# (__main__) para no reconfigurar el root logger al importar desde la API.
 log = logging.getLogger("train")
 
 TARGET = "FTR"
 
-# Params RF óptimos encontrados con búsqueda en val (RandomizedSearchCV,
-# TimeSeriesSplit n_splits=5, scoring=neg_log_loss, n_iter=40).
 _RF_BEST_PARAMS: dict = {
     "n_estimators": 200,
     "min_samples_leaf": 50,
@@ -38,19 +34,16 @@ _RF_BEST_PARAMS: dict = {
 }
 
 
-# ── Función pública de soporte ──────────────────────────────────────────────
 
 def split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Divide en train (Season ≤ 2022), val (2023) y test (2024). Nunca aleatorio."""
     season = df["Season"].astype(int)
-    # train ordenado por fecha: necesario para que TimeSeriesSplit respete el orden temporal
     train = df[season <= 2022].sort_values("Date").copy()
     val = df[season == 2023].copy()
     test = df[season == 2024].copy()
     return train, val, test
 
 
-# ── Builders de pipelines ───────────────────────────────────────────────────
 
 def _build_lr_pipeline() -> Pipeline:
     """Pipeline escalado + LR con C seleccionado por CV temporal (scoring=neg_log_loss)."""
@@ -61,7 +54,6 @@ def _build_lr_pipeline() -> Pipeline:
             cv=TimeSeriesSplit(n_splits=5),
             scoring="neg_log_loss",
             max_iter=1000,
-            # evita FutureWarning de sklearn 1.10 sobre atributos legacy de C_
             use_legacy_attributes=True,
         )),
     ])
@@ -81,7 +73,6 @@ def _build_rf_pipeline(params: dict | None = None) -> Pipeline:
     ])
 
 
-# ── Helpers privados ─────────────────────────────────────────────────────────
 
 
 def _compute_metrics(pipeline: Pipeline, X: pd.DataFrame, y: pd.Series) -> dict:
@@ -95,7 +86,6 @@ def _compute_metrics(pipeline: Pipeline, X: pd.DataFrame, y: pd.Series) -> dict:
     }
 
 
-# ── Función pública principal ──────────────────────────────────────────────
 
 def train_models(algorithm: str = "lr") -> dict:
     """Entrena los 3 modelos preentrenados con el algoritmo indicado y los persiste en models/.
