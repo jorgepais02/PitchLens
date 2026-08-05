@@ -1,3 +1,5 @@
+name: pitchlens
+
 services:
   db:
     image: postgres:16
@@ -6,9 +8,31 @@ services:
       POSTGRES_PASSWORD: kraken
       POSTGRES_DB: pitchlens
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432" # solo accesible desde el propio host (local o VPS)
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Solo se levanta explícitamente en el VPS (docker compose up -d api).
+  # En local, start.sh usa "docker compose up -d db" y corre uvicorn desde .venv.
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg2://kraken:kraken@db:5432/pitchlens
+      ENV: production
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_HOURS: "24"
+      MAX_CUSTOM_MODELS: "5"
+    depends_on:
+      - db
+    ports:
+      - "127.0.0.1:8000:8000" # solo localhost — Caddy hace de reverse proxy hacia fuera
+    volumes:
+      - custom_models:/app/models/custom
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+  custom_models:

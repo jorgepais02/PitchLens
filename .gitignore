@@ -22,5 +22,5 @@ data/processed/
 .env
 
 # Modelos entrenados (reproducibles con python -m src.ml.train_models)
-models/*.pkl
+# Los 3 preentrenados SÍ se commitean (56 KB, necesarios para el despliegue).
 models/custom/
