@@ -1,4 +1,4 @@
-# Football Analytics TFG — Guía para Claude Code
+# PitchLens TFG — Guía para Claude Code
 
 Aplicación web de predicción de resultados de fútbol (H/D/A) con ML.
 Pipeline completo: EDA → Cleaning → xG → Features → EDA Analítico → BD → Modelado → FastAPI → React.
