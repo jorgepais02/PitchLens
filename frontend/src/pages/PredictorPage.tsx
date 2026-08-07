@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import { api, type League, type Team, type PredictResponse } from '../lib/api'
 import { usePrediction, type ModelKey } from '../context/PredictionContext'
 import { useAuth } from '../context/AuthContext'
+import { useIsMobile } from '../lib/useMediaQuery'
 import AuthModal from '../components/AuthModal'
 
 type EnrichedTeam = Team & { league: League }
@@ -386,6 +387,7 @@ export default function PredictorPage() {
   const navigate           = useNavigate()
   const { setActivePrediction } = usePrediction()
   const { isAuthenticated, token } = useAuth()
+  const isMobile = useIsMobile()
 
   const [home,         setHome]         = useState<EnrichedTeam | null>(null)
   const [away,         setAway]         = useState<EnrichedTeam | null>(null)
@@ -588,8 +590,12 @@ export default function PredictorPage() {
   const heroPx = teamsReady && panelContentH > 0 && viewportH > 0
     ? Math.max(HERO_FLOOR, Math.min(0.44 * viewportH, viewportH - panelContentH - PANEL_PAD))
     : null
-  const heroHeight = !teamsReady ? '100svh' : (heroPx != null ? `${Math.round(heroPx)}px` : '44svh')
-  const needsPanelScroll = heroPx != null && panelContentH > viewportH - heroPx + 1
+  // En móvil el panel apilado no cabe junto al hero: la página scrollea entera
+  // en vez de encogerlo hasta romperlo.
+  const heroHeight = isMobile
+    ? (!teamsReady ? '100svh' : '46svh')
+    : (!teamsReady ? '100svh' : (heroPx != null ? `${Math.round(heroPx)}px` : '44svh'))
+  const needsPanelScroll = !isMobile && heroPx != null && panelContentH > viewportH - heroPx + 1
 
   const cardBgTransition = isDeselecting
     ? 'background 800ms var(--ease-out), border-color 800ms var(--ease-out)'
@@ -599,6 +605,11 @@ export default function PredictorPage() {
     : 'color 300ms var(--ease-out)'
   const predictBtnTransition =
     'background 180ms var(--ease-out), border-color 300ms var(--ease-out), color 300ms var(--ease-out)'
+
+  // El hero se mete bajo la navbar (marginTop -60). En vertical el reparto de
+  // las dos mitades debe hacerse sobre el área *visible*, o el escudo del local
+  // queda tapado por la navbar en pantallas cortas.
+  const band = (fraction: number) => `calc(60px + (100% - 60px) * ${fraction})`
 
   const REVEAL_EASE = 'cubic-bezier(0.33, 0, 0.2, 1)'
   const reveal = (_order: number): React.CSSProperties => {
@@ -613,11 +624,14 @@ export default function PredictorPage() {
 
   return (
     <div style={{
-      height: '100svh', marginTop: -60,
+      ...(isMobile
+        ? { minHeight: '100svh', overflow: 'visible' }
+        : { height: '100svh', overflow: 'hidden' }),
+      marginTop: -60,
       display: 'flex', flexDirection: 'column',
-      overflow: 'hidden', background: '#0a0a0c',
+      background: '#0a0a0c',
     }}>
-      <title>PitchLens — Predicción de resultados</title>
+      <title>PitchLens — Predicción de fútbol con ML</title>
 
       <div style={{
         height: heroHeight,
@@ -625,16 +639,21 @@ export default function PredictorPage() {
         transition: 'height 760ms cubic-bezier(0.65, 0, 0.35, 1)',
       }}>
 
+        {/* La diagonal se gira 90º en móvil: local arriba / visitante abajo. */}
         <div style={{
           position: 'absolute', inset: 0,
           background: HOME_BG,
-          clipPath: 'polygon(0 0, calc(50% + 68px) 0, calc(50% - 68px) 100%, 0 100%)',
+          clipPath: isMobile
+            ? `polygon(0 0, 100% 0, 100% calc(${band(0.5)} - 34px), 0 calc(${band(0.5)} + 34px))`
+            : 'polygon(0 0, calc(50% + 68px) 0, calc(50% - 68px) 100%, 0 100%)',
         }} />
 
         <div style={{
           position: 'absolute', inset: 0,
           background: AWAY_BG,
-          clipPath: 'polygon(calc(50% + 70px) 0, 100% 0, 100% 100%, calc(50% - 66px) 100%)',
+          clipPath: isMobile
+            ? `polygon(0 calc(${band(0.5)} + 36px), 100% calc(${band(0.5)} - 36px), 100% 100%, 0 100%)`
+            : 'polygon(calc(50% + 70px) 0, 100% 0, 100% 100%, calc(50% - 66px) 100%)',
         }} />
 
         <div className="hero-side-label" style={{
@@ -646,7 +665,7 @@ export default function PredictorPage() {
           LOCAL
         </div>
 
-        <div className="hero-side-label" style={{
+        <div className="hero-side-label hero-side-label--away" style={{
           position: 'absolute', right: '5%',
           fontSize: '1.25rem', fontWeight: 500,
           letterSpacing: '0.13em', textTransform: 'uppercase',
@@ -656,7 +675,9 @@ export default function PredictorPage() {
         </div>
 
         <div
-          style={{ position: 'absolute', left: '5%', right: '53%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
+          style={isMobile
+            ? { position: 'absolute', left: '5%', right: '5%', top: band(0.25), transform: 'translateY(-50%)', textAlign: 'center' }
+            : { position: 'absolute', left: '5%', right: '53%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
         >
           <button
             ref={homeButtonRef}
@@ -674,13 +695,13 @@ export default function PredictorPage() {
             }}
           >
             {home ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? 12 : 20 }}>
                 <div style={{ position: 'relative', display: 'inline-block', borderRadius: 8, overflow: 'hidden' }}>
                   <div style={{
                     opacity: hoveredSide === 'home' ? 0.35 : 1,
                     transition: 'opacity 150ms var(--ease-out)',
                   }}>
-                    <TeamCrest url={home.crest_url} name={home.display_name ?? home.name} size={teamsReady ? 72 : 108} />
+                    <TeamCrest url={home.crest_url} name={home.display_name ?? home.name} size={teamsReady ? (isMobile ? 54 : 72) : (isMobile ? 88 : 108)} />
                   </div>
                   <span
                     aria-hidden="true"
@@ -707,9 +728,9 @@ export default function PredictorPage() {
                 </span>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? 16 : 24 }}>
                 <div style={{
-                  width: 140, height: 140, borderRadius: '50%', flexShrink: 0,
+                  width: isMobile ? 104 : 140, height: isMobile ? 104 : 140, borderRadius: '50%', flexShrink: 0,
                   border: `1.5px dashed ${hoveredSide === 'home' ? 'rgba(77,147,248,0.60)' : 'rgba(77,147,248,0.32)'}`,
                   background: hoveredSide === 'home' ? 'rgba(77,147,248,0.06)' : 'transparent',
                   transition: 'border-color 180ms var(--ease-out), background 180ms var(--ease-out)',
@@ -736,7 +757,9 @@ export default function PredictorPage() {
               onClick={() => setHome(null)}
               aria-label="Quitar equipo local"
               style={{
-                position: 'absolute', top: 8, right: 8,
+                position: 'absolute', top: 8,
+                // A ancho completo, en el borde quedaría desligada del escudo.
+                ...(isMobile ? { left: 'calc(50% + 46px)' } : { right: 8 }),
                 width: 32, height: 32, borderRadius: '50%',
                 background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)',
                 display: 'none', alignItems: 'center', justifyContent: 'center',
@@ -750,7 +773,9 @@ export default function PredictorPage() {
         </div>
 
         <div
-          style={{ position: 'absolute', left: '53%', right: '5%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
+          style={isMobile
+            ? { position: 'absolute', left: '5%', right: '5%', top: band(0.75), transform: 'translateY(-50%)', textAlign: 'center' }
+            : { position: 'absolute', left: '53%', right: '5%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
         >
           <button
             ref={awayButtonRef}
@@ -768,13 +793,13 @@ export default function PredictorPage() {
             }}
           >
             {away ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? 12 : 20 }}>
                 <div style={{ position: 'relative', display: 'inline-block', borderRadius: 8, overflow: 'hidden' }}>
                   <div style={{
                     opacity: hoveredSide === 'away' ? 0.35 : 1,
                     transition: 'opacity 150ms var(--ease-out)',
                   }}>
-                    <TeamCrest url={away.crest_url} name={away.display_name ?? away.name} size={teamsReady ? 72 : 108} />
+                    <TeamCrest url={away.crest_url} name={away.display_name ?? away.name} size={teamsReady ? (isMobile ? 54 : 72) : (isMobile ? 88 : 108)} />
                   </div>
                   <span
                     aria-hidden="true"
@@ -801,9 +826,9 @@ export default function PredictorPage() {
                 </span>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? 16 : 24 }}>
                 <div style={{
-                  width: 140, height: 140, borderRadius: '50%', flexShrink: 0,
+                  width: isMobile ? 104 : 140, height: isMobile ? 104 : 140, borderRadius: '50%', flexShrink: 0,
                   border: `1.5px dashed ${hoveredSide === 'away' ? 'rgba(243,90,90,0.60)' : 'rgba(243,90,90,0.32)'}`,
                   background: hoveredSide === 'away' ? 'rgba(243,90,90,0.06)' : 'transparent',
                   transition: 'border-color 180ms var(--ease-out), background 180ms var(--ease-out)',
@@ -830,7 +855,8 @@ export default function PredictorPage() {
               onClick={() => setAway(null)}
               aria-label="Quitar equipo visitante"
               style={{
-                position: 'absolute', top: 8, left: 8,
+                position: 'absolute', top: 8,
+                ...(isMobile ? { right: 'calc(50% + 46px)' } : { left: 8 }),
                 width: 32, height: 32, borderRadius: '50%',
                 background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)',
                 display: 'none', alignItems: 'center', justifyContent: 'center',
@@ -844,13 +870,13 @@ export default function PredictorPage() {
         </div>
 
         <div style={{
-          position: 'absolute', left: '50%', top: '50%',
+          position: 'absolute', left: '50%', top: isMobile ? band(0.5) : '50%',
           transform: 'translate(-50%, -50%)',
           zIndex: 10,
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
         }}>
           <div style={{
-            width: 64, height: 64, borderRadius: '50%',
+            width: isMobile ? 52 : 64, height: isMobile ? 52 : 64, borderRadius: '50%',
             background: '#171719',
             border: '1px solid #2a2a2a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -858,7 +884,7 @@ export default function PredictorPage() {
             pointerEvents: 'none',
           }}>
             <span style={{
-              fontSize: '1rem', fontWeight: 600,
+              fontSize: isMobile ? '0.875rem' : '1rem', fontWeight: 600,
               letterSpacing: '0.06em', color: LABEL_SECONDARY,
               userSelect: 'none',
             }}>
@@ -875,8 +901,10 @@ export default function PredictorPage() {
           aria-label="Intercambiar local y visitante"
           style={{
             position: 'absolute',
-            top: 'calc(50% + 48px)',
-            left: '50%', transform: 'translateX(-50%)',
+            // En vertical, debajo del VS pisaría al visitante: se coloca al lado.
+            ...(isMobile
+              ? { top: band(0.5), left: 'calc(50% + 42px)', transform: 'translateY(-50%)' }
+              : { top: 'calc(50% + 48px)', left: '50%', transform: 'translateX(-50%)' }),
             zIndex: 10,
             background: 'rgba(35,35,40,0.35)', border: 'none', padding: '3px 10px',
             borderRadius: 20,
@@ -902,11 +930,13 @@ export default function PredictorPage() {
       </div>
 
       <div style={{
-        flex: 1, minHeight: 0,
+        // Oculto en móvil hasta elegir los dos equipos: si no, deja una franja
+        // vacía enorme bajo el hero de pantalla completa.
+        ...(isMobile
+          ? { display: teamsReady ? 'block' : 'none', flex: 'none', overflow: 'visible' }
+          : { flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: needsPanelScroll ? 'auto' : 'hidden' }),
         background: '#0a0a0c', borderTop: '1px solid #1e1e1e', position: 'relative',
         opacity: teamsReady ? 1 : 0,
-        overflowX: 'hidden',
-        overflowY: needsPanelScroll ? 'auto' : 'hidden',
         transition: `opacity 200ms ease-out ${teamsReady ? '120ms' : '0ms'}`,
       }}>
         <div className="model-section-inner" ref={modelInnerRef}>
@@ -1148,9 +1178,22 @@ export default function PredictorPage() {
 
           {(() => {
             const canClick = !!home && !!away && !!model && (model !== 'custom' || customModelId != null) && !isPredicting && !showOddsPopover
+            // En móvil el CTA queda muy por debajo del pliegue: se fija abajo.
+            // Se oculta con el popover de cuotas abierto, que trae su propio botón.
+            const sticky = isMobile && !showOddsPopover
             return (
               <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 45, position: 'relative', ...reveal(4) }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginTop: isMobile ? 26 : 45, position: 'relative', ...reveal(4),
+                ...(sticky ? {
+                  position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40, marginTop: 0,
+                  padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',
+                  background: 'rgba(10,10,12,0.94)',
+                  backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                  borderTop: '1px solid #1e1e1e',
+                } : null),
+              }}>
 
 
                   <button
@@ -1159,7 +1202,7 @@ export default function PredictorPage() {
                     disabled={!canClick || showOddsPopover}
                     style={{
                       pointerEvents: showOddsPopover ? 'none' : 'auto',
-                      width: '30%',
+                      width: isMobile ? '100%' : '30%',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                       padding: '13px 28px', borderRadius: 6,
                       fontSize: '1rem', fontWeight: 500,

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { api, type MatchDetail, type Team } from '../lib/api'
 import { AWAY_C, Crest, HOME_C, SEP, Spinner, fmtDate } from '../components/shared'
+import { useIsNarrow } from '../lib/useMediaQuery'
 
 const PRIMARY   = 'rgba(255,255,255,0.92)'
 
@@ -123,17 +124,17 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
     <div style={{
       display: 'flex', flexDirection: 'row',
       alignItems: 'center', justifyContent: 'space-between',
-      padding: '10px 16px',
+      padding: 'clamp(8px, 2vw, 10px) clamp(9px, 2.6vw, 16px)',
       background: 'rgba(255,255,255,0.04)', borderRadius: 10,
-      gap: 8, minWidth: 0,
+      gap: 6, minWidth: 0,
     }}>
       <span style={{
-        fontSize: 13, fontWeight: 700, letterSpacing: '0.06em',
+        fontSize: 'clamp(11px, 2.8vw, 13px)', fontWeight: 700, letterSpacing: '0.06em',
         color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-sans)',
         flexShrink: 0,
       }}>{label}</span>
       <span style={{
-        fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em',
+        fontSize: 'clamp(14px, 4vw, 20px)', fontWeight: 600, letterSpacing: '-0.02em',
         color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-sans)',
         fontVariantNumeric: 'tabular-nums',
       }}>{value.toFixed(2)}</span>
@@ -142,7 +143,7 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
 
   const PinnacleLogo = () => (
     <div style={{
-      width: 90, height: 40, borderRadius: 8, flexShrink: 0,
+      width: 'clamp(62px, 17vw, 90px)', height: 40, borderRadius: 8, flexShrink: 0,
       background: '#0f1923', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', gap: 3, padding: '4px 8px',
     }}>
@@ -156,7 +157,7 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
 
   const Bet365Logo = () => (
     <div style={{
-      width: 90, height: 40, borderRadius: 8, flexShrink: 0,
+      width: 'clamp(62px, 17vw, 90px)', height: 40, borderRadius: 8, flexShrink: 0,
       background: '#027b5b', display: 'flex',
       alignItems: 'center', justifyContent: 'center', padding: '0 8px',
     }}>
@@ -175,9 +176,9 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
       borderBottom: isLast ? 'none' : `0.5px solid ${SEP}`,
       marginBottom: isLast ? 0 : 20,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(7px, 2vw, 12px)' }}>
         {logo}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'clamp(5px, 1.6vw, 8px)', flex: 1, minWidth: 0 }}>
           {[h, d, a].map((v, i) => <OddsCell key={i} label={OUTCOMES[i]} value={v} />)}
         </div>
       </div>
@@ -195,8 +196,9 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
 
 const CLASI_GRID: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '34px 32px minmax(0,1fr) 44px 36px 36px 36px 44px 52px',
-  alignItems: 'center', gap: 8,
+  // Columnas numéricas fluidas: a ancho fijo la tabla desbordaba en móvil.
+  gridTemplateColumns: 'clamp(20px,5vw,34px) clamp(22px,6vw,32px) minmax(0,1fr) repeat(4, clamp(20px,5vw,36px)) clamp(26px,6vw,44px) clamp(30px,7vw,52px)',
+  alignItems: 'center', gap: 'clamp(3px, 1.4vw, 8px)',
 }
 
 function StandingsCompact({ leagueCode, season, homeTeamId, awayTeamId }: {
@@ -209,7 +211,7 @@ function StandingsCompact({ leagueCode, season, homeTeamId, awayTeamId }: {
   })
 
   const MONO: React.CSSProperties = {
-    fontSize: 16, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
+    fontSize: 'clamp(12px, 3.2vw, 16px)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
     color: 'rgba(255,255,255,0.62)', textAlign: 'center',
   }
   const COLS = ['PJ', 'G', 'E', 'P', 'GD', 'PTS']
@@ -249,7 +251,7 @@ function StandingsCompact({ leagueCode, season, homeTeamId, awayTeamId }: {
           </span>
           <Crest url={r.crest_url} name={r.team_name} size={26} />
           <span style={{
-            fontSize: 20, fontWeight: 600, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-sans)',
+            fontSize: 'clamp(13px, 3.6vw, 20px)', fontWeight: 600, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-sans)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>{r.team_name}</span>
           <span style={MONO}>{r.played}</span>
@@ -268,8 +270,11 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
   match: MatchDetail; home: Team | undefined; away: Team | undefined
   leagueName: string; seasonLabel: string
 }) {
+  const isNarrow = useIsNarrow()
   const homeName = home?.display_name ?? home?.name ?? 'Local'
   const awayName = away?.display_name ?? away?.name ?? 'Visitante'
+  // Crest recibe px numéricos, no admite clamp().
+  const CREST_PX = isNarrow ? 54 : 80
 
   const XG_LABEL: React.CSSProperties = {
     fontSize: 16, fontWeight: 600, letterSpacing: '0.04em',
@@ -280,7 +285,8 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
     <div style={{
       position: 'relative', overflow: 'hidden',
       background: 'linear-gradient(to right, #091524, #190909)',
-      marginTop: -60, padding: '88px 8.75vw 52px',
+      marginTop: -60,
+      padding: 'clamp(76px, 9vw, 88px) clamp(16px, 8.75vw, 8.75vw) clamp(32px, 5vw, 52px)',
       animation: 'hero-fade-in 0.4s ease-out both',
     }}>
       <div style={{
@@ -302,10 +308,10 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
 
       <div style={{
         display: 'grid', gridTemplateColumns: 'minmax(0,320px) auto minmax(0,320px)',
-        alignItems: 'flex-start', gap: '0 32px', justifyContent: 'center',
+        alignItems: 'flex-start', gap: '0 clamp(8px, 3vw, 32px)', justifyContent: 'center',
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-          <Crest url={home?.crest_url ?? null} name={homeName} size={80} />
+          <Crest url={home?.crest_url ?? null} name={homeName} size={CREST_PX} />
           <span style={{
             fontSize: 'clamp(16px, 2vw, 26px)', fontWeight: 500,
             letterSpacing: '-0.025em', lineHeight: 1.25,
@@ -332,7 +338,7 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-          <Crest url={away?.crest_url ?? null} name={awayName} size={80} />
+          <Crest url={away?.crest_url ?? null} name={awayName} size={CREST_PX} />
           <span style={{
             fontSize: 'clamp(16px, 2vw, 26px)', fontWeight: 500,
             letterSpacing: '-0.025em', lineHeight: 1.25,
@@ -352,6 +358,7 @@ function MatchHeader({ match, home, away, leagueName, seasonLabel }: {
 export default function ExploreMatchPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const isNarrow = useIsNarrow()
 
   const { data: match, isLoading, isError } = useQuery({
     queryKey: ['match', slug],
@@ -410,7 +417,8 @@ export default function ExploreMatchPage() {
 
   return (
     <div style={{ minHeight: 'calc(100svh - 60px)', background: '#0c0d0f', paddingBottom: 80 }}>
-      <title>{`${home?.display_name ?? home?.name ?? 'Local'} vs ${away?.display_name ?? away?.name ?? 'Visitante'} · PitchLens`}</title>
+      {/* Con el marcador: distingue el partido histórico de una predicción. */}
+      <title>{`${home?.display_name ?? home?.name ?? 'Local'} ${match.fthg}–${match.ftag} ${away?.display_name ?? away?.name ?? 'Visitante'} · PitchLens`}</title>
 
       <MatchHeader
         match={match} home={home} away={away}
@@ -418,9 +426,18 @@ export default function ExploreMatchPage() {
         seasonLabel={season?.label ?? ''}
       />
 
-      <div style={{ maxWidth: '82.5vw', margin: '52px auto 0' }}>
+      <div style={{
+        maxWidth: isNarrow ? '100%' : '82.5vw',
+        padding: isNarrow ? '0 16px' : 0,
+        margin: isNarrow ? '32px auto 0' : '52px auto 0',
+      }}>
 
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, marginTop: 16 }}>
+        <div style={{
+          display: 'flex', gap: 0, marginTop: 16,
+          // Apiladas deben ocupar el ancho completo, no encogerse al contenido.
+          flexDirection: isNarrow ? 'column' : 'row',
+          alignItems: isNarrow ? 'stretch' : 'flex-start',
+        }}>
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ ...SECTION_TITLE, marginBottom: 6 }}>Stats del partido</div>
@@ -442,7 +459,9 @@ export default function ExploreMatchPage() {
             </div>
           </div>
 
-          <div style={{ width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 48px', alignSelf: 'stretch' }} />
+          <div style={isNarrow
+            ? { height: 0, borderTop: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '44px 0', alignSelf: 'stretch' }
+            : { width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 48px', alignSelf: 'stretch' }} />
 
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 52 }}>
             <OddsCard

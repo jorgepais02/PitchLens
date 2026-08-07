@@ -1,4 +1,5 @@
 import type { ActivePrediction } from '../../context/PredictionContext'
+import { useIsMobile } from '../../lib/useMediaQuery'
 
 const HOME_C  = '#4D93F8'
 const AWAY_C  = '#F35A5A'
@@ -101,33 +102,34 @@ function ButterflyRow({ row, isLast }: { row: ChartRow; isLast: boolean }) {
       borderBottom: isLast ? 'none' : '0.5px solid rgba(255,255,255,0.07)',
       position: 'relative',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
         <span style={{
-          fontSize: 22, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+          fontSize: 'clamp(17px, 4.6vw, 22px)', fontWeight: 600, fontVariantNumeric: 'tabular-nums',
           fontFamily: 'var(--font-sans)', color: homeValC,
-          minWidth: 52,
+          minWidth: 44, flexShrink: 0,
         }}>
           {fmt(row.feature, hv)}
         </span>
 
         <span style={{
-          fontSize: 18, fontWeight: 400, letterSpacing: '0.01em',
-          color: 'rgba(255,255,255,0.92)', whiteSpace: 'nowrap',
+          fontSize: 'clamp(14px, 3.6vw, 18px)', fontWeight: 400, letterSpacing: '0.01em',
+          color: 'rgba(255,255,255,0.92)',
           fontFamily: 'var(--font-sans)', textAlign: 'center',
+          minWidth: 0,
         }}>
           {DISPLAY_LABELS[row.feature] ?? row.feature}
         </span>
 
         <span style={{
-          fontSize: 22, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+          fontSize: 'clamp(17px, 4.6vw, 22px)', fontWeight: 600, fontVariantNumeric: 'tabular-nums',
           fontFamily: 'var(--font-sans)', color: awayValC,
-          minWidth: 52, textAlign: 'right',
+          minWidth: 44, flexShrink: 0, textAlign: 'right',
         }}>
           {fmt(row.feature, av)}
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 'clamp(12px, 4vw, 32px)', alignItems: 'center' }}>
 
         <div style={{ ...trackBase, opacity: homeWins || tied ? 1 : 0.35 }}>
           <div style={{ flex: homeSpacer }} />
@@ -156,7 +158,6 @@ function ButterflyChart({ rows }: {
   )
 }
 
-const MKT_LABEL_W = 180
 const MKT_BAR_H   = 40
 const MKT_ROW_H   = 80
 const MKT_DOT_R   = 9
@@ -164,6 +165,9 @@ const MKT_DOT_R   = 9
 function MarketDivergingChart({ diffs }: {
   diffs: { label: string; diffPp: number; outcome: 'H' | 'D' | 'A' }[]
 }) {
+  const isMobile = useIsMobile()
+  // A 180px la columna de etiquetas se come media pantalla de móvil.
+  const MKT_LABEL_W = isMobile ? 88 : 180
   const maxAbs = Math.max(...diffs.map(d => Math.abs(d.diffPp)), 3)
   const step     = maxAbs <= 9 ? 3 : maxAbs <= 20 ? 5 : 10
   const maxScale = Math.ceil(maxAbs / step) * step + step
@@ -180,7 +184,7 @@ function MarketDivergingChart({ diffs }: {
           {ticks.map(t => (
             <span key={t} style={{
               position: 'absolute', left: `${toX(t)}%`, transform: 'translateX(-50%)',
-              fontSize: 14, color: `rgba(255,255,255,${(0.50 * fade(t)).toFixed(3)})`,
+              fontSize: isMobile ? 11 : 14, color: `rgba(255,255,255,${(0.50 * fade(t)).toFixed(3)})`,
               fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
             }}>
               {t > 0 ? '+' : ''}{t}
@@ -206,8 +210,9 @@ function MarketDivergingChart({ diffs }: {
           <div key={label} style={{ display: 'flex', alignItems: 'center', height: MKT_ROW_H }}>
             <span style={{
               width: MKT_LABEL_W, minWidth: MKT_LABEL_W, flexShrink: 0,
-              fontSize: 18, fontWeight: 500,
+              fontSize: isMobile ? 14 : 18, fontWeight: 500, lineHeight: 1.25,
               color: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-sans)',
+              paddingRight: 8,
             }}>
               {label}
             </span>
@@ -243,7 +248,7 @@ function MarketDivergingChart({ diffs }: {
                   position: 'absolute',
                   left: `calc(${isNearZero ? 50 : dotX}% + ${MKT_DOT_R / 2 + 8}px)`,
                   top: '50%', transform: 'translateY(-50%)',
-                  fontSize: 16, fontWeight: 700, color: outcomeColor,
+                  fontSize: isMobile ? 13 : 16, fontWeight: 700, color: outcomeColor,
                   fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap',
                 }}>{tag}</span>
               ) : (
@@ -251,7 +256,7 @@ function MarketDivergingChart({ diffs }: {
                   position: 'absolute',
                   right: `calc(${100 - dotX}% + ${MKT_DOT_R / 2 + 8}px)`,
                   top: '50%', transform: 'translateY(-50%)',
-                  fontSize: 16, fontWeight: 700, color: outcomeColor,
+                  fontSize: isMobile ? 13 : 16, fontWeight: 700, color: outcomeColor,
                   fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap',
                 }}>{tag}</span>
               )}
@@ -306,7 +311,7 @@ export default function WhySection({ pred }: { pred: ActivePrediction }) {
     <>
       <div style={{ marginBottom: 35 }}>
         <h2 style={{
-          margin: 0, fontSize: '2.125rem', fontWeight: 700,
+          margin: 0, fontSize: 'clamp(1.6rem, 5.4vw, 2.125rem)', fontWeight: 700,
           letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
         }}>
           ¿Por qué esta predicción?
@@ -325,7 +330,7 @@ export default function WhySection({ pred }: { pred: ActivePrediction }) {
         <div style={{ marginTop: 64 }}>
           <div style={{ marginBottom: 35 }}>
             <h2 style={{
-              margin: 0, fontSize: '1.75rem', fontWeight: 600,
+              margin: 0, fontSize: 'clamp(1.35rem, 4.4vw, 1.75rem)', fontWeight: 600,
               letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
             }}>
               Modelo vs Mercado

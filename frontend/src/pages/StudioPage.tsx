@@ -8,6 +8,7 @@ import { api, type Algorithm, type CustomModel, type TrainResult } from '../lib/
 import { useAuth } from '../context/AuthContext'
 import AuthModal from '../components/AuthModal'
 import { FEATURE_LABELS, SEP, Spinner } from '../components/shared'
+import { useIsMobile, useIsNarrow } from '../lib/useMediaQuery'
 
 const PRIMARY   = 'rgba(255,255,255,0.92)'
 const SECTION   = 'rgba(255,255,255,0.85)'  // headers de sección — por debajo del h1 de título
@@ -92,11 +93,12 @@ function ModelCard({ model, onView, onDelete }: { model: CustomModel; onView: ()
       onMouseLeave={e => { e.currentTarget.style.background = '#232327'; e.currentTarget.style.borderColor = 'var(--color-border-subtle)' }}
       style={{
         position: 'relative', background: '#232327',
-        border: '1px solid var(--color-border-subtle)', borderRadius: 10, padding: '22px 28px',
+        border: '1px solid var(--color-border-subtle)', borderRadius: 10,
+        padding: 'clamp(16px, 4vw, 22px) clamp(16px, 5vw, 28px)',
         cursor: 'pointer', transition: 'border-color var(--duration-fast), background var(--duration-fast)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'clamp(10px, 3vw, 24px)' }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 7 }}>
             <span style={{
@@ -114,7 +116,7 @@ function ModelCard({ model, onView, onDelete }: { model: CustomModel; onView: ()
             entrenado {timeAgo(model.created_at)}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 30, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 3vw, 30px)', flexShrink: 0 }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{
               fontSize: 22, fontWeight: 700, color: PRIMARY,
@@ -193,7 +195,7 @@ function RankingSection({ customModels }: { customModels: CustomModel[] }) {
   return (
     <div style={{ marginTop: 52 }}>
       <h2 style={{
-        margin: '0 0 4px', fontSize: '1.5rem', fontWeight: 600,
+        margin: '0 0 4px', fontSize: 'clamp(1.2rem, 3.8vw, 1.5rem)', fontWeight: 600,
         letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)',
       }}>
         Ranking
@@ -201,8 +203,8 @@ function RankingSection({ customModels }: { customModels: CustomModel[] }) {
       {all.map((m, i) => (
         <div key={m.key} style={{
           display: 'grid',
-          gridTemplateColumns: '20px 1fr 40px 56px 64px',
-          alignItems: 'center', gap: 24,
+          gridTemplateColumns: '20px minmax(0,1fr) 40px 0px clamp(52px, 14vw, 64px)',
+          alignItems: 'center', gap: 'clamp(10px, 3vw, 24px)',
           padding: '16px 0',
           borderBottom: `0.5px solid ${SEP}`,
         }}>
@@ -342,14 +344,15 @@ function ListView({ onCreate, onShowAuth, onView }: { onCreate: () => void; onSh
   return (
     <div>
       <div style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: '2.125rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)' }}>
+        <h1 style={{ margin: 0, fontSize: 'clamp(1.6rem, 5.4vw, 2.125rem)', fontWeight: 700, letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)' }}>
           Mis modelos
         </h1>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
         <div style={{
-          width: 260, display: 'flex', alignItems: 'center', gap: 8,
+          width: 260, maxWidth: '100%', minWidth: 0, flex: '1 1 160px',
+          display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 12px', background: '#1a1a1c',
           border: '1px solid #2a2a2a', borderRadius: 6,
         }}>
@@ -485,6 +488,7 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
   onSubmit: () => void
 }) {
   const [openBlock, setOpenBlock] = useState<string | null>(null)
+  const isMobile = useIsMobile()
 
   const toggleFeature = (f: string) => {
     setForm(prev => {
@@ -504,7 +508,7 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
       <BackButton onClick={onBack} disabled={isTraining} />
 
       <h1 style={{
-        margin: '18px 0 0', fontSize: '2.125rem', fontWeight: 700,
+        margin: '18px 0 0', fontSize: 'clamp(1.6rem, 5.4vw, 2.125rem)', fontWeight: 700,
         letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
       }}>
         Nuevo modelo
@@ -516,7 +520,7 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
       <div style={{ marginBottom: 44 }}>
         <label htmlFor="model-name" style={{
           display: 'block', marginBottom: 14,
-          fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em',
+          fontSize: 'clamp(1.2rem, 3.8vw, 1.5rem)', fontWeight: 600, letterSpacing: '-0.01em',
           color: SECTION, fontFamily: 'var(--font-sans)',
         }}>
           Nombre
@@ -557,7 +561,7 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
       <div style={{ marginBottom: 44 }}>
         <label htmlFor="model-desc" style={{
           display: 'block', marginBottom: 14,
-          fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em',
+          fontSize: 'clamp(1.2rem, 3.8vw, 1.5rem)', fontWeight: 600, letterSpacing: '-0.01em',
           color: SECTION, fontFamily: 'var(--font-sans)',
         }}>
           Descripción <span style={{ fontSize: '0.95rem', fontWeight: 400, color: SECONDARY }}>· opcional</span>
@@ -593,7 +597,7 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
       </div>
 
       <div style={{ marginBottom: 44 }}>
-        <h2 style={{ margin: '0 0 6px', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
+        <h2 style={{ margin: '0 0 6px', fontSize: 'clamp(1.2rem, 3.8vw, 1.5rem)', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
           Features
         </h2>
         <p style={{ margin: '0 0 18px', fontSize: 17, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
@@ -657,7 +661,9 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
                 {isOpen && (
                   <div id={bodyId} style={{
                     padding: '6px 14px 16px',
-                    display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '2px 24px',
+                    display: 'grid',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+                    gap: '2px 24px',
                   }}>
                     {block.features.map(f => {
                       const checked = form.features.has(f)
@@ -716,10 +722,10 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
       </div>
 
       <div style={{ marginBottom: 44 }}>
-        <h2 style={{ margin: '0 0 18px', fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
+        <h2 style={{ margin: '0 0 18px', fontSize: 'clamp(1.2rem, 3.8vw, 1.5rem)', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
           Algoritmo
         </h2>
-        <div role="radiogroup" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+        <div role="radiogroup" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 12 }}>
           {ALGORITHMS.map(a => {
             const isActive = form.algorithm === a.key
             return (
@@ -770,7 +776,7 @@ function CreateView({ form, setForm, isTraining, onBack, onSubmit }: {
           disabled={!canSubmit}
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            width: 320, padding: '14px 30px', borderRadius: 6,
+            width: isMobile ? '100%' : 320, padding: '14px 30px', borderRadius: 6,
             fontSize: '1.0625rem', fontWeight: 500, fontFamily: 'var(--font-sans)',
             cursor: canSubmit ? 'pointer' : 'not-allowed',
             transition: 'background 120ms, border-color 120ms, color 120ms',
@@ -948,7 +954,7 @@ function ComparisonChart({ result }: { result: TrainResult }) {
                       position: 'absolute',
                       bottom: dotSize / 2 + 7,
                       left: '50%', transform: 'translateX(-50%)',
-                      fontSize: 17, fontWeight: e.mine ? 700 : beatsMine ? 600 : 500,
+                      fontSize: 'clamp(12px, 3.2vw, 17px)', fontWeight: e.mine ? 700 : beatsMine ? 600 : 500,
                       color: e.mine ? '#a5b4fc' : beatsMine ? 'rgba(255,255,255,0.9)' : DIM,
                       fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums',
                       whiteSpace: 'nowrap',
@@ -976,9 +982,10 @@ function ComparisonChart({ result }: { result: TrainResult }) {
         {entries.map(e => (
           <div key={e.label} style={{ flex: 1, textAlign: 'center' }}>
             <div style={{
-              fontSize: 16.5, fontWeight: e.mine ? 600 : 400,
+              fontSize: 'clamp(12px, 3.2vw, 16.5px)', fontWeight: e.mine ? 600 : 400,
               color: e.mine ? 'rgba(255,255,255,0.78)' : SECONDARY,
               fontFamily: 'var(--font-sans)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {e.mine ? 'Tu modelo' : e.label}
             </div>
@@ -997,13 +1004,15 @@ function ComparisonChart({ result }: { result: TrainResult }) {
 }
 
 function ResultView({ result, onBack }: { result: TrainResult; onBack: () => void }) {
+  const isNarrow = useIsNarrow()
   return (
     <div>
+      <title>{`${result.name} · PitchLens`}</title>
       <BackButton onClick={onBack} />
 
       <div style={{ margin: '12px 0 26px' }}>
         <h1 style={{
-          margin: '0 0 8px', fontSize: '2.125rem', fontWeight: 700,
+          margin: '0 0 8px', fontSize: 'clamp(1.6rem, 5.4vw, 2.125rem)', fontWeight: 700,
           letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
         }}>
           {result.name}
@@ -1017,7 +1026,7 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
 
       {(() => {
         const Metric = ({ label, value, sub, dim }: { label: string; value: string; sub: string; dim: boolean }) => (
-          <div style={{ minWidth: 138 }}>
+          <div style={{ minWidth: isNarrow ? 0 : 138, flex: isNarrow ? '1 1 46%' : undefined }}>
             <div style={{
               fontSize: 13, fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase',
               color: dim ? DIM : 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-sans)', marginBottom: 12,
@@ -1025,7 +1034,7 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
               {label}
             </div>
             <div style={{
-              fontSize: 50, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em',
+              fontSize: 'clamp(30px, 8vw, 50px)', fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em',
               color: dim ? SECONDARY : PRIMARY,
               fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums',
             }}>
@@ -1041,14 +1050,15 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
         )
         return (
           <div style={{
-            display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: 60,
+            display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap',
+            gap: isNarrow ? 26 : 60,
             paddingBottom: 26, marginBottom: 30, borderBottom: `0.5px solid ${SEP}`,
           }}>
-            <div style={{ display: 'flex', gap: 44 }}>
+            <div style={{ display: 'flex', gap: isNarrow ? 20 : 44, flex: isNarrow ? '1 1 100%' : undefined }}>
               <Metric label="Test accuracy" value={fmtAcc(result.test_accuracy)} sub="Predicciones correctas en test" dim={false} />
               <Metric label="Test log loss" value={fmtLoss(result.test_log_loss)} sub="Más bajo = mejor calibración" dim={false} />
             </div>
-            <div style={{ display: 'flex', gap: 44 }}>
+            <div style={{ display: 'flex', gap: isNarrow ? 20 : 44, flex: isNarrow ? '1 1 100%' : undefined }}>
               <Metric label="Val accuracy" value={fmtAcc(result.val_accuracy)} sub="Acierto en validación" dim />
               <Metric label="Val log loss" value={fmtLoss(result.val_log_loss)} sub="Calibración en validación" dim />
             </div>
@@ -1056,9 +1066,12 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
         )
       })()}
 
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+      <div style={{
+        display: 'flex', alignItems: 'stretch', gap: 0,
+        flexDirection: isNarrow ? 'column' : 'row',
+      }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', marginBottom: 8, fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
+          <span style={{ display: 'block', marginBottom: 8, fontSize: 'clamp(1.2rem, 3.8vw, 1.5rem)', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
             Importancia de features
           </span>
           <p style={{ margin: '0 0 14px', fontSize: 18, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
@@ -1067,10 +1080,12 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
           <ImportanceChart importance={result.feature_importance} />
         </div>
 
-        <div style={{ width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 64px' }} />
+        <div style={isNarrow
+          ? { height: 0, borderTop: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '48px 0' }
+          : { width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 64px' }} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', marginBottom: 8, fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
+          <span style={{ display: 'block', marginBottom: 8, fontSize: 'clamp(1.2rem, 3.8vw, 1.5rem)', fontWeight: 600, letterSpacing: '-0.01em', color: SECTION, fontFamily: 'var(--font-sans)' }}>
             Frente a los preentrenados
           </span>
           <p style={{ margin: '0 0 14px', fontSize: 18, color: SECONDARY, fontFamily: 'var(--font-sans)' }}>
@@ -1260,7 +1275,8 @@ export default function StudioPage() {
 
   return (
     <div style={{ minHeight: 'calc(100svh - 60px)', background: 'var(--color-bg)', paddingBottom: 80, fontFeatureSettings: '"ss09" 1' }}>
-      <title>{isCreateRoute ? 'Nuevo modelo · PitchLens' : isResultRoute ? 'Mi modelo · PitchLens' : 'Studio · PitchLens'}</title>
+      {/* En la vista de resultado el título lo pone ResultView, que sí tiene el nombre. */}
+      {!isResultRoute && <title>{isCreateRoute ? 'Nuevo modelo · PitchLens' : 'Studio · PitchLens'}</title>}
       <div style={{ maxWidth: isResultRoute ? 1100 : 900, margin: '0 auto', paddingTop: 48, paddingLeft: 24, paddingRight: 24 }}>
         <Routes>
           <Route

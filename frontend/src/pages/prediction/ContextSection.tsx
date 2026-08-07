@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type H2HMatch, type TeamBriefMatch } from '../../lib/api'
+import { useIsNarrow } from '../../lib/useMediaQuery'
 
 const HOME_C    = '#4D93F8'
 const AWAY_C    = '#F35A5A'
@@ -97,10 +98,10 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
           <div key={label} style={{ flex: 1, display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: idx === 0 ? 'flex-start' : idx === 1 ? 'center' : 'flex-end', minWidth: 0 }}>
             <div style={{ width: 3, height: 52, background: color, borderRadius: 2, flexShrink: 0, marginTop: 4 }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-              <span style={{ fontSize: 40, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: PRIMARY, fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontSize: 'clamp(28px, 8vw, 40px)', fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: PRIMARY, fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>
                 {num}
               </span>
-              <span style={{ fontSize: 15, color: SECONDARY, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ fontSize: 'clamp(12px, 3.2vw, 15px)', color: SECONDARY, fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {label}
               </span>
             </div>
@@ -148,7 +149,7 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
                 <span style={{
                   flex: 1, display: 'flex', alignItems: 'center',
                   justifyContent: 'flex-end', gap: 10, minWidth: 0,
-                  fontSize: 18, fontWeight: homeWeight, color: homeColor,
+                  fontSize: 'clamp(14px, 3.8vw, 18px)', fontWeight: homeWeight, color: homeColor,
                   fontFamily: 'var(--font-sans)',
                 }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
@@ -158,10 +159,10 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
                 </span>
 
                 <span style={{
-                  fontSize: 18, fontWeight: 600, letterSpacing: '0.03em',
+                  fontSize: 'clamp(14px, 3.8vw, 18px)', fontWeight: 600, letterSpacing: '0.03em',
                   color: SECONDARY, fontFamily: 'var(--font-sans)',
                   fontVariantNumeric: 'tabular-nums',
-                  flexShrink: 0, minWidth: 44, textAlign: 'center',
+                  flexShrink: 0, minWidth: 38, textAlign: 'center',
                 }}>
                   {m.fthg}–{m.ftag}
                 </span>
@@ -169,7 +170,7 @@ function H2HColumn({ matches, homeId, homeName, homeDisplayName, awayDisplayName
                 <span style={{
                   flex: 1, display: 'flex', alignItems: 'center',
                   justifyContent: 'flex-start', gap: 10, minWidth: 0,
-                  fontSize: 18, fontWeight: awayWeight, color: awayColor,
+                  fontSize: 'clamp(14px, 3.8vw, 18px)', fontWeight: awayWeight, color: awayColor,
                   fontFamily: 'var(--font-sans)',
                 }}>
                   <Crest url={crestOf(m.away_team_id)} name={m.away_team_name} size={34} />
@@ -307,6 +308,7 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
   const [h2h, setH2h]           = useState<H2HMatch[] | null>(null)
   const [homeForm, setHomeForm]  = useState<TeamBriefMatch[] | null>(null)
   const [awayForm, setAwayForm]  = useState<TeamBriefMatch[] | null>(null)
+  const isNarrow = useIsNarrow()
 
   useEffect(() => {
     api.h2h(homeId, awayId, 50).then(setH2h).catch(() => setH2h([]))
@@ -324,7 +326,7 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
     <div style={{ marginTop: 64 }}>
       <div style={{ marginBottom: 40 }}>
         <h2 style={{
-          margin: 0, fontSize: '2.125rem', fontWeight: 700,
+          margin: 0, fontSize: 'clamp(1.6rem, 5.4vw, 2.125rem)', fontWeight: 700,
           letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
         }}>
           Contexto
@@ -337,7 +339,10 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
         </p>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+      <div style={{
+        display: 'flex', alignItems: 'stretch', gap: 0,
+        flexDirection: isNarrow ? 'column' : 'row',
+      }}>
         {h2h && (
           <H2HColumn
             matches={h2h}
@@ -352,7 +357,9 @@ export default function ContextSection({ homeId, awayId, homeName, awayName, hom
         )}
 
         {h2h && hasForm && (
-          <div style={{ width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 48px' }} />
+          <div style={isNarrow
+            ? { height: 0, borderTop: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '44px 0' }
+            : { width: 0, borderLeft: '1px dashed rgba(255,255,255,0.12)', flexShrink: 0, margin: '0 48px' }} />
         )}
 
         {hasForm && (

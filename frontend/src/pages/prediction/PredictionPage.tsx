@@ -1,5 +1,6 @@
 import { useParams, Navigate } from 'react-router-dom'
 import { usePrediction } from '../../context/PredictionContext'
+import { useIsMobile } from '../../lib/useMediaQuery'
 import PredictionHero from './PredictionHero'
 import WhySection from './WhySection'
 import ContextSection from './ContextSection'
@@ -7,6 +8,7 @@ import ContextSection from './ContextSection'
 export default function PredictionPage() {
   const { id } = useParams<{ id: string }>()
   const { activePrediction } = usePrediction()
+  const isMobile = useIsMobile()
 
   let pred = activePrediction
   if (!pred && id) {
@@ -20,8 +22,8 @@ export default function PredictionPage() {
 
   return (
     <div style={{ minHeight: 'calc(100svh - 60px)', background: '#0c0d0f', paddingBottom: 80 }}>
-      <title>{`${pred.home.display_name ?? pred.home.name} vs ${pred.away.display_name ?? pred.away.name} · PitchLens`}</title>
-      <div style={{ zoom: 1.1 }}>
+      <title>{`${pred.home.display_name ?? pred.home.name} vs ${pred.away.display_name ?? pred.away.name} — Predicción · PitchLens`}</title>
+      <div style={{ zoom: isMobile ? 1 : 1.1 }}>
         <PredictionHero
           home_team={pred.home.display_name ?? pred.home.name}
           away_team={pred.away.display_name ?? pred.away.name}
@@ -35,7 +37,11 @@ export default function PredictionPage() {
         />
       </div>
 
-      <div style={{ maxWidth: '82.5vw', margin: '40px auto 0' }}>
+      <div style={{
+        maxWidth: isMobile ? '100%' : '82.5vw',
+        padding: isMobile ? '0 16px' : 0,
+        margin: isMobile ? '28px auto 0' : '40px auto 0',
+      }}>
         <WhySection pred={pred} />
         <ContextSection
           homeId={pred.home.id}

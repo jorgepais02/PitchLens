@@ -119,11 +119,15 @@ body {
 }
 
 @media (max-width: 767px) {
-  .model-section-inner { padding: 14px 16px 8px; overflow-y: auto; }
-  .model-cols { flex-direction: column; }
+  /* La página scrollea entera en móvil: el panel ya no tiene scroll propio.
+     El padding inferior deja hueco para la barra fija del botón Predecir. */
+  .model-section-inner { padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
+  .model-cols { flex-direction: column; gap: 28px; }
   .model-divider { display: none; }
   .model-header { font-size: 1.25rem; margin-bottom: 12px !important; }
-  .hero-side-label { top: 60px; font-size: 1rem !important; }
+  .hero-side-label { top: 72px; font-size: 0.9375rem !important; letter-spacing: 0.1em !important; }
+  /* Split horizontal: el visitante ocupa la mitad inferior. */
+  .hero-side-label--away { top: auto; bottom: 20px; }
 }
 
 @media (hover: none) {

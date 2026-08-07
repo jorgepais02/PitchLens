@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { api, type MatchListItem, type Team } from '../lib/api'
 import { Crest, SEP, fmtDate } from '../components/shared'
+import { useIsNarrow } from '../lib/useMediaQuery'
 
 const PAGE_SIZE = 20
 
@@ -70,7 +71,7 @@ function FilterSelect({ value, options, placeholder, disabled, onChange }: {
   const selected = options.find(o => o.value === value) ?? null
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', width: 160 }}>
+    <div ref={rootRef} style={{ position: 'relative', width: 160, maxWidth: '100%', flex: '1 1 140px' }}>
       <button
         ref={triggerRef}
         type="button"
@@ -182,15 +183,15 @@ function MatchRow({ match, teamById, onClick }: {
         <span style={{
           flex: 1, display: 'flex', alignItems: 'center',
           justifyContent: 'flex-end', gap: 10, minWidth: 0,
-          fontSize: 17, fontWeight: 400, color: TEAM_C,
+          fontSize: 'clamp(13px, 3.6vw, 17px)', fontWeight: 400, color: TEAM_C,
         }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{homeName}</span>
           <Crest url={home?.crest_url ?? null} name={homeName} size={32} />
         </span>
 
         <span style={{
-          flexShrink: 0, minWidth: 52, textAlign: 'center',
-          fontSize: 17, fontWeight: 600,
+          flexShrink: 0, minWidth: 44, textAlign: 'center',
+          fontSize: 'clamp(13px, 3.6vw, 17px)', fontWeight: 600,
           color: 'rgba(255,255,255,0.90)', fontFamily: 'var(--font-sans)',
           fontVariantNumeric: 'tabular-nums',
         }}>
@@ -200,7 +201,7 @@ function MatchRow({ match, teamById, onClick }: {
         <span style={{
           flex: 1, display: 'flex', alignItems: 'center',
           justifyContent: 'flex-start', gap: 10, minWidth: 0,
-          fontSize: 17, fontWeight: 400, color: TEAM_C,
+          fontSize: 'clamp(13px, 3.6vw, 17px)', fontWeight: 400, color: TEAM_C,
         }}>
           <Crest url={away?.crest_url ?? null} name={awayName} size={32} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{awayName}</span>
@@ -284,7 +285,7 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
   }
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', width: 160 }}>
+    <div ref={rootRef} style={{ position: 'relative', width: 160, maxWidth: '100%', flex: '1 1 140px' }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 10px',
@@ -425,6 +426,7 @@ function SkeletonRows({ count = 8 }: { count?: number }) {
 export default function ExplorePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const isNarrow = useIsNarrow()
 
   const leagueCode  = searchParams.get('league')
   const season      = searchParams.has('season') ? Number(searchParams.get('season')) : null
@@ -488,11 +490,11 @@ export default function ExplorePage() {
     <div style={{ minHeight: 'calc(100svh - 60px)', background: 'var(--color-bg)', paddingBottom: 80 }}>
       <title>Explorar · PitchLens</title>
       <div style={{ paddingTop: 48 }}>
-        <div style={{ maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
+        <div style={{ maxWidth: 900, marginLeft: 'auto', marginRight: 'auto', paddingLeft: 16, paddingRight: 16 }}>
 
         <div style={{ marginBottom: 36 }}>
           <h1 style={{
-            margin: 0, fontSize: '2.125rem', fontWeight: 700,
+            margin: 0, fontSize: 'clamp(1.6rem, 5.4vw, 2.125rem)', fontWeight: 700,
             letterSpacing: '-0.02em', color: '#f0f0f0', fontFamily: 'var(--font-sans)',
           }}>
             Explorar el dataset
@@ -524,8 +526,10 @@ export default function ExplorePage() {
 
           {filtersReady && (
             <>
-              <div style={{ marginLeft: 'auto' }} />
-              <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
+              {/* Al envolverse en móvil, el empujón a la derecha y la barra
+                  separadora quedan sueltos: solo aplican en una sola fila. */}
+              {!isNarrow && <div style={{ marginLeft: 'auto' }} />}
+              {!isNarrow && <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />}
 
               <TeamSearch
                 teams={teams}

@@ -1,3 +1,7 @@
+/** Los tres porcentajes comparten fila: a 80px fijos no caben en móvil. */
+const PCT_SIZE   = 'clamp(28px, 8.4vw, 80px)'
+const CREST_SIZE = 'clamp(52px, 14vw, 80px)'
+
 const MODEL_LABEL: Record<string, string> = {
   baseline: 'Modelo Baseline',
   extended:  'Modelo Extended',
@@ -30,7 +34,8 @@ export default function PredictionHero({
       style={{
         position: 'relative', overflow: 'hidden',
         background: 'linear-gradient(to right, #091524, #190909)',
-        marginTop: -55, padding: '95px 8.75vw 60px',
+        marginTop: -55,
+        padding: 'clamp(80px, 9vw, 95px) clamp(16px, 8.75vw, 8.75vw) clamp(36px, 6vw, 60px)',
         animation: 'hero-fade-in 0.4s ease-out both',
       }}
     >
@@ -51,7 +56,7 @@ export default function PredictionHero({
       }} />
 
         <div style={{
-          textAlign: 'left', marginBottom: 44,
+          textAlign: 'left', marginBottom: 'clamp(24px, 5vw, 44px)',
           fontSize: 12, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase',
           fontFamily: 'var(--font-sans)',
         }}>
@@ -65,11 +70,11 @@ export default function PredictionHero({
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             {home_crest_url ? (
               <img src={home_crest_url} alt={home_team}
-                style={{ width: 80, height: 80, objectFit: 'contain', opacity: 0.95, flexShrink: 0 }}
+                style={{ width: CREST_SIZE, height: CREST_SIZE, objectFit: 'contain', opacity: 0.95, flexShrink: 0 }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
             ) : (
               <div style={{
-                width: 80, height: 80, borderRadius: 12, flexShrink: 0,
+                width: CREST_SIZE, height: CREST_SIZE, borderRadius: 12, flexShrink: 0,
                 background: 'rgba(59,130,246,0.10)', border: '0.5px solid rgba(59,130,246,0.20)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 16, fontWeight: 500, color: 'rgba(59,130,246,0.7)', fontFamily: 'monospace',
@@ -84,19 +89,19 @@ export default function PredictionHero({
           </div>
 
           <div style={{
-            fontSize: 28, fontWeight: 600, letterSpacing: '0.04em',
+            fontSize: 'clamp(18px, 4vw, 28px)', fontWeight: 600, letterSpacing: '0.04em',
             color: 'rgba(255,255,255,0.40)', fontFamily: 'var(--font-sans)',
-            userSelect: 'none', paddingTop: 24,
+            userSelect: 'none', paddingTop: 'clamp(14px, 3vw, 24px)',
           }}>—</div>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             {away_crest_url ? (
               <img src={away_crest_url} alt={away_team}
-                style={{ width: 80, height: 80, objectFit: 'contain', opacity: 0.95, flexShrink: 0 }}
+                style={{ width: CREST_SIZE, height: CREST_SIZE, objectFit: 'contain', opacity: 0.95, flexShrink: 0 }}
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
             ) : (
               <div style={{
-                width: 80, height: 80, borderRadius: 12, flexShrink: 0,
+                width: CREST_SIZE, height: CREST_SIZE, borderRadius: 12, flexShrink: 0,
                 background: 'rgba(239,68,68,0.10)', border: '0.5px solid rgba(239,68,68,0.20)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 16, fontWeight: 500, color: 'rgba(239,68,68,0.7)', fontFamily: 'monospace',
@@ -114,13 +119,13 @@ export default function PredictionHero({
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', marginTop: 32 }}>
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <span style={{ fontSize: 80, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: '#4D93F8', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctH}%</span>
+            <span style={{ fontSize: PCT_SIZE, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: '#4D93F8', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctH}%</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <span style={{ fontSize: 80, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: 'rgba(255,255,255,0.42)', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctD}%</span>
+            <span style={{ fontSize: PCT_SIZE, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: 'rgba(255,255,255,0.42)', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctD}%</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <span style={{ fontSize: 80, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: '#F35A5A', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctA}%</span>
+            <span style={{ fontSize: PCT_SIZE, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.03em', color: '#F35A5A', fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums' }}>{pctA}%</span>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown, LogOut, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useIsMobile } from '../lib/useMediaQuery'
 import AuthModal from './AuthModal'
 
 const NAV_H = 60
@@ -16,15 +17,16 @@ function initialsFromEmail(email: string): string {
 }
 
 
-function NavItem({ to, label, active }: { to: string; label: string; active: boolean }) {
+function NavItem({ to, label, active, compact }: { to: string; label: string; active: boolean; compact: boolean }) {
   return (
     <NavLink
       to={to}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: SEG_H, padding: '0 clamp(20px, 1.6vw, 34px)',
+        height: compact ? 32 : SEG_H,
+        padding: compact ? '0 11px' : '0 clamp(20px, 1.6vw, 34px)',
         borderRadius: 999,
-        fontSize: '0.9375rem',
+        fontSize: compact ? '0.8125rem' : '0.9375rem',
         fontWeight: active ? 500 : 400,
         fontFamily: 'var(--font-sans)',
         color: active ? 'var(--color-ink)' : 'oklch(0.66 0.012 268)',
@@ -339,6 +341,7 @@ export default function Navbar() {
   const { isAuthenticated } = useAuth()
   const [authOpen, setAuthOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)
@@ -355,7 +358,7 @@ export default function Navbar() {
       className="sticky top-0 z-50 flex items-center justify-center"
       style={{
         height: NAV_H,
-        padding: scrolled ? '0 24px' : '0',
+        padding: isMobile ? '0 10px' : scrolled ? '0 24px' : '0',
         background: scrolled ? 'oklch(0.15 0.006 268 / 0.88)' : 'transparent',
         borderBottom: `1px solid ${scrolled ? 'var(--color-border-subtle)' : 'transparent'}`,
         backdropFilter: scrolled ? 'blur(14px) saturate(1.4)' : 'none',
@@ -366,10 +369,11 @@ export default function Navbar() {
       <div
         className="flex items-center"
         style={{
-          width: scrolled ? '100%' : 'auto',
-          justifyContent: scrolled ? 'space-between' : 'center',
-          gap: scrolled ? 0 : 8,
-          padding: scrolled ? 0 : '5px 18px',
+          width: scrolled || isMobile ? '100%' : 'auto',
+          minWidth: 0,
+          justifyContent: scrolled || isMobile ? 'space-between' : 'center',
+          gap: scrolled ? 0 : isMobile ? 4 : 8,
+          padding: scrolled ? 0 : isMobile ? '4px 8px' : '5px 18px',
           borderRadius: scrolled ? 0 : 999,
           background: scrolled ? 'transparent' : 'oklch(0.215 0.008 268 / 0.72)',
           border: `1px solid ${scrolled ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
@@ -385,29 +389,32 @@ export default function Navbar() {
           className="flex items-center gap-2.5"
           style={{ color: 'var(--color-ink)', textDecoration: 'none', flexShrink: 0 }}
         >
-          <svg width="34" height="34" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <svg width={isMobile ? 26 : 34} height={isMobile ? 26 : 34} viewBox="0 0 100 100" fill="none" aria-hidden="true">
             <rect x="12" y="28" width="76" height="44" rx="14" stroke="#fff" strokeWidth="4" />
             <circle cx="50" cy="50" r="14" stroke="#fff" strokeWidth="3" />
             <line x1="50" y1="28" x2="50" y2="72" stroke="#fff" strokeWidth="2.5" opacity="0.45" />
             <circle cx="50" cy="50" r="4" fill="#fff" />
           </svg>
-          <span style={{
-            fontSize: '1.0625rem', fontWeight: 650,
-            letterSpacing: '-0.02em', fontFamily: 'var(--font-sans)',
-          }}>
-            PitchLens
-          </span>
+          {/* En móvil solo el isotipo: el wordmark no cabe junto a los 3 items + sesión. */}
+          {!isMobile && (
+            <span style={{
+              fontSize: '1.0625rem', fontWeight: 650,
+              letterSpacing: '-0.02em', fontFamily: 'var(--font-sans)',
+            }}>
+              PitchLens
+            </span>
+          )}
         </NavLink>
 
-        <span aria-hidden="true" style={{ display: scrolled ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
+        <span aria-hidden="true" style={{ display: scrolled || isMobile ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
 
-        <nav aria-label="Navegación principal" className="flex items-center" style={{ gap: 3 }}>
-          <NavItem to={predictionTo} label="Predicción" active={predictionActive} />
-          <NavItem to="/explore" label="Explorar" active={pathname.startsWith('/explore')} />
-          <NavItem to="/studio" label="Studio" active={pathname.startsWith('/studio')} />
+        <nav aria-label="Navegación principal" className="flex items-center" style={{ gap: isMobile ? 1 : 3, minWidth: 0 }}>
+          <NavItem to={predictionTo} label="Predicción" active={predictionActive} compact={isMobile} />
+          <NavItem to="/explore" label="Explorar" active={pathname.startsWith('/explore')} compact={isMobile} />
+          <NavItem to="/studio" label="Studio" active={pathname.startsWith('/studio')} compact={isMobile} />
         </nav>
 
-        <span aria-hidden="true" style={{ display: scrolled ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
+        <span aria-hidden="true" style={{ display: scrolled || isMobile ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
 
         {isAuthenticated ? (
           <AccountMenu />
@@ -417,17 +424,18 @@ export default function Navbar() {
             onClick={() => setAuthOpen(true)}
             className="cursor-pointer"
             style={{
-              padding: '8px 10px',
-              fontSize: '0.9375rem', fontWeight: 400,
+              padding: isMobile ? '6px 6px' : '8px 10px',
+              fontSize: isMobile ? '0.8125rem' : '0.9375rem', fontWeight: 400,
               fontFamily: 'var(--font-sans)',
               color: 'oklch(0.66 0.012 268)',
               background: 'transparent', border: 'none',
+              whiteSpace: 'nowrap', flexShrink: 0,
               transition: 'color var(--duration-fast)',
             }}
             onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-ink)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'oklch(0.66 0.012 268)' }}
           >
-            Iniciar sesión
+            {isMobile ? 'Entrar' : 'Iniciar sesión'}
           </button>
         )}
       </div>
