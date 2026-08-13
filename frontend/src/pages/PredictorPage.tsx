@@ -7,6 +7,7 @@ import { api, type League, type Team, type PredictResponse } from '../lib/api'
 import { usePrediction, type ModelKey } from '../context/PredictionContext'
 import { useAuth } from '../context/AuthContext'
 import { useIsMobile, useIsCompact } from '../lib/useMediaQuery'
+import { useThemeColor } from '../lib/useThemeColor'
 import AuthModal from '../components/AuthModal'
 
 type EnrichedTeam = Team & { league: League }
@@ -683,6 +684,12 @@ export default function PredictorPage() {
 
   const teamsReady = !!home && !!away
 
+  // Sin equipos el hero llega hasta abajo y lo último que se ve es la mitad del
+  // visitante (granate); con equipos, el panel de modelos (casi negro). El chrome
+  // de Safari se tiñe con esto, así que sigue al color de más abajo o se ve un
+  // corte de tono sobre la barra de direcciones.
+  useThemeColor(teamsReady ? '#0a0a0c' : AWAY_BG)
+
   const [viewportH, setViewportH] = useState(() =>
     typeof window !== 'undefined' ? window.innerHeight : 0)
   useEffect(() => {
@@ -710,7 +717,7 @@ export default function PredictorPage() {
   // exactamente el área visible: con `svh` Safari deja una franja del fondo de la
   // página (casi negra) entre el final del hero y su barra inferior.
   const heroHeight = pageScrolls
-    ? (!teamsReady ? '100dvh' : (isMobile ? '50svh' : '78svh'))
+    ? (!teamsReady ? '100dvh' : (isMobile ? '56svh' : '78svh'))
     : (!teamsReady ? '100svh' : (heroPx != null ? `${Math.round(heroPx)}px` : '44svh'))
   const needsPanelScroll = !pageScrolls && heroPx != null && panelContentH > viewportH - heroPx + 1
 
@@ -793,7 +800,7 @@ export default function PredictorPage() {
 
         <div
           style={isMobile
-            ? { position: 'absolute', left: '5%', right: '5%', top: band(0.25), transform: 'translateY(-50%)', textAlign: 'center' }
+            ? { position: 'absolute', left: '5%', right: '5%', top: band(0.24), transform: 'translateY(-50%)', textAlign: 'center' }
             : { position: 'absolute', left: '5%', right: '53%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
         >
           <button
@@ -891,7 +898,7 @@ export default function PredictorPage() {
 
         <div
           style={isMobile
-            ? { position: 'absolute', left: '5%', right: '5%', top: band(0.75), transform: 'translateY(-50%)', textAlign: 'center' }
+            ? { position: 'absolute', left: '5%', right: '5%', top: band(0.78), transform: 'translateY(-50%)', textAlign: 'center' }
             : { position: 'absolute', left: '53%', right: '5%', top: '50%', transform: 'translateY(-50%)', textAlign: 'center' }}
         >
           <button
@@ -973,7 +980,9 @@ export default function PredictorPage() {
               aria-label="Quitar equipo visitante"
               style={{
                 position: 'absolute', top: 8,
-                ...(isMobile ? { right: 'calc(50% + 46px)' } : { left: 8 }),
+                // En móvil, misma posición que la X del local (a la derecha del
+                // escudo): un control que cambia de lado obliga a buscarlo cada vez.
+                ...(isMobile ? { left: 'calc(50% + 46px)' } : { left: 8 }),
                 width: 32, height: 32, borderRadius: '50%',
                 background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)',
                 display: 'none', alignItems: 'center', justifyContent: 'center',
@@ -1088,7 +1097,7 @@ export default function PredictorPage() {
                     style={{
                       display: 'flex', flexDirection: 'column',
                       width: '100%', textAlign: 'left',
-                      padding: '12px 15px', borderRadius: 10,
+                      padding: isMobile ? '11px 13px' : '12px 15px', borderRadius: 10,
                       background: cardBg,
                       border: `1px solid ${cardBorder}`,
                       cursor: 'pointer',
@@ -1102,13 +1111,13 @@ export default function PredictorPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
                         <span aria-hidden="true" style={{
-                          fontSize: '1.15rem', lineHeight: 1, flexShrink: 0,
+                          fontSize: isMobile ? '1rem' : '1.15rem', lineHeight: 1, flexShrink: 0,
                           fontWeight: isActive ? 700 : 400,
                           color: isActive ? '#e8e8e8' : dimmed ? '#3a3a3a' : 'rgba(255,255,255,0.45)',
                           transition: cardColorTransition,
                         }}>›</span>
                         <span style={{
-                          fontSize: '1.25rem', fontWeight: isActive ? 600 : 400,
+                          fontSize: isMobile ? '1.0625rem' : '1.25rem', fontWeight: isActive ? 600 : 400,
                           color: isActive ? '#e8e8e8' : dimmed ? '#666' : 'rgba(255,255,255,0.82)',
                           minWidth: 0, transition: cardColorTransition,
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -1117,7 +1126,7 @@ export default function PredictorPage() {
                         </span>
                       </div>
                       <span style={{
-                        fontSize: '1.0625rem', fontWeight: isActive ? 700 : 600,
+                        fontSize: isMobile ? '0.9375rem' : '1.0625rem', fontWeight: isActive ? 700 : 600,
                         color: isActive ? 'rgba(255,255,255,0.78)' : dimmed ? '#3a3a3a' : 'rgba(255,255,255,0.6)',
                         fontFamily: 'var(--font-mono)',
                         fontVariantNumeric: 'tabular-nums', flexShrink: 0,
@@ -1128,7 +1137,7 @@ export default function PredictorPage() {
                     </div>
                     <div style={{
                       marginTop: 6,
-                      fontSize: '1.0625rem',
+                      fontSize: isMobile ? '0.8125rem' : '1.0625rem',
                       color: isActive ? 'rgba(255,255,255,0.38)' : dimmed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.34)',
                       transition: cardColorTransition, lineHeight: 1.5,
                     }}>
@@ -1236,7 +1245,7 @@ export default function PredictorPage() {
                       style={{
                         display: 'flex', flexDirection: 'column',
                         width: '100%', textAlign: 'left',
-                        padding: '12px 15px', borderRadius: 10,
+                        padding: isMobile ? '11px 13px' : '12px 15px', borderRadius: 10,
                         background: cardBg,
                         border: `1px solid ${cardBorder}`,
                         cursor: 'pointer',
@@ -1249,13 +1258,13 @@ export default function PredictorPage() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
                           <span aria-hidden="true" style={{
-                            fontSize: '1.15rem', lineHeight: 1, flexShrink: 0,
+                            fontSize: isMobile ? '1rem' : '1.15rem', lineHeight: 1, flexShrink: 0,
                             fontWeight: isActive ? 700 : 400,
                             color: isActive ? '#e8e8e8' : dimmed ? '#3a3a3a' : 'rgba(255,255,255,0.45)',
                             transition: cardColorTransition,
                           }}>›</span>
                           <span style={{
-                            fontSize: '1.25rem', fontWeight: isActive ? 600 : 400,
+                            fontSize: isMobile ? '1.0625rem' : '1.25rem', fontWeight: isActive ? 600 : 400,
                             color: isActive ? '#e8e8e8' : dimmed ? '#666' : 'rgba(255,255,255,0.82)',
                             minWidth: 0, transition: cardColorTransition,
                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -1264,7 +1273,7 @@ export default function PredictorPage() {
                           </span>
                         </div>
                         <span style={{
-                          fontSize: '1.0625rem', fontWeight: 500,
+                          fontSize: isMobile ? '0.9375rem' : '1.0625rem', fontWeight: 500,
                           color: isActive ? 'rgba(255,255,255,0.78)' : dimmed ? '#3a3a3a' : 'rgba(255,255,255,0.6)',
                           fontFamily: 'var(--font-mono)',
                           fontVariantNumeric: 'tabular-nums', flexShrink: 0,
@@ -1275,7 +1284,7 @@ export default function PredictorPage() {
                       </div>
                       <div style={{
                         marginTop: 6,
-                        fontSize: '1.0625rem',
+                        fontSize: isMobile ? '0.8125rem' : '1.0625rem',
                         color: isActive ? 'rgba(255,255,255,0.38)' : dimmed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.34)',
                         transition: cardColorTransition, lineHeight: 1.5,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
