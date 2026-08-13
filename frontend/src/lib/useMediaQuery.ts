@@ -38,3 +38,18 @@ export function useIsNarrow(): boolean {
 export function useIsCompact(): boolean {
   return useMediaQuery('(max-width: 767px), (max-height: 560px)')
 }
+
+/**
+ * El selector de equipo se dibuja como hoja fija en vez de anclado al escudo.
+ *
+ * Además de las pantallas sin sitio (`useIsCompact`), incluye cualquier
+ * dispositivo táctil: en un iPad la página cabe de sobra, pero el teclado ocupa
+ * casi la mitad inferior y un panel anclado bajo el escudo queda debajo de él.
+ * `hover: none` + `pointer: coarse` identifica al táctil sin pillar portátiles
+ * con pantalla táctil, que sí tienen ratón.
+ */
+export function usePickerAsSheet(): boolean {
+  return useMediaQuery(
+    '(max-width: 767px), (max-height: 560px), (hover: none) and (pointer: coarse)'
+  )
+}

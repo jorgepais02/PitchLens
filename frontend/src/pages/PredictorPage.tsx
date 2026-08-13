@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { api, type League, type Team, type PredictResponse } from '../lib/api'
 import { usePrediction, type ModelKey } from '../context/PredictionContext'
 import { useAuth } from '../context/AuthContext'
-import { useIsMobile, useIsCompact } from '../lib/useMediaQuery'
+import { useIsMobile, useIsCompact, usePickerAsSheet } from '../lib/useMediaQuery'
 import { useThemeColor } from '../lib/useThemeColor'
 import AuthModal from '../components/AuthModal'
 
@@ -130,7 +130,7 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
   const pillRefs       = useRef<Map<number, HTMLButtonElement>>(new Map())
   const skipInputFocus = useRef(false)
 
-  const isCompact = useIsCompact()
+  const isCompact = usePickerAsSheet()
   const vv        = useVisualViewport()
 
   useEffect(() => {
@@ -717,7 +717,11 @@ export default function PredictorPage() {
   // exactamente el área visible: con `svh` Safari deja una franja del fondo de la
   // página (casi negra) entre el final del hero y su barra inferior.
   const heroHeight = pageScrolls
-    ? (!teamsReady ? '100dvh' : (isMobile ? '56svh' : '78svh'))
+    // El suelo en px es necesario: el contenido del hero (navbar + escudo +
+    // nombre + VS + escudo + nombre) mide ~354px fijos, así que por debajo de
+    // eso un porcentaje solapa las piezas. En un iPhone SE, 56svh son 310px y
+    // el escudo visitante se metía dentro del círculo del VS.
+    ? (!teamsReady ? '100dvh' : (isMobile ? 'max(56svh, 360px)' : '78svh'))
     : (!teamsReady ? '100svh' : (heroPx != null ? `${Math.round(heroPx)}px` : '44svh'))
   const needsPanelScroll = !pageScrolls && heroPx != null && panelContentH > viewportH - heroPx + 1
 
