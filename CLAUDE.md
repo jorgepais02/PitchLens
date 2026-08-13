@@ -23,7 +23,7 @@ Pipeline completo: EDA → Cleaning → xG → Features → EDA Analítico → B
 ## Estructura del proyecto
 src/
 analysis/       — utilidades EDA (column_groups, team_consistency)
-utils/          — funciones de validación reutilizables (validation.py)
+utils/          — validación reutilizable (validation.py) + metadatos de equipo (teams.py)
 ingest/         — load_raw.py
 features/       — build_features.py, etl_features.py
 ml/             — train_models.py, predictor.py, custom_trainer.py, _config.py           ← Fase 7
@@ -52,6 +52,7 @@ test_features.py
 test_models.py                                            ← Fase 7
 test_importance.py                                        ← Fase 7 (importancia no-LR)
 test_api.py / test_endpoints.py / test_feature_builder.py ← Fase 8
+test_team_metadata.py / test_seed_team_metadata.py        ← escudos y nombres
 
 ---
 
@@ -167,7 +168,7 @@ Nunca split aleatorio. El fútbol es serie temporal.
 
 ## BD — star schema
 leagues         : id, code, name
-teams           : id, name
+teams           : id, name, crest_url, display_name
 seasons         : id, end_year, label, league_id
 matches         : fact table — resultado + stats + odds + xG (35 cols)
 match_features  : tabla derivada — 12 features (FK a matches)
@@ -175,6 +176,13 @@ match_features  : tabla derivada — 12 features (FK a matches)
 `src/db/database.py` y `models.py` no se modifican en fases posteriores.
 FastAPI los importa directamente mediante `get_db()`.
 Nunca mezclar datos reales (matches) con derivados (match_features).
+
+`crest_url` y `display_name` los rellena el propio seed (`seed_equipos`) vía
+`src/utils/teams.py` — **no** hace falta ningún script manual tras poblar la BD.
+El slug se deriva del nombre (`Ath Bilbao` → `/crests/ath-bilbao.png`) y el nombre
+completo sale de `config/team_display_names.json`. `scripts/fetch_crests.py` sigue
+existiendo solo para *descargar* los PNG a `frontend/public/crests`; los scripts
+reutilizan esos mismos helpers para que no puedan divergir del seed.
 
 ---
 

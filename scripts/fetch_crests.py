@@ -8,7 +8,6 @@ Uso:
 
 import argparse
 import logging
-import re
 import sys
 import time
 import urllib.request
@@ -21,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.db.database import engine
 from src.db.models import Team
+from src.utils.teams import slug_equipo
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -81,11 +81,11 @@ ALIASES: dict[str, str] = {
 
 
 def _slug(name: str) -> str:
-    """Convierte nombre de equipo a slug de fichero."""
-    s = name.lower()
-    s = re.sub(r"['\"]", "", s)
-    s = re.sub(r"[^a-z0-9]+", "-", s)
-    return s.strip("-")
+    """Convierte nombre de equipo a slug de fichero.
+
+    Delega en `src.utils.teams` para no divergir del slug que usa el seed.
+    """
+    return slug_equipo(name)
 
 
 def _fetch_badge_url(search_term: str) -> str | None:

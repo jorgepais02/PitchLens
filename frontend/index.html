@@ -3,7 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: sin esto env(safe-area-inset-*) vale 0 y la barra fija
+         del CTA queda pisada por el indicador de inicio en iPhone. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Tiñe el chrome del navegador móvil: sin esto Safari pinta una franja negra
+         que corta el degradado del hero. -->
+    <meta name="theme-color" content="#0a0a0c" />
     <title>PitchLens — Predicción de fútbol con ML</title>
   </head>
   <body>

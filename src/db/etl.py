@@ -17,6 +17,7 @@ from sqlmodel import Session, SQLModel, select
 
 from src.db.database import engine
 from src.db.models import League, Match, MatchFeatures, Season, Team
+from src.utils.teams import crest_url_equipo, display_name_equipo
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -103,8 +104,16 @@ def seed_equipos(
         .sort_values(["League", "name"])
     )
 
+    # crest_url y display_name se derivan aquí, no en un script aparte: así un
+    # despliegue desde cero arranca con escudos y nombres completos sin pasos
+    # manuales. Ambos son deterministas a partir del nombre del equipo.
     teams = [
-        Team(name=row["name"], league_id=league_map[row["League"]])
+        Team(
+            name=row["name"],
+            league_id=league_map[row["League"]],
+            crest_url=crest_url_equipo(row["name"]),
+            display_name=display_name_equipo(row["name"]),
+        )
         for _, row in unique_teams.iterrows()
     ]
     session.add_all(teams)

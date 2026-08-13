@@ -70,6 +70,20 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Safari móvil infla el tamaño de fuente al rotar si no se fija. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Safari en iOS hace zoom automático al enfocar un input con font-size < 16px,
+   y no lo deshace al cerrar el teclado: el resto de la sesión se ve ampliado y
+   recortado. La condición no puede ser solo el ancho — un iPhone tumbado mide
+   852px y seguiría haciendo zoom —, así que se apunta también al dispositivo
+   táctil. Los estilos de los inputs son inline: hace falta !important. */
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 body {
@@ -121,13 +135,14 @@ body {
 @media (max-width: 767px) {
   /* La página scrollea entera en móvil: el panel ya no tiene scroll propio.
      El padding inferior deja hueco para la barra fija del botón Predecir. */
-  .model-section-inner { padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
-  .model-cols { flex-direction: column; gap: 28px; }
+  .model-section-inner { padding: 30px 18px calc(96px + env(safe-area-inset-bottom)); }
+  .model-cols { flex-direction: column; gap: 34px; }
   .model-divider { display: none; }
-  .model-header { font-size: 1.25rem; margin-bottom: 12px !important; }
+  .model-header { font-size: 1.25rem; margin-bottom: 14px !important; }
   .hero-side-label { top: 72px; font-size: 0.9375rem !important; letter-spacing: 0.1em !important; }
-  /* Split horizontal: el visitante ocupa la mitad inferior. */
-  .hero-side-label--away { top: auto; bottom: 20px; }
+  /* Split horizontal: el visitante ocupa la mitad inferior. Pegado al borde para
+     no chocar con el nombre del equipo, que va centrado justo encima. */
+  .hero-side-label--away { top: auto; bottom: 12px; }
 }
 
 @media (hover: none) {
@@ -135,7 +150,7 @@ body {
 }
 
 @media (max-width: 480px) {
-  .model-section-inner { padding: 12px 12px 8px; }
+  .model-section-inner { padding: 26px 14px calc(96px + env(safe-area-inset-bottom)); }
 }
 
 .studio-name-input::placeholder { color: rgba(255,255,255,0.2); font-weight: 400; }

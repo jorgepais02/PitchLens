@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { api, type League, type Team, type PredictResponse } from '../lib/api'
 import { usePrediction, type ModelKey } from '../context/PredictionContext'
 import { useAuth } from '../context/AuthContext'
-import { useIsMobile } from '../lib/useMediaQuery'
+import { useIsMobile, useIsCompact } from '../lib/useMediaQuery'
 import AuthModal from '../components/AuthModal'
 
 type EnrichedTeam = Team & { league: League }
@@ -78,6 +78,35 @@ function TeamCrest({ url, name, size }: { url: string | null; name: string; size
 }
 
 
+/**
+ * Alto y desplazamiento del viewport *visual* — el que encoge el teclado en iOS.
+ * `window.innerHeight` no cambia al abrirse el teclado, así que posicionar con él
+ * deja media hoja de selección debajo de las teclas.
+ */
+function useVisualViewport(): { height: number; offsetTop: number } {
+  const [vv, setVv] = useState(() => ({
+    height: typeof window !== 'undefined'
+      ? (window.visualViewport?.height ?? window.innerHeight)
+      : 0,
+    offsetTop: 0,
+  }))
+
+  useEffect(() => {
+    const target = window.visualViewport
+    if (!target) return
+    const update = () => setVv({ height: target.height, offsetTop: target.offsetTop })
+    update()
+    target.addEventListener('resize', update)
+    target.addEventListener('scroll', update)
+    return () => {
+      target.removeEventListener('resize', update)
+      target.removeEventListener('scroll', update)
+    }
+  }, [])
+
+  return vv
+}
+
 interface DropdownProps {
   teams: EnrichedTeam[]
   selectedId: number | null
@@ -100,14 +129,31 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
   const pillRefs       = useRef<Map<number, HTMLButtonElement>>(new Map())
   const skipInputFocus = useRef(false)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  const isCompact = useIsCompact()
+  const vv        = useVisualViewport()
 
   useEffect(() => {
-    const onMouse = (e: MouseEvent) => {
+    // En táctil no se autoenfoca: abriría el teclado tapando la lista antes de que
+    // el usuario haya podido verla, y la mayoría elige de la lista sin escribir.
+    if (!isCompact) inputRef.current?.focus()
+  }, [isCompact])
+
+  useEffect(() => {
+    // pointerdown y no mousedown: en iOS los eventos de ratón sintetizados sobre
+    // zonas no interactivas son poco fiables y la hoja se quedaba abierta.
+    const onOutside = (e: PointerEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) onClose()
     }
-    document.addEventListener('mousedown', onMouse)
-    return () => document.removeEventListener('mousedown', onMouse)
+    document.addEventListener('pointerdown', onOutside)
+    return () => document.removeEventListener('pointerdown', onOutside)
+  }, [onClose])
+
+  useEffect(() => {
+    // A nivel de documento y no del panel: sin autofoco (móvil) no hay nada
+    // enfocado dentro del diálogo y el handler local nunca recibiría la tecla.
+    const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onEsc)
+    return () => document.removeEventListener('keydown', onEsc)
   }, [onClose])
 
   const availableLeagues = useMemo(() => {
@@ -211,45 +257,87 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
   }
 
 
-  const PW = 316
-  const VW = window.innerWidth
-  const VH = window.innerHeight
+  // En escritorio el panel se ancla al escudo pulsado. En móvil no: anclarlo hacía
+  // que el local se abriera hacia abajo y el visitante hacia arriba (tapando la
+  // navbar), y con el teclado abierto la mitad quedaba fuera de pantalla. Ahí se
+  // convierte en una hoja de posición fija — siempre el mismo sitio, abra el lado
+  // que abra — dimensionada sobre el viewport visual para respetar el teclado.
+  let panelStyle: React.CSSProperties
 
-  const anchorCenter = anchorRect.left + anchorRect.width / 2
-  const left = Math.max(16, Math.min(anchorCenter - PW / 2, VW - PW - 16))
+  if (isCompact) {
+    const M = 12
+    panelStyle = {
+      position: 'fixed', zIndex: 1000,
+      top: `calc(${vv.offsetTop + M}px + env(safe-area-inset-top))`,
+      // left+right+margin auto centra la hoja cuando maxWidth la limita: en
+      // horizontal, a ancho completo, la lista quedaría de 828px.
+      left: M, right: M, width: 'auto', maxWidth: 420, marginInline: 'auto',
+      maxHeight: `calc(${vv.height - M * 2}px - env(safe-area-inset-top))`,
+      borderRadius: 14,
+    }
+  } else {
+    const PW = 316
+    const VW = window.innerWidth
+    const VH = window.innerHeight
 
-  const M = 16   // margen al borde del viewport
-  const GAP = 10 // separación al ancla
-  const originBelowY = Math.min(anchorRect.top + 150, anchorRect.bottom)
-  const spaceBelow = VH - originBelowY - GAP - M
-  const spaceAbove = anchorRect.top - GAP - M
-  const openBelow = spaceBelow >= 280 || spaceBelow >= spaceAbove
-  const panelMaxH = Math.max(220, Math.min(520, openBelow ? spaceBelow : spaceAbove))
-  const top = openBelow
-    ? originBelowY + GAP
-    : Math.max(M, anchorRect.top - GAP - panelMaxH)
+    const anchorCenter = anchorRect.left + anchorRect.width / 2
+    const left = Math.max(16, Math.min(anchorCenter - PW / 2, VW - PW - 16))
+
+    const M = 16   // margen al borde del viewport
+    const GAP = 10 // separación al ancla
+    const originBelowY = Math.min(anchorRect.top + 150, anchorRect.bottom)
+    const spaceBelow = VH - originBelowY - GAP - M
+    const spaceAbove = anchorRect.top - GAP - M
+    const openBelow = spaceBelow >= 280 || spaceBelow >= spaceAbove
+    const panelMaxH = Math.max(220, Math.min(520, openBelow ? spaceBelow : spaceAbove))
+    const top = openBelow
+      ? originBelowY + GAP
+      : Math.max(M, anchorRect.top - GAP - panelMaxH)
+
+    panelStyle = {
+      position: 'fixed', top, left, width: PW, zIndex: 1000,
+      maxHeight: panelMaxH,
+      borderRadius: 10,
+    }
+  }
 
   return createPortal(
+    <>
+    {isCompact && (
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'fixed', left: 0, width: '100%',
+          top: vv.offsetTop, height: vv.height, zIndex: 999,
+          background: 'rgba(6,6,8,0.62)',
+          backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
+          animation: 'hero-fade-in 0.18s ease-out both',
+        }}
+      />
+    )}
     <div
       ref={panelRef}
       role="dialog"
+      aria-modal={isCompact || undefined}
       aria-label={side === 'home' ? 'Seleccionar equipo local' : 'Seleccionar equipo visitante'}
       onKeyDown={e => { if (e.key === 'Escape') onClose() }}
       style={{
-        position: 'fixed', top, left, width: PW, zIndex: 1000,
-        maxHeight: panelMaxH,
+        ...panelStyle,
         display: 'flex', flexDirection: 'column',
         background: '#111213',
         border: '1px solid #252525',
-        borderRadius: 10,
         boxShadow: '0 24px 64px rgba(0,0,0,0.85), 0 4px 16px rgba(0,0,0,0.5)',
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid #1c1c1c' }}>
-        <div style={{ position: 'relative' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: isCompact ? '10px 10px 10px' : '10px 10px 8px',
+        borderBottom: '1px solid #1c1c1c',
+      }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <Search
-            size={13}
+            size={isCompact ? 15 : 13}
             style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#444', pointerEvents: 'none' }}
             aria-hidden="true"
           />
@@ -263,9 +351,13 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
             onFocus={() => {
               if (!skipInputFocus.current) setFocusZone('input')
             }}
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            enterKeyHint="search"
             aria-label="Buscar equipo"
             style={{
-              width: '100%', padding: '7px 10px 7px 30px',
+              width: '100%', padding: isCompact ? '10px 10px 10px 32px' : '7px 10px 7px 30px',
               background: '#1a1a1c', border: '1px solid #2a2a2a',
               borderRadius: 6, color: '#f0f0f0',
               fontSize: '0.9375rem', fontFamily: 'var(--font-sans)', outline: 'none',
@@ -273,6 +365,21 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
             onBlur={e => { e.currentTarget.style.borderColor = '#2a2a2a' }}
           />
         </div>
+        {isCompact && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar selector de equipo"
+            style={{
+              width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'transparent', border: '1px solid #2a2a2a',
+              color: 'rgba(255,255,255,0.5)', cursor: 'pointer',
+            }}
+          >
+            <X size={17} strokeWidth={2} />
+          </button>
+        )}
       </div>
 
       {hasPills && (
@@ -294,7 +401,7 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
                 onKeyDown={e => handlePillNav(e, idx)}
                 onFocus={() => { setFocusZone('pills'); setFocusedPillIdx(idx) }}
                 style={{
-                  padding: '3px 10px', borderRadius: 20,
+                  padding: isCompact ? '7px 14px' : '3px 10px', borderRadius: 20,
                   fontSize: '0.6875rem', fontWeight: 600,
                   letterSpacing: '0.02em', textTransform: 'uppercase',
                   fontFamily: 'var(--font-sans)', cursor: 'pointer',
@@ -349,7 +456,8 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     width: '100%', textAlign: 'left',
-                    padding: '9px 16px', fontSize: '0.9375rem',
+                    // 44px de alto mínimo en táctil (objetivo mínimo de iOS).
+                    padding: isCompact ? '13px 16px' : '9px 16px', fontSize: '0.9375rem',
                     fontWeight: isSel ? 500 : 400, letterSpacing: '-0.01em',
                     color: isSel ? '#818cf8' : '#d0d0d0',
                     background: isFocused
@@ -378,7 +486,8 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
         ))}
       </div>
 
-    </div>,
+    </div>
+    </>,
     document.body
   )
 }
@@ -388,6 +497,10 @@ export default function PredictorPage() {
   const { setActivePrediction } = usePrediction()
   const { isAuthenticated, token } = useAuth()
   const isMobile = useIsMobile()
+  // Móvil tumbado: ancho de escritorio pero sin alto. El hero de altura calculada
+  // se aplastaba hasta su suelo de 120px y los escudos se salían sobre la navbar.
+  // Con poco alto la página scrollea entera, igual que en vertical.
+  const pageScrolls = useIsCompact()
 
   const [home,         setHome]         = useState<EnrichedTeam | null>(null)
   const [away,         setAway]         = useState<EnrichedTeam | null>(null)
@@ -592,10 +705,14 @@ export default function PredictorPage() {
     : null
   // En móvil el panel apilado no cabe junto al hero: la página scrollea entera
   // en vez de encogerlo hasta romperlo.
-  const heroHeight = isMobile
-    ? (!teamsReady ? '100svh' : '46svh')
+  //
+  // Sin equipos la página no scrollea, así que el hero puede usar `dvh` y cubrir
+  // exactamente el área visible: con `svh` Safari deja una franja del fondo de la
+  // página (casi negra) entre el final del hero y su barra inferior.
+  const heroHeight = pageScrolls
+    ? (!teamsReady ? '100dvh' : (isMobile ? '50svh' : '78svh'))
     : (!teamsReady ? '100svh' : (heroPx != null ? `${Math.round(heroPx)}px` : '44svh'))
-  const needsPanelScroll = !isMobile && heroPx != null && panelContentH > viewportH - heroPx + 1
+  const needsPanelScroll = !pageScrolls && heroPx != null && panelContentH > viewportH - heroPx + 1
 
   const cardBgTransition = isDeselecting
     ? 'background 800ms var(--ease-out), border-color 800ms var(--ease-out)'
@@ -624,8 +741,8 @@ export default function PredictorPage() {
 
   return (
     <div style={{
-      ...(isMobile
-        ? { minHeight: '100svh', overflow: 'visible' }
+      ...(pageScrolls
+        ? { minHeight: '100dvh', overflow: 'visible' }
         : { height: '100svh', overflow: 'hidden' }),
       marginTop: -60,
       display: 'flex', flexDirection: 'column',
@@ -932,7 +1049,7 @@ export default function PredictorPage() {
       <div style={{
         // Oculto en móvil hasta elegir los dos equipos: si no, deja una franja
         // vacía enorme bajo el hero de pantalla completa.
-        ...(isMobile
+        ...(pageScrolls
           ? { display: teamsReady ? 'block' : 'none', flex: 'none', overflow: 'visible' }
           : { flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: needsPanelScroll ? 'auto' : 'hidden' }),
         background: '#0a0a0c', borderTop: '1px solid #1e1e1e', position: 'relative',
