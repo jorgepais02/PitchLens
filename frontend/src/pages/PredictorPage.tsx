@@ -14,9 +14,6 @@ type EnrichedTeam = Team & { league: League }
 
 const HOME_BG        = '#091524'
 const AWAY_BG        = '#190909'
-/** Gris con el que iOS Safari pinta la franja de su barra inferior. Medido sobre
- *  capturas del dispositivo: no es configurable, theme-color no le afecta. */
-const IOS_CHROME_BG  = '#0b0e0f'
 const HOME_LABEL     = 'rgba(77, 147, 248, 0.65)'
 const AWAY_LABEL     = 'rgba(243, 90, 90, 0.65)'
 const LABEL_PRIMARY  = 'rgba(255,255,255,0.7)'
@@ -782,23 +779,6 @@ export default function PredictorPage() {
             ? `polygon(0 calc(${band(0.5)} + 36px), 100% calc(${band(0.5)} - 36px), 100% 100%, 0 100%)`
             : 'polygon(calc(50% + 70px) 0, 100% 0, 100% 100%, calc(50% - 66px) 100%)',
         }} />
-
-        {/* Safari en iOS ignora theme-color en la barra inferior: pinta esa franja
-            con su gris propio, medido en #0b0e0f, y no hay forma de teñirla desde
-            la web. Cuando el hero llega al borde de la pantalla (sin equipos), el
-            granate cortaba en seco contra ella. Fundir el final del hero hacia ese
-            mismo color hace que la costura desaparezca. Va antes que las etiquetas
-            para que LOCAL/VISITANTE queden por encima. */}
-        {isMobile && !teamsReady && (
-          <div
-            aria-hidden="true"
-            style={{
-              position: 'absolute', left: 0, right: 0, bottom: 0, height: 96,
-              background: `linear-gradient(to bottom, ${IOS_CHROME_BG}00 0%, ${IOS_CHROME_BG}80 55%, ${IOS_CHROME_BG} 100%)`,
-              pointerEvents: 'none',
-            }}
-          />
-        )}
 
         <div className="hero-side-label" style={{
           position: 'absolute', left: '5%',
