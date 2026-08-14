@@ -127,40 +127,20 @@ sudo journalctl --vacuum-time=7d
 sudo truncate -s 0 /var/log/btmp   # intentos de login fallidos, crece con los bots
 ```
 
-## Estado de seguridad
+## Rotar la contraseña de PostgreSQL
 
-Verificado en la auditoría del 14/08/2026:
+`POSTGRES_PASSWORD` solo se aplica cuando Postgres **inicializa** el volumen de
+datos. Como `pitchlens_postgres_data` ya existe, cambiar la variable en el
+`.env` no cambia nada por sí solo: hay que rotarla también dentro del motor.
 
-- SSH solo por clave (`PasswordAuthentication no`). El puerto 22 recibe fuerza
-  bruta continua de bots y `/var/log/btmp` crece rápido, pero son intentos
-  contra una puerta que no se abre: es ruido, no una amenaza.
-- CORS restringido a `https://pitchlens.es`; ningún otro origen recibe
-  `Access-Control-Allow-Origin`.
-- Solo 22, 80 y 443 expuestos. API y PostgreSQL escuchan en `127.0.0.1`.
-- `/train`, `/predict/custom`, `/models` y los `DELETE` exigen JWT.
-- La contraseña de PostgreSQL **ya no está en el repo**: se interpola desde
-  `POSTGRES_PASSWORD` en el `.env` del servidor. Rotada a 40 caracteres
-  aleatorios. Ojo: `POSTGRES_PASSWORD` solo se aplica cuando Postgres
-  inicializa el volumen, así que **cambiarla en el `.env` no basta** — hay que
-  hacer además `ALTER ROLE kraken WITH PASSWORD '...'` dentro del contenedor.
+```bash
+NUEVA=$(openssl rand -hex 20)
+docker exec pitchlens-db-1 psql -U kraken -d pitchlens \
+  -c "ALTER ROLE kraken WITH PASSWORD '${NUEVA}';"
+sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${NUEVA}|" ~/PitchLens/.env
+cd ~/PitchLens && docker compose up -d
+```
 
-## Pendiente
-
-- **`/train` no limita la concurrencia** — `post_train` encola con
-  `background_tasks.add_task` sin ningún guard. `MAX_CUSTOM_MODELS` limita los
-  modelos *guardados*, no los entrenamientos *lanzados*. Como el registro es
-  abierto y los jobs corren en el mismo proceso que la API, un usuario puede
-  encolar entrenamientos hasta agotar CPU y RAM del VPS, tumbando el servicio
-  entero. Arreglo: rechazar con 429 si el usuario ya tiene un job en
-  `pending`/`running`, usando el `_JOBS_LOCK` que ya existe.
-- **Sin rate limiting en `/auth/login` ni `/auth/register`** — comprobado: seis
-  intentos fallidos seguidos devuelven seis `401`, ninguno `429`. Permite
-  fuerza bruta sobre las contraseñas y creación masiva de cuentas, que es lo
-  que hace explotable el punto anterior.
-- **Los contenedores corren como `root`** (uid 0). No están `privileged` ni
-  tienen capabilities extra, así que haría falta un escape del runtime para que
-  importase, pero añadir un `USER` no-root al `Dockerfile` es barato.
-- **`/docs`, `/redoc` y `/openapi.json` son públicos.** No filtran secretos y
-  en un TFG puede interesar que estén accesibles; conviene que sea una decisión
-  consciente.
-- Sin HSTS ni cabeceras de seguridad en Caddy. Menor para una API JSON.
+Conviene hacer un backup antes y comprobar después que `/leagues` responde
+`200`: a diferencia de `/health`, esa ruta sí consulta la base de datos, que es
+lo que valida que la credencial nueva funciona de extremo a extremo.
