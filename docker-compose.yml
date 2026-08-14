@@ -5,7 +5,7 @@ services:
     image: postgres:16
     environment:
       POSTGRES_USER: kraken
-      POSTGRES_PASSWORD: kraken
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: pitchlens
     ports:
       - "127.0.0.1:5432:5432" # solo accesible desde el propio host (local o VPS)
@@ -18,7 +18,7 @@ services:
   api:
     build: .
     environment:
-      DATABASE_URL: postgresql+psycopg2://kraken:kraken@db:5432/pitchlens
+      DATABASE_URL: postgresql+psycopg2://kraken:${POSTGRES_PASSWORD}@db:5432/pitchlens
       ENV: production
       CORS_ORIGINS: ${CORS_ORIGINS}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
