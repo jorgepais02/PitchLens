@@ -118,6 +118,24 @@ pytest -m "not integration"   # rápidos, SQLite en memoria, sin Postgres
 pytest                        # incluye integración (requiere API arrancada + datos reales)
 ```
 
+## Despliegue
+
+El frontend es un build estático en Vercel; la API corre en un VPS con Docker,
+detrás de Caddy como *reverse proxy* con TLS automático.
+
+```
+pitchlens.es (Vercel) ──fetch──▶ api.pitchlens.es (VPS) ──▶ Caddy ──▶ :8000 API ──▶ :5432 PostgreSQL
+```
+
+Ni la API ni PostgreSQL se exponen a internet: ambos publican sus puertos
+contra `127.0.0.1` y solo Caddy actúa de puerta de entrada. Los contenedores
+usan `restart: unless-stopped`, así que el servicio se recupera solo tras un
+reinicio del servidor.
+
+Detalles de operación —despliegue de una versión nueva, backups y restauración,
+mantenimiento del sistema— en [`docs/08_despliegue.md`](docs/08_despliegue.md).
+La configuración de producción está en [`deploy/`](deploy/).
+
 ## Estructura
 
 - `src/ingest/`, `notebooks/` — ingesta y EDA/limpieza/features (pipeline de datos).

@@ -1,0 +1,18 @@
+# Reverse proxy de la API en el VPS.
+#
+# Caddy obtiene y renueva el certificado TLS de Let's Encrypt automáticamente,
+# por lo que no hay bloque de certificados ni redirección HTTP→HTTPS explícita:
+# ambas cosas son el comportamiento por defecto.
+#
+# El contenedor de la API publica 127.0.0.1:8000 (ver docker-compose.yml), así
+# que solo es alcanzable desde el propio host: Caddy es la única vía de entrada
+# desde internet.
+#
+# Instalación en el servidor:
+#   sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+
+api.pitchlens.es {
+    reverse_proxy localhost:8000
+}
