@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Isotipo de PitchLens a sangre, para los iconos de app (iOS y Android).
+       Sin esquinas redondeadas propias: el sistema aplica su propia máscara y
+       redondear aquí daría un doble borde. El logo va al 80% para que quepa
+       entero dentro de la zona segura circular de los iconos "maskable". -->
+  <rect width="100" height="100" fill="#111318"/>
+  <g transform="translate(50 50) scale(.8) translate(-50 -50)">
+    <g fill="none" stroke="#fff" stroke-linejoin="round">
+      <rect x="11" y="27" width="78" height="46" rx="15" stroke-width="6.5"/>
+      <circle cx="50" cy="50" r="14.5" stroke-width="5.5"/>
+      <line x1="50" y1="27" x2="50" y2="73" stroke-width="3.5" opacity=".45"/>
+    </g>
+    <circle cx="50" cy="50" r="4.5" fill="#fff"/>
+  </g>
+</svg>

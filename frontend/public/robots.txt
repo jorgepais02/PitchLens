@@ -1,0 +1,12 @@
+# PitchLens — prototipo académico (TFG).
+#
+# Indexable a propósito: el objetivo no es posicionar, sino que el proyecto se
+# encuentre si alguien lo busca. Para sacarlo de los buscadores, cambiar el
+# Allow por "Disallow: /" — el enlace seguiría funcionando y compartiéndose
+# igual, robots.txt solo habla con los rastreadores.
+#
+# Sin este archivo, /robots.txt caía en el rewrite de vercel.json y devolvía el
+# index.html con un 200: un robots.txt que en realidad es una página HTML.
+
+User-agent: *
+Allow: /
