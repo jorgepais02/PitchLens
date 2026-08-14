@@ -91,6 +91,33 @@ def test_client_ip_prefiere_forwarded_for(client: TestClient) -> None:
     assert _login(client, "incorrecta", ip="2.2.2.2").status_code == 401
 
 
+def test_client_ip_ignora_un_forwarded_for_falsificado(client: TestClient) -> None:
+    """Caddy AÑADE la IP real al final; leer la primera entrada sería evadible.
+
+    Se simula al atacante mandando su propia cabecera: el proxy la deja intacta
+    y añade la IP de origen detrás. Si el límite se calculase sobre la primera
+    entrada, bastaría con cambiarla en cada intento para no agotar nunca la
+    cuota.
+    """
+    _registrar(client, ip="7.7.7.7")
+
+    for i in range(5):
+        r = client.post(
+            "/auth/login",
+            json={"email": CREDENCIALES["email"], "password": "incorrecta"},
+            headers={"X-Forwarded-For": f"9.9.9.{i}, 7.7.7.7"},
+        )
+        assert r.status_code == 401, f"intento {i}"
+
+    # Sexto intento con una primera entrada distinta: debe bloquear igualmente.
+    r = client.post(
+        "/auth/login",
+        json={"email": CREDENCIALES["email"], "password": "incorrecta"},
+        headers={"X-Forwarded-For": "9.9.9.99, 7.7.7.7"},
+    )
+    assert r.status_code == 429
+
+
 # --------------------------------------------------------------------------
 # /auth/login
 # --------------------------------------------------------------------------

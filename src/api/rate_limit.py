@@ -74,19 +74,28 @@ class RateLimiter:
 
 
 def client_ip(request: Request) -> str:
-    """IP real del cliente, mirando `X-Forwarded-For`.
+    """IP real del cliente, tomada de `X-Forwarded-For`.
 
     La API vive detrás de Caddy, así que `request.client.host` es siempre la
     dirección del proxy: usarla como clave metería a todos los clientes en el
     mismo cubo y el límite pasaría a ser global — el primer atacante en agotarlo
     dejaría fuera al resto de usuarios.
 
-    Confiar en la cabecera es seguro *en este despliegue* porque el puerto 8000
-    solo escucha en `127.0.0.1` y la única vía de entrada es el proxy, que la
-    reescribe. Si algún día se expusiera el puerto directamente, la cabecera
-    pasaría a ser falsificable y habría que validar la IP de origen.
+    Se usa la **última** entrada de la cabecera, no la primera. Caddy *añade* la
+    IP de origen a lo que ya viniera en `X-Forwarded-For` en lugar de
+    reemplazarlo, de modo que un cliente que mande su propia cabecera aparece por
+    delante: leer la primera entrada dejaría el límite a merced del atacante, que
+    esquivaría el bloqueo cambiando ese valor en cada intento. La última es la
+    que escribe el proxy y es la única que no se puede falsificar.
+
+    Esto da por supuesto **exactamente un proxy** delante. Con una CDN encadenada
+    habría que descartar tantas entradas por la derecha como proxies de confianza
+    haya. Y la cabecera solo merece crédito porque el puerto 8000 escucha en
+    `127.0.0.1`: si se expusiera directamente, dejaría de ser fiable.
     """
     reenviada = request.headers.get("x-forwarded-for")
     if reenviada:
-        return reenviada.split(",")[0].strip()
+        entradas = [parte.strip() for parte in reenviada.split(",") if parte.strip()]
+        if entradas:
+            return entradas[-1]
     return request.client.host if request.client else "desconocida"
