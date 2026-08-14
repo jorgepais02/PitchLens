@@ -1,5 +1,5 @@
 import { useParams, Navigate } from 'react-router-dom'
-import { usePrediction } from '../../context/PredictionContext'
+import { usePrediction } from '../../context/prediction'
 import { useIsMobile } from '../../lib/useMediaQuery'
 import PredictionHero from './PredictionHero'
 import WhySection from './WhySection'

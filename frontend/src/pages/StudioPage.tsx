@@ -5,9 +5,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ListFilter, Lock, MoreHorizontal, Plus, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, type Algorithm, type CustomModel, type TrainResult } from '../lib/api'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth'
 import AuthModal from '../components/AuthModal'
-import { FEATURE_LABELS, SEP, Spinner } from '../components/shared'
+import { SEP, Spinner } from '../components/shared'
+import { FEATURE_LABELS } from '../lib/format'
 import { useIsMobile, useIsNarrow } from '../lib/useMediaQuery'
 
 const PRIMARY   = 'rgba(255,255,255,0.92)'
@@ -69,6 +70,35 @@ function timeAgo(dateStr: string): string {
   if (days < 30) return `hace ${days} días`
   const months = Math.floor(days / 30)
   return months === 1 ? 'hace 1 mes' : `hace ${months} meses`
+}
+
+/** Una métrica del modelo entrenado: rótulo, cifra grande y explicación. */
+function Metric({ label, value, sub, dim, narrow }: {
+  label: string; value: string; sub: string; dim: boolean; narrow: boolean
+}) {
+  return (
+    <div style={{ minWidth: narrow ? 0 : 138, flex: narrow ? '1 1 46%' : undefined }}>
+      <div style={{
+        fontSize: 13, fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase',
+        color: dim ? DIM : 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-sans)', marginBottom: 12,
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: 'clamp(30px, 8vw, 50px)', fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em',
+        color: dim ? SECONDARY : PRIMARY,
+        fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums',
+      }}>
+        {value}
+      </div>
+      <div style={{
+        fontSize: 13.5, color: dim ? DIM : 'rgba(255,255,255,0.45)',
+        fontFamily: 'var(--font-sans)', marginTop: 10,
+      }}>
+        {sub}
+      </div>
+    </div>
+  )
 }
 
 function ModelCard({ model, onView, onDelete }: { model: CustomModel; onView: () => void; onDelete: () => void }) {
@@ -1025,29 +1055,6 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
       </div>
 
       {(() => {
-        const Metric = ({ label, value, sub, dim }: { label: string; value: string; sub: string; dim: boolean }) => (
-          <div style={{ minWidth: isNarrow ? 0 : 138, flex: isNarrow ? '1 1 46%' : undefined }}>
-            <div style={{
-              fontSize: 13, fontWeight: 400, letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: dim ? DIM : 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-sans)', marginBottom: 12,
-            }}>
-              {label}
-            </div>
-            <div style={{
-              fontSize: 'clamp(30px, 8vw, 50px)', fontWeight: 500, lineHeight: 1, letterSpacing: '-0.02em',
-              color: dim ? SECONDARY : PRIMARY,
-              fontFamily: 'var(--font-sans)', fontVariantNumeric: 'tabular-nums',
-            }}>
-              {value}
-            </div>
-            <div style={{
-              fontSize: 13.5, color: dim ? DIM : 'rgba(255,255,255,0.45)',
-              fontFamily: 'var(--font-sans)', marginTop: 10,
-            }}>
-              {sub}
-            </div>
-          </div>
-        )
         return (
           <div style={{
             display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap',
@@ -1055,12 +1062,12 @@ function ResultView({ result, onBack }: { result: TrainResult; onBack: () => voi
             paddingBottom: 26, marginBottom: 30, borderBottom: `0.5px solid ${SEP}`,
           }}>
             <div style={{ display: 'flex', gap: isNarrow ? 20 : 44, flex: isNarrow ? '1 1 100%' : undefined }}>
-              <Metric label="Test accuracy" value={fmtAcc(result.test_accuracy)} sub="Predicciones correctas en test" dim={false} />
-              <Metric label="Test log loss" value={fmtLoss(result.test_log_loss)} sub="Más bajo = mejor calibración" dim={false} />
+              <Metric label="Test accuracy" value={fmtAcc(result.test_accuracy)} sub="Predicciones correctas en test" dim={false} narrow={isNarrow} />
+              <Metric label="Test log loss" value={fmtLoss(result.test_log_loss)} sub="Más bajo = mejor calibración" dim={false} narrow={isNarrow} />
             </div>
             <div style={{ display: 'flex', gap: isNarrow ? 20 : 44, flex: isNarrow ? '1 1 100%' : undefined }}>
-              <Metric label="Val accuracy" value={fmtAcc(result.val_accuracy)} sub="Acierto en validación" dim />
-              <Metric label="Val log loss" value={fmtLoss(result.val_log_loss)} sub="Calibración en validación" dim />
+              <Metric label="Val accuracy" value={fmtAcc(result.val_accuracy)} sub="Acierto en validación" dim narrow={isNarrow} />
+              <Metric label="Val log loss" value={fmtLoss(result.val_log_loss)} sub="Calibración en validación" dim narrow={isNarrow} />
             </div>
           </div>
         )
@@ -1171,25 +1178,36 @@ export default function StudioPage() {
   const location = useLocation()
 
   const [authOpen, setAuthOpen] = useState(false)
-  const [isTraining, setIsTraining] = useState(false)
+  // Si quedó un entrenamiento a medias, la pantalla tiene que arrancar ya en
+  // "entrenando". El dato está disponible en el primer render (el token sale de
+  // localStorage de forma síncrona), así que se calcula aquí en vez de
+  // arreglarlo luego con un setState dentro del efecto, que pintaba un primer
+  // frame en falso.
+  const [isTraining, setIsTraining] = useState(
+    () => Boolean(token) && sessionStorage.getItem('studio_job_id') !== null
+  )
   const [result, setResult] = useState<TrainResult | null>(null)
   const [form, setForm] = useState<CreateFormState>({ name: '', description: '', features: new Set(), algorithm: null })
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recuperacionLanzada = useRef(false)
 
   const isCreateRoute = location.pathname === '/studio/new'
   const isResultRoute = location.pathname.startsWith('/studio/models/')
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Retoma el sondeo de un entrenamiento que quedó en curso al recargar.
+  // La guarda por ref evita montar un segundo intervalo si el efecto se
+  // reevalúa: sin ella, incluir las dependencias reales lo duplicaría.
   useEffect(() => {
+    if (recuperacionLanzada.current) return
     const savedJobId = sessionStorage.getItem('studio_job_id')
     if (!savedJobId) return
     if (!token) {
       sessionStorage.removeItem('studio_job_id')
       return
     }
-    setIsTraining(true)
+    recuperacionLanzada.current = true
     toast.info('Recuperando entrenamiento en curso...')
     pollRef.current = setInterval(async () => {
       try {
@@ -1215,7 +1233,7 @@ export default function StudioPage() {
         toast.error('No se pudo recuperar el entrenamiento.')
       }
     }, 2000)
-  }, []) // token disponible síncronamente desde localStorage en el primer render
+  }, [token, navigate, queryClient])
 
   useEffect(() => {
     const formDirty = form.name !== '' || form.description !== '' || form.features.size > 0 || form.algorithm !== null

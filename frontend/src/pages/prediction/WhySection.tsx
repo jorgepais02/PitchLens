@@ -1,4 +1,4 @@
-import type { ActivePrediction } from '../../context/PredictionContext'
+import type { ActivePrediction } from '../../context/prediction'
 import { useIsMobile } from '../../lib/useMediaQuery'
 
 const HOME_C  = '#4D93F8'

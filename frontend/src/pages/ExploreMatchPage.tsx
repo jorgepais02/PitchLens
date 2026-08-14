@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { api, type MatchDetail, type Team } from '../lib/api'
-import { AWAY_C, Crest, HOME_C, SEP, Spinner, fmtDate } from '../components/shared'
+import { AWAY_C, Crest, HOME_C, SEP, Spinner } from '../components/shared'
+import { fmtDate } from '../lib/format'
 import { useIsNarrow } from '../lib/useMediaQuery'
 
 const PRIMARY   = 'rgba(255,255,255,0.92)'
@@ -114,13 +115,10 @@ function ShotsBlock({ homeSots, awaySots, homeMisses, awayMisses }: {
   )
 }
 
-function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
-  psch: number; pscd: number; psca: number
-  b365h: number; b365d: number; b365a: number
-}) {
-  const OUTCOMES = ['1', 'X', '2']
+const OUTCOMES = ['1', 'X', '2']
 
-  const OddsCell = ({ label, value }: { label: string; value: number }) => (
+function OddsCell({ label, value }: { label: string; value: number }) {
+  return (
     <div style={{
       display: 'flex', flexDirection: 'row',
       alignItems: 'center', justifyContent: 'space-between',
@@ -140,8 +138,10 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
       }}>{value.toFixed(2)}</span>
     </div>
   )
+}
 
-  const PinnacleLogo = () => (
+function PinnacleLogo() {
+  return (
     <div style={{
       width: 'clamp(62px, 17vw, 90px)', height: 40, borderRadius: 8, flexShrink: 0,
       background: '#0f1923', display: 'flex', flexDirection: 'column',
@@ -154,8 +154,10 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
       <div style={{ width: '70%', height: 2, background: '#f05a22', borderRadius: 1 }} />
     </div>
   )
+}
 
-  const Bet365Logo = () => (
+function Bet365Logo() {
+  return (
     <div style={{
       width: 'clamp(62px, 17vw, 90px)', height: 40, borderRadius: 8, flexShrink: 0,
       background: '#027b5b', display: 'flex',
@@ -167,10 +169,12 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
       }}>bet<span style={{ color: '#ffd700' }}>365</span></span>
     </div>
   )
+}
 
-  const BookRow = ({ logo, h, d, a, isLast = false }: {
-    logo: React.ReactNode; h: number; d: number; a: number; isLast?: boolean
-  }) => (
+function BookRow({ logo, h, d, a, isLast = false }: {
+  logo: React.ReactNode; h: number; d: number; a: number; isLast?: boolean
+}) {
+  return (
     <div style={{
       paddingBottom: isLast ? 0 : 20,
       borderBottom: isLast ? 'none' : `0.5px solid ${SEP}`,
@@ -184,7 +188,12 @@ function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
       </div>
     </div>
   )
+}
 
+function OddsCard({ psch, pscd, psca, b365h, b365d, b365a }: {
+  psch: number; pscd: number; psca: number
+  b365h: number; b365d: number; b365a: number
+}) {
   return (
     <div>
       <div style={SECTION_TITLE}>Mercado</div>

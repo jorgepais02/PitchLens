@@ -1,21 +1,11 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { api } from '../lib/api'
+import { AuthContext } from './auth'
 
 const TOKEN_KEY = 'kraken_token'
 const EMAIL_KEY = 'kraken_email'
 
-interface AuthContextValue {
-  token: string | null
-  email: string | null
-  isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
-  logout: () => void
-  deleteAccount: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
-
+/** Mantiene el token en localStorage para que la sesión sobreviva a recargas. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY))
   const [email, setEmail] = useState<string | null>(() => localStorage.getItem(EMAIL_KEY))
@@ -55,10 +45,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider')
-  return ctx
 }
