@@ -11,7 +11,8 @@ from sqlmodel import Session, select
 
 from src.api import rate_limit
 from src.api.rate_limit import RateLimiter
-from src.api.routers.train import _set_job
+from src.api.routers.train import _set_job, reset_jobs
+from src.core.config import settings
 from src.db.auth_models import User
 
 CREDENCIALES = {"email": "victima@test.es", "password": "pass1234"}
@@ -258,12 +259,101 @@ def test_train_permite_otro_job_cuando_el_anterior_termino(
 def test_train_no_bloquea_a_otro_usuario(
     client: TestClient, session: Session, monkeypatch
 ) -> None:
-    """El límite es por usuario, no global: un job ajeno no debe frenarme."""
+    """Un job ajeno no me frena mientras quede cupo global."""
     _patch_training(monkeypatch, session)
+    monkeypatch.setattr(settings, "MAX_CONCURRENT_TRAININGS", 2)
     token, _ = _token_y_user_id(client, session)
 
     _set_job("job-de-otro", status="running", user_id=99999, monotonic=0.0)
 
+    r = client.post(
+        "/train",
+        json={"features": ["elo_diff_pre"], "algorithm": "lr"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 202
+
+
+def test_train_rechaza_cuando_el_servidor_esta_al_maximo(
+    client: TestClient, session: Session, monkeypatch
+) -> None:
+    """Con el cupo global agotado por otros usuarios, se rechaza aunque yo no tenga jobs."""
+    _patch_training(monkeypatch, session)
+    monkeypatch.setattr(settings, "MAX_CONCURRENT_TRAININGS", 2)
+    token, _ = _token_y_user_id(client, session)
+
+    _set_job("ajeno-1", status="running", user_id=1001, monotonic=0.0)
+    _set_job("ajeno-2", status="pending", user_id=1002, monotonic=0.0)
+
+    r = client.post(
+        "/train",
+        json={"features": ["elo_diff_pre"], "algorithm": "lr"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 429
+    assert "servidor" in r.json()["detail"]
+    assert r.headers["Retry-After"] == "30"
+
+
+def test_train_los_jobs_terminados_no_ocupan_cupo(
+    client: TestClient, session: Session, monkeypatch
+) -> None:
+    """Solo pending/running consumen cupo; los acabados no bloquean a nadie."""
+    _patch_training(monkeypatch, session)
+    monkeypatch.setattr(settings, "MAX_CONCURRENT_TRAININGS", 2)
+    token, _ = _token_y_user_id(client, session)
+
+    _set_job("ajeno-1", status="done", user_id=1001, monotonic=0.0)
+    _set_job("ajeno-2", status="error", user_id=1002, monotonic=0.0)
+
+    r = client.post(
+        "/train",
+        json={"features": ["elo_diff_pre"], "algorithm": "lr"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 202
+
+
+def test_train_el_motivo_del_429_distingue_usuario_y_servidor(
+    client: TestClient, session: Session, monkeypatch
+) -> None:
+    """Los dos topes dan mensajes distintos: el usuario debe saber a qué espera."""
+    _patch_training(monkeypatch, session)
+    monkeypatch.setattr(settings, "MAX_CONCURRENT_TRAININGS", 2)
+    token, user_id = _token_y_user_id(client, session)
+
+    _set_job("mio", status="running", user_id=user_id, monotonic=0.0)
+    r = client.post(
+        "/train",
+        json={"features": ["elo_diff_pre"], "algorithm": "lr"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 429
+    assert "Ya tienes" in r.json()["detail"]
+
+
+def test_train_no_deja_reserva_huerfana_al_rechazar(
+    client: TestClient, session: Session, monkeypatch
+) -> None:
+    """Un rechazo no debe registrar el job: si no, iría comiendo cupo él solo."""
+    _patch_training(monkeypatch, session)
+    monkeypatch.setattr(settings, "MAX_CONCURRENT_TRAININGS", 1)
+    token, _ = _token_y_user_id(client, session)
+
+    _set_job("ajeno", status="running", user_id=1001, monotonic=0.0)
+
+    for _ in range(3):
+        assert (
+            client.post(
+                "/train",
+                json={"features": ["elo_diff_pre"], "algorithm": "lr"},
+                headers={"Authorization": f"Bearer {token}"},
+            ).status_code
+            == 429
+        )
+
+    # Liberado el ajeno, vuelve a haber sitio: los rechazos no dejaron rastro.
+    reset_jobs()
     r = client.post(
         "/train",
         json={"features": ["elo_diff_pre"], "algorithm": "lr"},

@@ -70,26 +70,42 @@ def _get_job(job_id: str) -> dict | None:
         return dict(job) if job is not None else None
 
 
-def _tiene_job_activo(user_id: int) -> bool:
-    """Indica si el usuario ya tiene un entrenamiento en curso o encolado."""
-    with _JOBS_LOCK:
-        return any(
-            job.get("user_id") == user_id and job.get("status") in _ESTADOS_ACTIVOS
-            for job in _JOBS.values()
-        )
-
-
-def _purgar_jobs_terminados() -> None:
-    """Descarta los jobs finalizados que ya han superado la retención."""
+def _purgar_sin_lock() -> None:
+    """Descarta los jobs finalizados que superaron la retención. Requiere el lock."""
     limite = time.monotonic() - _RETENCION_JOBS_SEGUNDOS
+    for job_id in [
+        jid
+        for jid, job in _JOBS.items()
+        if job.get("status") not in _ESTADOS_ACTIVOS
+        and job.get("monotonic", 0.0) < limite
+    ]:
+        del _JOBS[job_id]
+
+
+def _reservar_job(job_id: str, user_id: int, campos: dict) -> str | None:
+    """Registra el job si hay cupo. Devuelve None si se aceptó, o el motivo del rechazo.
+
+    Comprobar y registrar ocurren bajo el mismo lock a propósito: si se hiciera
+    en dos pasos, dos peticiones simultáneas pasarían ambas la comprobación
+    antes de que ninguna se hubiera registrado, y los límites no servirían de
+    nada justo en el escenario que pretenden cubrir.
+
+    Motivos posibles: "usuario" (ya tiene uno vivo) o "global" (el servidor está
+    al máximo de entrenamientos simultáneos).
+    """
     with _JOBS_LOCK:
-        for job_id in [
-            jid
-            for jid, job in _JOBS.items()
-            if job.get("status") not in _ESTADOS_ACTIVOS
-            and job.get("monotonic", 0.0) < limite
-        ]:
-            del _JOBS[job_id]
+        _purgar_sin_lock()
+
+        activos = [job for job in _JOBS.values() if job.get("status") in _ESTADOS_ACTIVOS]
+
+        if any(job.get("user_id") == user_id for job in activos):
+            return "usuario"
+
+        if len(activos) >= settings.MAX_CONCURRENT_TRAININGS:
+            return "global"
+
+        _JOBS[job_id] = {"user_id": user_id, **campos}
+        return None
 
 
 def reset_jobs() -> None:
@@ -253,30 +269,39 @@ def post_train(
     """
     user: "User" = current_user  # type: ignore[assignment]
 
-    # Un entrenamiento a la vez por usuario. Sin esto, cualquier cuenta puede
-    # encolar jobs sin límite: se ejecutan en el mismo proceso que la API, así
-    # que agotar CPU y memoria aquí no degrada solo a quien lo lanza, tumba el
-    # servicio entero.
-    _purgar_jobs_terminados()
-    if _tiene_job_activo(user.id):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Ya tienes un entrenamiento en curso. Espera a que termine.",
-        )
-
     nombre = body.name.strip() or f"{_ALGORITHM_LABELS[body.algorithm]} ({len(body.features)} features)"
     descripcion = body.description.strip()
     job_id = uuid.uuid4().hex
 
-    _set_job(
+    # Dos topes distintos, y los dos hacen falta. El de usuario evita que una
+    # sola cuenta acapare; el global protege la máquina, porque N usuarios con
+    # un job cada uno saturan igual la CPU. Los entrenamientos corren en el
+    # proceso de la API, así que quedarse sin CPU aquí no degrada solo a quien
+    # entrena: deja de responder toda la API.
+    motivo = _reservar_job(
         job_id,
-        status="pending",
-        user_id=user.id,
-        result=None,
-        error=None,
-        created_at=datetime.now(timezone.utc).isoformat(),
-        monotonic=time.monotonic(),
+        user.id,
+        {
+            "status": "pending",
+            "result": None,
+            "error": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "monotonic": time.monotonic(),
+        },
     )
+
+    if motivo == "usuario":
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Ya tienes un entrenamiento en curso. Espera a que termine.",
+            headers={"Retry-After": "30"},
+        )
+    if motivo == "global":
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="El servidor está entrenando otros modelos ahora mismo. Prueba en unos segundos.",
+            headers={"Retry-After": "30"},
+        )
 
     background_tasks.add_task(
         _run_training_job,

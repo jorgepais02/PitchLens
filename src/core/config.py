@@ -22,6 +22,12 @@ class Settings(BaseSettings):
 
     MAX_CUSTOM_MODELS: int = 5
 
+    # Entrenamientos simultáneos en todo el servidor, sumando usuarios. Se
+    # ejecutan en el proceso de la API, así que este número es el reparto real
+    # de la CPU de la máquina: subirlo por encima de los núcleos disponibles
+    # hace que los jobs se estorben entre sí y que la API deje de responder.
+    MAX_CONCURRENT_TRAININGS: int = 2
+
     # La aplicación no la usa: quien la consume es docker-compose.yml, para
     # inicializar el contenedor de PostgreSQL y componer la DATABASE_URL. Se
     # declara aquí porque vive en el mismo .env y el modelo rechaza los campos

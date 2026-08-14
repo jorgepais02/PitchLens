@@ -246,9 +246,13 @@ Autenticación JWT — `/studio`, `/train`, `/train/jobs/{id}`, `/predict/custom
 validan (NaN/inf) en `predictor.normalize_probabilities`.
 
 Límites de abuso (`src/api/rate_limit.py`, estado en memoria del proceso):
-- `/train` → 429 si el usuario ya tiene un job `pending`/`running`. Un entrenamiento
-  por usuario: se ejecutan en el proceso de la API, así que agotar CPU aquí tumba
-  el servicio entero. Los jobs terminados se purgan pasada 1 h.
+- `/train` → 429 por dos topes: uno por usuario (un job `pending`/`running` a la vez)
+  y otro global (`MAX_CONCURRENT_TRAININGS`, 2 por defecto). El global es el que
+  protege la máquina: N usuarios con un job cada uno saturan igual la CPU, y los
+  entrenamientos corren en el proceso de la API. El mensaje del 429 distingue ambos
+  casos. Comprobación y registro son atómicos bajo `_JOBS_LOCK` (`_reservar_job`):
+  en dos pasos, dos peticiones simultáneas se colarían las dos. Los jobs terminados
+  se purgan pasada 1 h.
 - `/auth/login` → 429 tras 5 fallos por cuenta o 20 por IP en 15 min. Solo cuentan
   los fallos; un acierto no gasta cuota y limpia el contador de la cuenta.
 - `/auth/register` → 429 tras 5 registros por IP y hora.
