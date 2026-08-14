@@ -22,6 +22,12 @@ class Settings(BaseSettings):
 
     MAX_CUSTOM_MODELS: int = 5
 
+    # La aplicación no la usa: quien la consume es docker-compose.yml, para
+    # inicializar el contenedor de PostgreSQL y componer la DATABASE_URL. Se
+    # declara aquí porque vive en el mismo .env y el modelo rechaza los campos
+    # desconocidos — sin esta línea, tener la variable definida impide arrancar.
+    POSTGRES_PASSWORD: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

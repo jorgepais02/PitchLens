@@ -156,6 +156,21 @@ def _clear_feature_cache():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _clear_rate_limits():
+    """Resetea limitadores y jobs entre tests.
+
+    Ambos son estado de proceso: sin esto, los intentos de un test gastarían la
+    cuota del siguiente y el orden de ejecución cambiaría los resultados.
+    """
+    from src.api.routers.auth import reset_rate_limits
+    from src.api.routers.train import reset_jobs
+
+    reset_rate_limits()
+    reset_jobs()
+    yield
+
+
 @pytest.fixture(name="session")
 def session_fixture():
     """Sesión SQLite en memoria — creada y destruida por cada test."""

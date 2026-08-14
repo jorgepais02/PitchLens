@@ -12,6 +12,7 @@ worker), pero no sobrevive a reinicios ni se comparte entre workers.
 import logging
 import os
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -47,6 +48,15 @@ _JOBS: dict[str, dict] = {}
 _JOBS_LOCK = threading.Lock()
 
 
+# Estados en los que un job todavía ocupa CPU (o está a punto de ocuparla).
+_ESTADOS_ACTIVOS = frozenset({"pending", "running"})
+
+# Un job terminado se conserva este tiempo para que el frontend pueda leer su
+# resultado; pasado ese plazo se descarta, porque _JOBS es un dict de proceso
+# que si no crecería indefinidamente.
+_RETENCION_JOBS_SEGUNDOS = 60 * 60
+
+
 def _set_job(job_id: str, **fields) -> None:
     """Actualiza (merge) los campos de un job de forma thread-safe."""
     with _JOBS_LOCK:
@@ -58,6 +68,34 @@ def _get_job(job_id: str) -> dict | None:
     with _JOBS_LOCK:
         job = _JOBS.get(job_id)
         return dict(job) if job is not None else None
+
+
+def _tiene_job_activo(user_id: int) -> bool:
+    """Indica si el usuario ya tiene un entrenamiento en curso o encolado."""
+    with _JOBS_LOCK:
+        return any(
+            job.get("user_id") == user_id and job.get("status") in _ESTADOS_ACTIVOS
+            for job in _JOBS.values()
+        )
+
+
+def _purgar_jobs_terminados() -> None:
+    """Descarta los jobs finalizados que ya han superado la retención."""
+    limite = time.monotonic() - _RETENCION_JOBS_SEGUNDOS
+    with _JOBS_LOCK:
+        for job_id in [
+            jid
+            for jid, job in _JOBS.items()
+            if job.get("status") not in _ESTADOS_ACTIVOS
+            and job.get("monotonic", 0.0) < limite
+        ]:
+            del _JOBS[job_id]
+
+
+def reset_jobs() -> None:
+    """Vacía el registro de jobs. Pensado para los tests, que comparten proceso."""
+    with _JOBS_LOCK:
+        _JOBS.clear()
 
 
 @contextmanager
@@ -215,6 +253,17 @@ def post_train(
     """
     user: "User" = current_user  # type: ignore[assignment]
 
+    # Un entrenamiento a la vez por usuario. Sin esto, cualquier cuenta puede
+    # encolar jobs sin límite: se ejecutan en el mismo proceso que la API, así
+    # que agotar CPU y memoria aquí no degrada solo a quien lo lanza, tumba el
+    # servicio entero.
+    _purgar_jobs_terminados()
+    if _tiene_job_activo(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Ya tienes un entrenamiento en curso. Espera a que termine.",
+        )
+
     nombre = body.name.strip() or f"{_ALGORITHM_LABELS[body.algorithm]} ({len(body.features)} features)"
     descripcion = body.description.strip()
     job_id = uuid.uuid4().hex
@@ -226,6 +275,7 @@ def post_train(
         result=None,
         error=None,
         created_at=datetime.now(timezone.utc).isoformat(),
+        monotonic=time.monotonic(),
     )
 
     background_tasks.add_task(
