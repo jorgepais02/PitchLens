@@ -27,7 +27,7 @@ utils/          — validación reutilizable (validation.py) + metadatos de equi
 ingest/         — load_raw.py
 features/       — build_features.py, etl_features.py
 ml/             — train_models.py, predictor.py, custom_trainer.py, _config.py           ← Fase 7
-api/            — main.py, deps.py, schemas.py, security.py, routers/                    ← Fase 8
+api/            — main.py, deps.py, schemas.py, security.py, rate_limit.py, routers/     ← Fase 8
 services/       — feature_builder.py  (capa de aplicación: orquesta la predicción)   ← Fase 9
 db/             — database.py, models.py, etl.py, auth_models.py   ← Fase 6 + auth (Fase 8)
 data/processed/
@@ -52,7 +52,15 @@ test_features.py
 test_models.py                                            ← Fase 7
 test_importance.py                                        ← Fase 7 (importancia no-LR)
 test_api.py / test_endpoints.py / test_feature_builder.py ← Fase 8
+test_rate_limit.py                                        ← límites de abuso
 test_team_metadata.py / test_seed_team_metadata.py        ← escudos y nombres
+deploy/
+Caddyfile      — reverse proxy de producción (se copia a /etc/caddy/)
+backup-db.sh   — backup de BD + modelos custom, en cron diario en el VPS
+
+> 🚀 **Despliegue**: frontend en Vercel, API en VPS con Docker tras Caddy.
+> Operación, backups y mantenimiento en [`docs/08_despliegue.md`](docs/08_despliegue.md).
+> El repo es **público**: no documentar ahí fallos de seguridad sin corregir.
 
 ---
 
@@ -236,6 +244,19 @@ Autenticación JWT — `/studio`, `/train`, `/train/jobs/{id}`, `/predict/custom
 `/train` es asíncrono: devuelve 202 + job_id y el frontend consulta el progreso en `/train/jobs/{job_id}`
 (registro de jobs en memoria del proceso). Las probabilidades de `/predict[/custom]` se renormalizan y
 validan (NaN/inf) en `predictor.normalize_probabilities`.
+
+Límites de abuso (`src/api/rate_limit.py`, estado en memoria del proceso):
+- `/train` → 429 si el usuario ya tiene un job `pending`/`running`. Un entrenamiento
+  por usuario: se ejecutan en el proceso de la API, así que agotar CPU aquí tumba
+  el servicio entero. Los jobs terminados se purgan pasada 1 h.
+- `/auth/login` → 429 tras 5 fallos por cuenta o 20 por IP en 15 min. Solo cuentan
+  los fallos; un acierto no gasta cuota y limpia el contador de la cuenta.
+- `/auth/register` → 429 tras 5 registros por IP y hora.
+- La IP sale de la **última** entrada de `X-Forwarded-For` (`client_ip`): detrás de
+  Caddy, `request.client.host` es siempre el proxy, y la primera entrada la controla
+  quien llama. Asume exactamente un proxy delante.
+- Los contadores son estado de módulo: el fixture `_clear_rate_limits` los resetea
+  entre tests.
 
 ---
 
