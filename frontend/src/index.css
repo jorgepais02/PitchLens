@@ -145,12 +145,66 @@ body {
   .hero-side-label--away { top: auto; bottom: 12px; }
 }
 
+/* ── Estados de puntero en táctil ────────────────────────────────────────────
+   En un móvil no hay puntero que se vaya del elemento: al tocar, el navegador
+   simula un :hover que se queda pegado hasta que tocas otra cosa. Con el
+   resalte en JS (onMouseEnter/onMouseLeave) el `mouseleave` no llega nunca y la
+   fila elegida se queda encendida, como si siguiera pulsada. Por eso el hover
+   vive aquí, tras `@media (hover: hover)`, y el feedback del toque lo da
+   `:active`, que sí se limpia al levantar el dedo.
+
+   Los estilos base son inline, así que hace falta !important. */
+.listbox-option, .match-row, .pagination-btn, .league-pill, .icon-clear {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.listbox-option:active:not([data-selected="true"]) { background: #1a1a1c !important; }
+.match-row:active { background: rgba(255,255,255,0.03) !important; }
+
+@media (hover: hover) {
+  .listbox-option:hover:not([data-selected="true"]) { background: #1a1a1c !important; }
+  .match-row:hover { background: rgba(255,255,255,0.02) !important; }
+
+  .pagination-btn:hover:not(:disabled) {
+    color: var(--color-ink) !important;
+    border-color: rgba(255,255,255,0.4) !important;
+  }
+
+  .league-pill:hover:not([data-active="true"]):not([data-focused="true"]) {
+    color: rgba(255,255,255,0.65) !important;
+  }
+
+  .icon-clear:hover { color: rgba(255,255,255,0.8) !important; }
+}
+
+/* La X de quitar equipo solo aparece en táctil: en escritorio es el propio
+   escudo el que muestra una X al pasar el ratón por encima. Se dibuja pequeña
+   y encajada en la esquina del escudo para no competir con él, y el ::after le
+   devuelve los 44px de área de toque que iOS pide sin ocupar más espacio. */
 @media (hover: none) {
   .team-touch-remove { display: flex !important; }
 }
 
+.team-touch-remove::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+}
+
 @media (max-width: 480px) {
   .model-section-inner { padding: 26px 14px calc(96px + env(safe-area-inset-bottom)); }
+}
+
+/* Por debajo de ~350px (iPhone SE de 1.ª gen, Android antiguos, pantalla
+   partida) los tres apartados más "Entrar" no caben con el espaciado normal:
+   la nav se encoge, pero sus enlaces no parten línea, así que "Studio" acababa
+   pisando el botón de sesión. Se recorta solo el espaciado — bajar el cuerpo de
+   letra o abreviar los rótulos se nota mucho más y ahorra menos.
+   Los estilos base son inline: hace falta !important. */
+@media (max-width: 349px) {
+  .nav-item  { padding: 0 7px !important; }
+  .nav-login { padding-left: 3px !important; padding-right: 3px !important; }
+  .nav-sep   { display: none !important; }
 }
 
 .studio-name-input::placeholder { color: rgba(255,255,255,0.2); font-weight: 400; }

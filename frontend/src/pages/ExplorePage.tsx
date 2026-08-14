@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { api, type MatchListItem, type Team } from '../lib/api'
-import { Crest, SEP, fmtDate } from '../components/shared'
-import { useIsNarrow } from '../lib/useMediaQuery'
+import { Crest, SEP } from '../components/shared'
+import { fmtDate } from '../lib/format'
+import { useIsMobile, useIsNarrow, useMediaQuery } from '../lib/useMediaQuery'
 
 const PAGE_SIZE = 20
 
@@ -13,12 +14,42 @@ interface FilterOption {
   label: string
 }
 
-function FilterSelect({ value, options, placeholder, disabled, onChange }: {
+/**
+ * Ancho del contenedor de un filtro.
+ *
+ * En la fila flex de escritorio cada filtro parte de 140px y crece con los
+ * demás. En la rejilla de móvil manda la celda: el ancho fijo tiene que
+ * desaparecer para que los tres midan exactamente lo mismo, se envuelvan o no.
+ */
+function anchoFiltro(fluid: boolean): React.CSSProperties {
+  return fluid ? { width: '100%' } : { width: 160, flex: '1 1 140px' }
+}
+
+/** Panel desplegable anclado bajo el control que lo abre. */
+const PANEL_DESPLEGABLE: React.CSSProperties = {
+  position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 40,
+  background: '#111213', border: '1px solid #252525', borderRadius: 10,
+  boxShadow: '0 24px 64px rgba(0,0,0,0.85), 0 4px 16px rgba(0,0,0,0.5)',
+  overflowY: 'auto', padding: '4px 0',
+}
+
+/**
+ * Ancho mínimo de la lista de equipos.
+ *
+ * En móvil el buscador ocupa media fila, y a ese ancho "Borussia
+ * Mönchengladbach" se parte en dos líneas. La lista se despega del ancho del
+ * filtro solo aquí; las de liga y temporada tienen etiquetas cortas y no lo
+ * necesitan.
+ */
+const ANCHO_LISTA_EQUIPOS = 240
+
+function FilterSelect({ value, options, placeholder, disabled, fluid, onChange }: {
   label: string
   value: string | null
   options: FilterOption[]
   placeholder: string
   disabled?: boolean
+  fluid: boolean
   onChange: (value: string | null) => void
 }) {
   const [open, setOpen]           = useState(false)
@@ -71,7 +102,7 @@ function FilterSelect({ value, options, placeholder, disabled, onChange }: {
   const selected = options.find(o => o.value === value) ?? null
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', width: 160, maxWidth: '100%', flex: '1 1 140px' }}>
+    <div ref={rootRef} style={{ position: 'relative', maxWidth: '100%', ...anchoFiltro(fluid) }}>
       <button
         ref={triggerRef}
         type="button"
@@ -101,12 +132,7 @@ function FilterSelect({ value, options, placeholder, disabled, onChange }: {
       {open && (
         <div
           role="listbox"
-          style={{
-            position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 40,
-            background: '#111213', border: '1px solid #252525', borderRadius: 10,
-            boxShadow: '0 24px 64px rgba(0,0,0,0.85), 0 4px 16px rgba(0,0,0,0.5)',
-            maxHeight: 280, overflowY: 'auto', padding: '4px 0',
-          }}
+          style={{ ...PANEL_DESPLEGABLE, maxHeight: 280 }}
         >
           {options.map((opt, idx) => {
             const isSel = opt.value === value
@@ -118,6 +144,8 @@ function FilterSelect({ value, options, placeholder, disabled, onChange }: {
                 role="option"
                 aria-selected={isSel}
                 tabIndex={-1}
+                className="listbox-option"
+                data-selected={isSel}
                 onClick={() => { onChange(isSel ? null : opt.value); close(); triggerRef.current?.focus() }}
                 onKeyDown={e => handleOptionKeyDown(e, idx)}
                 style={{
@@ -130,8 +158,6 @@ function FilterSelect({ value, options, placeholder, disabled, onChange }: {
                   border: 'none', cursor: 'pointer',
                   fontFamily: 'var(--font-sans)', transition: 'background 60ms',
                 }}
-                onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = '#1a1a1c' }}
-                onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isSel ? 'rgba(255,255,255,0.08)' : 'transparent' }}
               >
                 <span aria-hidden="true" style={{
                   width: 4, height: 4, borderRadius: '50%', flexShrink: 0,
@@ -164,6 +190,7 @@ function MatchRow({ match, teamById, onClick }: {
       type="button"
       onClick={onClick}
       data-row
+      className="match-row"
       style={{
         display: 'flex', flexDirection: 'column', gap: 10,
         width: '100%', padding: '12px 0 14px',
@@ -172,8 +199,6 @@ function MatchRow({ match, teamById, onClick }: {
         cursor: 'pointer', fontFamily: 'var(--font-sans)',
         transition: 'background 60ms', textAlign: 'left',
       }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
     >
       <span style={{ fontSize: 13, color: 'var(--color-ink-muted)', lineHeight: 1, paddingLeft: '12%' }}>
         {fmtDate(match.date)}
@@ -211,18 +236,35 @@ function MatchRow({ match, teamById, onClick }: {
   )
 }
 
-function TeamSearch({ teams, teamId, onSelect, onClear }: {
+function TeamSearch({ teams, teamId, fluid, onSelect, onClear }: {
   teams: Team[]
   teamId: number | null
+  fluid: boolean
   onSelect: (id: number) => void
   onClear: () => void
 }) {
   const [query,      setQuery]      = useState('')
   const [open,       setOpen]       = useState(false)
+  const [anclaDerecha, setAnclaDerecha] = useState(false)
   const [, setFocusedIdx] = useState(-1)
   const rootRef    = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
   const resultRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const esTactil = useMediaQuery('(hover: none) and (pointer: coarse)')
+
+  /**
+   * Abre la lista, anclándola al lado por el que quepa.
+   *
+   * La lista es más ancha que el filtro; si este cae en la mitad derecha de la
+   * pantalla — en móvil puede tocarle la columna derecha de la rejilla —,
+   * crecer hacia la derecha la sacaría de pantalla, así que se ancla al revés.
+   */
+  const abrirLista = useCallback(() => {
+    const caja = rootRef.current?.getBoundingClientRect()
+    if (caja) setAnclaDerecha(caja.left + ANCHO_LISTA_EQUIPOS > window.innerWidth - 12)
+    setOpen(true)
+  }, [])
 
   const selectedName = teamId !== null
     ? (teams.find(t => t.id === teamId)?.display_name ?? teams.find(t => t.id === teamId)?.name ?? '')
@@ -250,12 +292,24 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
     requestAnimationFrame(() => resultRefs.current[idx]?.focus())
   }
 
+  /**
+   * Devuelve el foco al input tras elegir o limpiar, sin reabrir la lista.
+   *
+   * En táctil se hace lo contrario: enfocar levanta otra vez el teclado justo
+   * cuando el usuario acaba de terminar, así que se suelta el foco y el teclado
+   * se cierra solo.
+   */
+  const devolverFoco = () => {
+    if (esTactil) inputRef.current?.blur()
+    else inputRef.current?.focus()
+  }
+
   const handleSelect = (id: number) => {
-    onSelect(id); setQuery(''); closeDropdown(); inputRef.current?.focus()
+    onSelect(id); setQuery(''); closeDropdown(); devolverFoco()
   }
 
   const handleClear = () => {
-    onClear(); setQuery(''); closeDropdown(); inputRef.current?.focus()
+    onClear(); setQuery(''); closeDropdown(); devolverFoco()
   }
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
@@ -265,7 +319,7 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
       return
     }
     if (e.key === 'ArrowDown' && filtered.length > 0) {
-      e.preventDefault(); setOpen(true); focusResult(0)
+      e.preventDefault(); abrirLista(); focusResult(0)
     }
   }
 
@@ -285,7 +339,7 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
   }
 
   return (
-    <div ref={rootRef} style={{ position: 'relative', width: 160, maxWidth: '100%', flex: '1 1 140px' }}>
+    <div ref={rootRef} style={{ position: 'relative', maxWidth: '100%', ...anchoFiltro(fluid) }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 10px',
@@ -298,19 +352,31 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
           type="text"
           placeholder={teamId !== null ? selectedName : 'Buscar equipo…'}
           value={query}
-          onChange={e => { setQuery(e.target.value); setOpen(true); setFocusedIdx(-1) }}
-          onFocus={() => setOpen(true)}
+          onChange={e => { setQuery(e.target.value); abrirLista(); setFocusedIdx(-1) }}
+          // Abre al pulsar, no al recibir el foco: tras elegir un equipo se le
+          // devuelve el foco al input, y con onFocus la lista se reabría sola —
+          // en táctil parecía que el toque no había hecho nada.
+          onClick={abrirLista}
           onKeyDown={handleInputKeyDown}
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          enterKeyHint="search"
+          aria-label="Buscar equipo"
           style={{
             flex: 1, background: 'transparent', border: 'none', outline: 'none',
             fontSize: '0.9375rem', fontFamily: 'var(--font-sans)',
             color: teamId !== null && !query ? 'rgba(255,255,255,0.75)' : '#f0f0f0',
             minWidth: 0,
+            // A media fila no cabe "Borussia Mönchengladbach": mejor cortarlo
+            // con puntos suspensivos que a mitad de letra.
+            textOverflow: 'ellipsis',
           }}
         />
         {teamId !== null && (
           <button
             type="button"
+            className="icon-clear"
             onClick={handleClear}
             aria-label="Quitar filtro"
             style={{
@@ -319,8 +385,6 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
               color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: 0,
               transition: 'color 120ms',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
           >
             <X size={13} />
           </button>
@@ -328,10 +392,12 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
       </div>
 
       {open && filtered.length > 0 && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 40,
-          background: '#111213', border: '1px solid #252525', borderRadius: 10,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.85)', maxHeight: 260, overflowY: 'auto', padding: '4px 0',
+        <div role="listbox" style={{
+          ...PANEL_DESPLEGABLE,
+          maxHeight: 260,
+          minWidth: ANCHO_LISTA_EQUIPOS,
+          maxWidth: 'calc(100vw - 24px)',
+          ...(anclaDerecha ? { left: 'auto', right: 0 } : { left: 0, right: 'auto' }),
         }}>
           {filtered.map((t, idx) => {
             const isSel = t.id === teamId
@@ -340,19 +406,21 @@ function TeamSearch({ teams, teamId, onSelect, onClear }: {
                 key={t.id}
                 ref={el => { resultRefs.current[idx] = el }}
                 type="button"
+                role="option"
+                aria-selected={isSel}
                 tabIndex={-1}
+                className="listbox-option"
+                data-selected={isSel}
                 onClick={() => handleSelect(t.id)}
                 onKeyDown={e => handleResultKeyDown(e, idx)}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
-                  padding: '8px 14px', fontSize: '0.9375rem',
+                  padding: '10px 14px', fontSize: '0.9375rem',
                   color: isSel ? '#f0f0f0' : '#d0d0d0',
                   background: isSel ? 'rgba(255,255,255,0.08)' : 'transparent',
                   border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)',
                   transition: 'background 60ms',
                 }}
-                onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = '#1a1a1c' }}
-                onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent' }}
               >
                 {t.display_name ?? t.name}
               </button>
@@ -377,6 +445,7 @@ function PaginationBtn({ children, onClick, disabled, 'aria-label': ariaLabel }:
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      className="pagination-btn"
       style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         width: 32, height: 32, borderRadius: 6,
@@ -385,18 +454,6 @@ function PaginationBtn({ children, onClick, disabled, 'aria-label': ariaLabel }:
         color: disabled ? 'rgba(255,255,255,0.18)' : 'var(--color-ink-muted)',
         cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'color 120ms, border-color 120ms',
-      }}
-      onMouseEnter={e => {
-        if (!disabled) {
-          e.currentTarget.style.color = 'var(--color-ink)'
-          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'
-        }
-      }}
-      onMouseLeave={e => {
-        if (!disabled) {
-          e.currentTarget.style.color = 'var(--color-ink-muted)'
-          e.currentTarget.style.borderColor = 'var(--color-border)'
-        }
       }}
     >
       {children}
@@ -427,6 +484,7 @@ export default function ExplorePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const isNarrow = useIsNarrow()
+  const isMobile = useIsMobile()
 
   const leagueCode  = searchParams.get('league')
   const season      = searchParams.has('season') ? Number(searchParams.get('season')) : null
@@ -507,11 +565,22 @@ export default function ExplorePage() {
           </p>
         </div>
 
-        <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {/* En móvil los filtros van en rejilla, no en fila flex: al envolverse,
+            el buscador se quedaba solo en la segunda línea y se estiraba a todo
+            el ancho, el doble que los selectores de arriba. Con la rejilla cada
+            filtro ocupa una celda y los tres miden lo mismo, quepan dos por
+            fila, tres o uno solo. */}
+        <div style={{
+          marginBottom: 28, gap: 10, alignItems: 'center',
+          ...(isMobile
+            ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }
+            : { display: 'flex', flexWrap: 'wrap' }),
+        }}>
           <FilterSelect
             label="Liga"
             value={leagueCode}
             placeholder="Liga"
+            fluid={isMobile}
             options={leagues.map(l => ({ value: l.code, label: l.display_name ?? l.name }))}
             onChange={handleLeagueChange}
           />
@@ -520,20 +589,22 @@ export default function ExplorePage() {
             value={season !== null ? String(season) : null}
             placeholder="Temporada"
             disabled={leagueCode === null}
+            fluid={isMobile}
             options={seasonOptions}
             onChange={handleSeasonChange}
           />
 
           {filtersReady && (
             <>
-              {/* Al envolverse en móvil, el empujón a la derecha y la barra
-                  separadora quedan sueltos: solo aplican en una sola fila. */}
+              {/* El empujón a la derecha y la barra separadora solo tienen
+                  sentido con los tres filtros en una sola fila. */}
               {!isNarrow && <div style={{ marginLeft: 'auto' }} />}
               {!isNarrow && <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />}
 
               <TeamSearch
                 teams={teams}
                 teamId={teamId}
+                fluid={isMobile}
                 onSelect={id => setSearchParams(prev => { const n = new URLSearchParams(prev); n.set('team', String(id)); n.delete('page'); return n })}
                 onClear={() => setSearchParams(prev => { const n = new URLSearchParams(prev); n.delete('team'); n.delete('page'); return n })}
               />

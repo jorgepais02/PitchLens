@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Search, ArrowLeftRight, X, Lock } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { api, type League, type Team, type PredictResponse } from '../lib/api'
-import { usePrediction, type ModelKey } from '../context/PredictionContext'
-import { useAuth } from '../context/AuthContext'
-import { useIsMobile, useIsCompact, usePickerAsSheet } from '../lib/useMediaQuery'
+import { usePrediction, type ModelKey } from '../context/prediction'
+import { useAuth } from '../context/auth'
+import { useIsMobile, useIsCompact, usePickerAsSheet, useMediaQuery } from '../lib/useMediaQuery'
 import { useThemeColor } from '../lib/useThemeColor'
 import AuthModal from '../components/AuthModal'
 
@@ -126,7 +126,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
 
   const inputRef       = useRef<HTMLInputElement>(null)
   const panelRef       = useRef<HTMLDivElement>(null)
-  const itemRefs       = useRef<Map<number, HTMLButtonElement>>(new Map())
   const pillRefs       = useRef<Map<number, HTMLButtonElement>>(new Map())
   const skipInputFocus = useRef(false)
 
@@ -191,13 +190,15 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
   useEffect(() => {
     if (focusedIdx < 0) return
     const team = flatList[focusedIdx]
-    if (team) itemRefs.current.get(team.id)?.scrollIntoView({ block: 'nearest' })
+    // Se busca la fila en el DOM en vez de guardar un mapa de refs: mantener
+    // ese mapa obligaba a escribir en él desde el render, que es lo que avisa
+    // `react-hooks/refs` — y aquí no aporta nada que no dé un querySelector.
+    if (team) {
+      panelRef.current
+        ?.querySelector(`[data-team-id="${team.id}"]`)
+        ?.scrollIntoView({ block: 'nearest' })
+    }
   }, [focusedIdx, flatList])
-
-  useEffect(() => {
-    setFocusedIdx(-1)
-    if (query) setFocusZone('input')
-  }, [query])
 
   const moveFocusToInput = () => {
     skipInputFocus.current = true
@@ -347,7 +348,16 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
             type="text"
             placeholder="Buscar equipo..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => {
+              const texto = e.target.value
+              setQuery(texto)
+              // Al escribir, lo que hubiera seleccionado en la lista deja de
+              // valer y el foco pasa a ser del campo. Iba en un efecto sobre
+              // `query`, pero es consecuencia directa de teclear: su sitio es
+              // el propio manejador, sin un render extra de por medio.
+              setFocusedIdx(-1)
+              if (texto) setFocusZone('input')
+            }}
             onKeyDown={handleInputNav}
             onFocus={() => {
               if (!skipInputFocus.current) setFocusZone('input')
@@ -398,6 +408,9 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
                 ref={el => { if (el) pillRefs.current.set(l.id, el); else pillRefs.current.delete(l.id) }}
                 type="button"
                 tabIndex={focusedPillIdx === idx ? 0 : -1}
+                className="league-pill"
+                data-active={isActive}
+                data-focused={isFocused}
                 onClick={() => { setActivePill(isActive ? null : l.id); setFocusedIdx(-1) }}
                 onKeyDown={e => handlePillNav(e, idx)}
                 onFocus={() => { setFocusZone('pills'); setFocusedPillIdx(idx) }}
@@ -414,8 +427,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
                   transition: 'all 120ms',
                   whiteSpace: 'nowrap',
                 }}
-                onMouseEnter={e => { if (!isActive && !isFocused) e.currentTarget.style.color = 'rgba(255,255,255,0.65)' }}
-                onMouseLeave={e => { if (!isActive && !isFocused) e.currentTarget.style.color = 'rgba(255,255,255,0.48)' }}
               >
                 {l.display_name ?? l.name}
               </button>
@@ -448,11 +459,13 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
               return (
                 <button
                   key={t.id}
-                  ref={el => { if (el) itemRefs.current.set(t.id, el); else itemRefs.current.delete(t.id) }}
+                  data-team-id={t.id}
                   type="button"
                   tabIndex={-1}
                   role="option"
                   aria-selected={isSel}
+                  className="listbox-option"
+                  data-selected={isSel || isFocused}
                   onClick={() => { onSelect(t); onClose() }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
@@ -469,8 +482,6 @@ function TeamDropdown({ teams, selectedId, onSelect, onClose, anchorRect, side }
                     outline: isFocused ? '1px solid oklch(0.63 0.21 272 / 0.3)' : 'none',
                     outlineOffset: -1,
                   }}
-                  onMouseEnter={e => { if (!isSel && !isFocused) e.currentTarget.style.background = '#1a1a1c' }}
-                  onMouseLeave={e => { if (!isSel && !isFocused) e.currentTarget.style.background = 'transparent' }}
                 >
                   <span
                     aria-hidden="true"
@@ -506,6 +517,19 @@ export default function PredictorPage() {
   const [home,         setHome]         = useState<EnrichedTeam | null>(null)
   const [away,         setAway]         = useState<EnrichedTeam | null>(null)
   const [hoveredSide,  setHoveredSide]  = useState<'home' | 'away' | null>(null)
+
+  /**
+   * Con ratón, pasar por encima de un escudo ya elegido lo atenúa y muestra una
+   * X: pulsarlo quita el equipo. En táctil eso no puede aplicarse. iOS emula un
+   * `mouseenter` justo antes del `click` y no manda nunca el `mouseleave`, así
+   * que el escudo se quedaba marcado y —peor— el toque siguiente se
+   * interpretaba como "quitar" en vez de abrir el selector. En táctil el hover
+   * no se registra y quitar equipo es solo cosa de la X de la esquina.
+   */
+  const puedeHover = useMediaQuery('(hover: hover)')
+  const marcarHover = (lado: 'home' | 'away' | null) => {
+    if (puedeHover) setHoveredSide(lado)
+  }
   const [model,        setModel]        = useState<ModelKey | null>(null)
   const [customModelId, setCustomModelId] = useState<number | null>(null)
   const [authOpen,     setAuthOpen]     = useState(false)
@@ -566,12 +590,16 @@ export default function PredictorPage() {
     model === 'market' ||
     (model === 'custom' && !!selectedCustom?.features.includes('prob_diff_market'))
 
-  useEffect(() => {
-    if (!isAuthenticated && model === 'custom') {
-      setModel(null)
-      setCustomModelId(null)
-    }
-  }, [isAuthenticated, model])
+  // Al cerrar sesión, un modelo custom elegido deja de existir y hay que
+  // soltarlo. Se ajusta durante el render y no desde un efecto: es el patrón
+  // que documenta React para estado derivado de una prop. React descarta el
+  // render a medias y vuelve a empezar con el valor nuevo, así que el usuario
+  // no llega a ver el estado intermedio — con un efecto sí se pinta un frame
+  // con un modelo que ya no puede usar.
+  if (!isAuthenticated && model === 'custom') {
+    setModel(null)
+    setCustomModelId(null)
+  }
 
   const leagueById = useMemo(
     () => new Map(leagues.map(l => [l.id, l])),
@@ -621,7 +649,7 @@ export default function PredictorPage() {
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [showOddsPopover])
+  }, [showOddsPopover, closeOddsPopover])
 
   const parseOdd   = (v: string) => parseFloat(v.replace(',', '.'))
   const pschVal    = parseOdd(odds.psch)
@@ -684,6 +712,30 @@ export default function PredictorPage() {
 
   const teamsReady = !!home && !!away
 
+  // Con los dos equipos elegidos el hero se encoge para dejar sitio al panel de
+  // modelos, y los escudos con él.
+  const crestSize = teamsReady ? (isMobile ? 54 : 72) : (isMobile ? 88 : 108)
+
+  /**
+   * Botón de quitar equipo, encajado en la esquina superior derecha del escudo.
+   *
+   * Va anclado al escudo y no al borde del contenedor: el contenedor es tan
+   * ancho como el nombre del equipo, así que a la derecha del todo el botón
+   * quedaba flotando lejos del escudo y sin relación visual con él. El centro
+   * del botón cae justo sobre la esquina, como una insignia — se ve, pero no
+   * compite con el escudo. Solo se pinta en táctil (ver .team-touch-remove).
+   */
+  const quitarEquipoStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: -8,
+    left: `calc(50% + ${crestSize / 2 - 4}px)`,
+    width: 24, height: 24, borderRadius: '50%',
+    background: 'rgba(10,10,12,0.78)',
+    border: '1px solid rgba(255,255,255,0.10)',
+    display: 'none', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', zIndex: 5,
+  }
+
   // Sin equipos el hero llega hasta abajo y lo último que se ve es la mitad del
   // visitante (granate); con equipos, el panel de modelos (casi negro). El chrome
   // de Safari se tiñe con esto, así que sigue al color de más abajo o se ve un
@@ -740,7 +792,9 @@ export default function PredictorPage() {
   const band = (fraction: number) => `calc(60px + (100% - 60px) * ${fraction})`
 
   const REVEAL_EASE = 'cubic-bezier(0.33, 0, 0.2, 1)'
-  const reveal = (_order: number): React.CSSProperties => {
+  // Recibía un índice de orden para escalonar la entrada, pero el retardo
+  // acabó siendo el mismo para todos: el parámetro no hacía nada.
+  const reveal = (): React.CSSProperties => {
     const delay = teamsReady ? 200 : 0
     return {
       opacity: teamsReady ? 1 : 0,
@@ -811,8 +865,8 @@ export default function PredictorPage() {
             ref={homeButtonRef}
             type="button"
             onClick={() => hoveredSide === 'home' && home ? setHome(null) : handleOpenDropdown('home')}
-            onMouseEnter={() => setHoveredSide('home')}
-            onMouseLeave={() => setHoveredSide(null)}
+            onMouseEnter={() => marcarHover('home')}
+            onMouseLeave={() => marcarHover(null)}
             aria-haspopup="dialog"
             aria-expanded={openSide === 'home'}
             aria-label={home ? 'Cambiar o quitar equipo local' : 'Seleccionar equipo local'}
@@ -829,7 +883,7 @@ export default function PredictorPage() {
                     opacity: hoveredSide === 'home' ? 0.35 : 1,
                     transition: 'opacity 150ms var(--ease-out)',
                   }}>
-                    <TeamCrest url={home.crest_url} name={home.display_name ?? home.name} size={teamsReady ? (isMobile ? 54 : 72) : (isMobile ? 88 : 108)} />
+                    <TeamCrest url={home.crest_url} name={home.display_name ?? home.name} size={crestSize} />
                   </div>
                   <span
                     aria-hidden="true"
@@ -884,17 +938,9 @@ export default function PredictorPage() {
               className="team-touch-remove"
               onClick={() => setHome(null)}
               aria-label="Quitar equipo local"
-              style={{
-                position: 'absolute', top: 8,
-                // A ancho completo, en el borde quedaría desligada del escudo.
-                ...(isMobile ? { left: 'calc(50% + 46px)' } : { right: 8 }),
-                width: 32, height: 32, borderRadius: '50%',
-                background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)',
-                display: 'none', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', zIndex: 5,
-              }}
+              style={quitarEquipoStyle}
             >
-              <X size={14} color="rgba(255,255,255,0.8)" strokeWidth={2} />
+              <X size={11} color="rgba(255,255,255,0.62)" strokeWidth={1.75} />
             </button>
           )}
 
@@ -909,8 +955,8 @@ export default function PredictorPage() {
             ref={awayButtonRef}
             type="button"
             onClick={() => hoveredSide === 'away' && away ? setAway(null) : handleOpenDropdown('away')}
-            onMouseEnter={() => setHoveredSide('away')}
-            onMouseLeave={() => setHoveredSide(null)}
+            onMouseEnter={() => marcarHover('away')}
+            onMouseLeave={() => marcarHover(null)}
             aria-haspopup="dialog"
             aria-expanded={openSide === 'away'}
             aria-label={away ? 'Cambiar o quitar equipo visitante' : 'Seleccionar equipo visitante'}
@@ -927,7 +973,7 @@ export default function PredictorPage() {
                     opacity: hoveredSide === 'away' ? 0.35 : 1,
                     transition: 'opacity 150ms var(--ease-out)',
                   }}>
-                    <TeamCrest url={away.crest_url} name={away.display_name ?? away.name} size={teamsReady ? (isMobile ? 54 : 72) : (isMobile ? 88 : 108)} />
+                    <TeamCrest url={away.crest_url} name={away.display_name ?? away.name} size={crestSize} />
                   </div>
                   <span
                     aria-hidden="true"
@@ -980,20 +1026,13 @@ export default function PredictorPage() {
             <button
               type="button"
               className="team-touch-remove"
+              // Mismo sitio que la X del local, a la derecha del escudo: un
+              // control que cambia de lado obliga a buscarlo cada vez.
               onClick={() => setAway(null)}
               aria-label="Quitar equipo visitante"
-              style={{
-                position: 'absolute', top: 8,
-                // En móvil, misma posición que la X del local (a la derecha del
-                // escudo): un control que cambia de lado obliga a buscarlo cada vez.
-                ...(isMobile ? { left: 'calc(50% + 46px)' } : { left: 8 }),
-                width: 32, height: 32, borderRadius: '50%',
-                background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.15)',
-                display: 'none', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', zIndex: 5,
-              }}
+              style={quitarEquipoStyle}
             >
-              <X size={14} color="rgba(255,255,255,0.8)" strokeWidth={2} />
+              <X size={11} color="rgba(255,255,255,0.62)" strokeWidth={1.75} />
             </button>
           )}
 
@@ -1080,17 +1119,17 @@ export default function PredictorPage() {
               letterSpacing: '-0.01em',
               color: LABEL_PRIMARY,
               marginBottom: 18,
-              ...reveal(0),
+              ...reveal(),
             }}>
               Modelos preentrenados
             </h2>
             <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
-              {PRESET_MODELS.map((m, idx) => {
+              {PRESET_MODELS.map(m => {
                 const isActive = model === m.key
                 const dimmed = model !== null && !isActive
                 const cardBg     = isActive ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)'
                 const cardBorder = isActive ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)'
-                const rv = reveal(idx + 1)
+                const rv = reveal()
                 return (
                   <button
                     key={m.key}
@@ -1157,7 +1196,7 @@ export default function PredictorPage() {
             width: 0,
             borderLeft: '1px dashed rgba(255,255,255,0.12)',
             margin: '0 36px', alignSelf: 'stretch', flexShrink: 0,
-            ...reveal(1),
+            ...reveal(),
           }} />
 
           <div style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
@@ -1167,7 +1206,7 @@ export default function PredictorPage() {
               letterSpacing: '-0.01em',
               color: LABEL_PRIMARY,
               marginBottom: 18,
-              ...reveal(0),
+              ...reveal(),
             }}>
               Studio
             </h2>
@@ -1182,8 +1221,8 @@ export default function PredictorPage() {
                   width: '100%', textAlign: 'center', padding: '24px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
                   cursor: 'pointer',
-                  opacity: reveal(1).opacity, transform: reveal(1).transform,
-                  transition: `background 220ms, border-color 220ms, ${reveal(1).transition}`,
+                  opacity: reveal().opacity, transform: reveal().transform,
+                  transition: `background 220ms, border-color 220ms, ${reveal().transition}`,
                   fontFamily: 'var(--font-sans)',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.045)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
@@ -1215,8 +1254,8 @@ export default function PredictorPage() {
                   width: '100%', textAlign: 'center', padding: '24px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
                   cursor: 'pointer',
-                  opacity: reveal(1).opacity, transform: reveal(1).transform,
-                  transition: `background 220ms, border-color 220ms, ${reveal(1).transition}`,
+                  opacity: reveal().opacity, transform: reveal().transform,
+                  transition: `background 220ms, border-color 220ms, ${reveal().transition}`,
                   fontFamily: 'var(--font-sans)',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.045)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
@@ -1232,7 +1271,7 @@ export default function PredictorPage() {
                 </div>
               </button>
             ) : (
-              <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: 15, maxHeight: 282, overflowY: 'auto', ...reveal(1) }}>
+              <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: 15, maxHeight: 282, overflowY: 'auto', ...reveal() }}>
                 {customModels.map(m => {
                   const isActive = model === 'custom' && customModelId === m.id
                   const dimmed = model !== null && !isActive
@@ -1315,7 +1354,7 @@ export default function PredictorPage() {
               <>
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                marginTop: isMobile ? 26 : 45, position: 'relative', ...reveal(4),
+                marginTop: isMobile ? 26 : 45, position: 'relative', ...reveal(),
                 ...(sticky ? {
                   position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 40, marginTop: 0,
                   padding: '12px 16px calc(12px + env(safe-area-inset-bottom))',

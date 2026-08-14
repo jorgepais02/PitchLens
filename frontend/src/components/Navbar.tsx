@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronDown, LogOut, Trash2 } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth'
 import { useIsMobile } from '../lib/useMediaQuery'
 import AuthModal from './AuthModal'
 
@@ -21,6 +21,7 @@ function NavItem({ to, label, active, compact }: { to: string; label: string; ac
   return (
     <NavLink
       to={to}
+      className="nav-item"
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         height: compact ? 32 : SEG_H,
@@ -43,21 +44,22 @@ function NavItem({ to, label, active, compact }: { to: string; label: string; ac
   )
 }
 
-function DeleteAccountModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * Confirmación de borrado de cuenta.
+ *
+ * Solo se monta cuando está abierto (ver el punto de uso): así su estado —el
+ * error del intento anterior— se va con él y no hay que limpiarlo a mano.
+ */
+function DeleteAccountModal({ onClose }: { onClose: () => void }) {
   const { email, deleteAccount } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !loading) onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, loading, onClose])
-
-  useEffect(() => { if (!open) setError(null) }, [open])
-
-  if (!open) return null
+  }, [loading, onClose])
 
   const handleDelete = async () => {
     setLoading(true)
@@ -331,7 +333,7 @@ function AccountMenu() {
         </div>
       )}
 
-      <DeleteAccountModal open={confirmOpen} onClose={() => setConfirmOpen(false)} />
+      {confirmOpen && <DeleteAccountModal onClose={() => setConfirmOpen(false)} />}
     </div>
   )
 }
@@ -353,12 +355,29 @@ export default function Navbar() {
   const predictionTo = '/new'
   const predictionActive = pathname.startsWith('/new') || pathname.startsWith('/prediction')
 
+  /**
+   * La barra se estira de lado a lado, con los extremos anclados a los bordes.
+   *
+   * Solo en escritorio y al hacer scroll: es el gesto de "la pastilla se abre y
+   * se convierte en cabecera". En móvil no compensa — a ancho completo,
+   * `space-between` abría 29px a cada lado del grupo de apartados, que entre sí
+   * van a 1px, y la barra se leía como tres bloques sueltos en vez de como una
+   * sola. Ahí se queda siempre compacta y centrada, y al hacer scroll solo se
+   * desvanece el fondo de la pastilla: nada se recoloca.
+   */
+  const extendida = scrolled && !isMobile
+
+  const margenLateral = isMobile ? 10 : scrolled ? 24 : 0
+
   return (
     <header
       className="sticky top-0 z-50 flex items-center justify-center"
       style={{
         height: NAV_H,
-        padding: isMobile ? '0 10px' : scrolled ? '0 24px' : '0',
+        // En horizontal sobre un iPhone con notch, el inset lateral vale 47px:
+        // sin sumarlo, el logo se mete debajo de la muesca.
+        paddingLeft: `calc(${margenLateral}px + env(safe-area-inset-left))`,
+        paddingRight: `calc(${margenLateral}px + env(safe-area-inset-right))`,
         background: scrolled ? 'oklch(0.15 0.006 268 / 0.88)' : 'transparent',
         borderBottom: `1px solid ${scrolled ? 'var(--color-border-subtle)' : 'transparent'}`,
         backdropFilter: scrolled ? 'blur(14px) saturate(1.4)' : 'none',
@@ -369,12 +388,12 @@ export default function Navbar() {
       <div
         className="flex items-center"
         style={{
-          width: scrolled || isMobile ? '100%' : 'auto',
+          width: extendida ? '100%' : 'auto',
           minWidth: 0,
-          justifyContent: scrolled || isMobile ? 'space-between' : 'center',
-          gap: scrolled ? 0 : isMobile ? 4 : 8,
-          padding: scrolled ? 0 : isMobile ? '4px 8px' : '5px 18px',
-          borderRadius: scrolled ? 0 : 999,
+          justifyContent: extendida ? 'space-between' : 'center',
+          gap: extendida ? 0 : isMobile ? 6 : 8,
+          padding: extendida ? 0 : isMobile ? '4px 10px' : '5px 18px',
+          borderRadius: extendida ? 0 : 999,
           background: scrolled ? 'transparent' : 'oklch(0.215 0.008 268 / 0.72)',
           border: `1px solid ${scrolled ? 'transparent' : 'rgba(255,255,255,0.1)'}`,
           boxShadow: scrolled ? 'none' : '0 6px 22px rgba(0,0,0,0.38)',
@@ -406,7 +425,9 @@ export default function Navbar() {
           )}
         </NavLink>
 
-        <span aria-hidden="true" style={{ display: scrolled || isMobile ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
+        {/* El isotipo ya se distingue de los apartados por forma; no necesita
+            separador en móvil, donde cada píxel cuenta. */}
+        <span aria-hidden="true" style={{ display: extendida || isMobile ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
 
         <nav aria-label="Navegación principal" className="flex items-center" style={{ gap: isMobile ? 1 : 3, minWidth: 0 }}>
           <NavItem to={predictionTo} label="Predicción" active={predictionActive} compact={isMobile} />
@@ -414,7 +435,10 @@ export default function Navbar() {
           <NavItem to="/studio" label="Studio" active={pathname.startsWith('/studio')} compact={isMobile} />
         </nav>
 
-        <span aria-hidden="true" style={{ display: scrolled || isMobile ? 'none' : 'block', width: 1, height: 24, background: 'rgba(255,255,255,0.19)', margin: '0 3px' }} />
+        {/* Este sí se mantiene en móvil: sin él, y ya sin el aire que los
+            separaba, la cuenta se leería como un cuarto apartado. Por debajo de
+            350px se oculta desde CSS — ahí no cabe. */}
+        <span aria-hidden="true" className="nav-sep" style={{ display: extendida ? 'none' : 'block', width: 1, height: isMobile ? 20 : 24, background: 'rgba(255,255,255,0.19)', margin: isMobile ? '0 2px' : '0 3px', flexShrink: 0 }} />
 
         {isAuthenticated ? (
           <AccountMenu />
@@ -422,7 +446,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setAuthOpen(true)}
-            className="cursor-pointer"
+            className="cursor-pointer nav-login"
             style={{
               padding: isMobile ? '6px 6px' : '8px 10px',
               fontSize: isMobile ? '0.8125rem' : '0.9375rem', fontWeight: 400,
