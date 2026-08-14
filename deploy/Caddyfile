@@ -14,6 +14,27 @@
 #   sudo systemctl reload caddy
 
 api.pitchlens.es {
+    header {
+        # Obliga al navegador a usar HTTPS durante un año. Caddy ya redirige
+        # HTTP→HTTPS, pero eso no cubre la primera petición en claro, que es
+        # justo la interceptable.
+        #
+        # Sin "preload" de forma deliberada: entrar en la lista precargada de
+        # los navegadores es fácil y salir lleva meses, así que no se activa
+        # sin quererlo explícitamente.
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+        # La API solo devuelve JSON: nada debe reinterpretarse como otro tipo.
+        X-Content-Type-Options "nosniff"
+
+        # No filtrar la URL completa al navegar a otros orígenes.
+        Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Caddy y uvicorn anuncian versión; quitarlo no para a nadie, pero
+        # tampoco hay motivo para regalar el dato.
+        -Server
+    }
+
     reverse_proxy localhost:8000 {
         # Reescribe X-Forwarded-For con la IP de origen en lugar de añadirla al
         # final de lo que mande el cliente. Por defecto Caddy conserva lo que

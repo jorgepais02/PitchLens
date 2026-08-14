@@ -76,6 +76,27 @@ curl -s -o /dev/null -w '%{http_code}\n' https://api.pitchlens.es/health
 Ambas comprobaciones deben devolver `200`. El frontend se despliega solo con
 cada push, gestionado por Vercel.
 
+## Usuario del contenedor
+
+La API corre como `appuser` (UID **10001**), no como root. Eso obliga a que el
+volumen `pitchlens_custom_models` pertenezca a ese UID: Docker solo hereda los
+permisos de la imagen cuando el volumen está **vacío**, así que un volumen ya
+inicializado conserva su owner anterior y `/train` no podría guardar nada.
+
+Si se recrea el volumen desde cero, o al migrar uno que venía de una versión
+que corría como root:
+
+```bash
+docker run --rm -v pitchlens_custom_models:/vol alpine chown -R 10001:10001 /vol
+```
+
+Comprobación de que la API puede escribir:
+
+```bash
+docker exec pitchlens-api-1 sh -c 'touch /app/models/custom/.w && rm /app/models/custom/.w' \
+  && echo "escritura OK"
+```
+
 ## Backups
 
 `deploy/backup-db.sh` vuelca la base de datos y los modelos custom a
