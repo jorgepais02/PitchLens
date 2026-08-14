@@ -56,9 +56,12 @@ El `Caddyfile` de producción sí está versionado, en `deploy/Caddyfile`.
 
 ## Desplegar una versión nueva de la API
 
+El proyecto vive en el home del usuario, no en `/root`, así que **no hace falta
+sudo**: basta con pertenecer al grupo `docker`.
+
 ```bash
 ssh <servidor>
-cd <directorio del proyecto en el servidor>
+cd ~/PitchLens
 
 git pull
 docker compose build api
@@ -76,7 +79,9 @@ cada push, gestionado por Vercel.
 ## Backups
 
 `deploy/backup-db.sh` vuelca la base de datos y los modelos custom a
-`~/backups/<fecha>/`, conservando los últimos 7 días. Instalación:
+`~/backups/<fecha>/`, conservando los últimos 7 días. **Ya está instalado y
+programado en cron a las 04:30**, con log en `~/backups/cron.log`. Para
+reinstalarlo desde cero:
 
 ```bash
 scp deploy/backup-db.sh <servidor>:~/
@@ -122,12 +127,40 @@ sudo journalctl --vacuum-time=7d
 sudo truncate -s 0 /var/log/btmp   # intentos de login fallidos, crece con los bots
 ```
 
+## Estado de seguridad
+
+Verificado en la auditoría del 14/08/2026:
+
+- SSH solo por clave (`PasswordAuthentication no`). El puerto 22 recibe fuerza
+  bruta continua de bots y `/var/log/btmp` crece rápido, pero son intentos
+  contra una puerta que no se abre: es ruido, no una amenaza.
+- CORS restringido a `https://pitchlens.es`; ningún otro origen recibe
+  `Access-Control-Allow-Origin`.
+- Solo 22, 80 y 443 expuestos. API y PostgreSQL escuchan en `127.0.0.1`.
+- `/train`, `/predict/custom`, `/models` y los `DELETE` exigen JWT.
+- La contraseña de PostgreSQL **ya no está en el repo**: se interpola desde
+  `POSTGRES_PASSWORD` en el `.env` del servidor. Rotada a 40 caracteres
+  aleatorios. Ojo: `POSTGRES_PASSWORD` solo se aplica cuando Postgres
+  inicializa el volumen, así que **cambiarla en el `.env` no basta** — hay que
+  hacer además `ALTER ROLE kraken WITH PASSWORD '...'` dentro del contenedor.
+
 ## Pendiente
 
-- **Contraseña de PostgreSQL** — está fijada a `kraken` en el
-  `docker-compose.yml`. No es explotable desde fuera (el puerto solo escucha en
-  `127.0.0.1`), pero conviene moverla a `.env` como el resto de secretos.
-  Cambiarla exige recrear el volumen o un `ALTER ROLE`, así que no es una
-  edición inocua del compose.
-- **SSH** — el puerto 22 recibe fuerza bruta continua de bots (`/var/log/btmp`
-  crece rápido). Merece la pena `PasswordAuthentication no` y fail2ban.
+- **`/train` no limita la concurrencia** — `post_train` encola con
+  `background_tasks.add_task` sin ningún guard. `MAX_CUSTOM_MODELS` limita los
+  modelos *guardados*, no los entrenamientos *lanzados*. Como el registro es
+  abierto y los jobs corren en el mismo proceso que la API, un usuario puede
+  encolar entrenamientos hasta agotar CPU y RAM del VPS, tumbando el servicio
+  entero. Arreglo: rechazar con 429 si el usuario ya tiene un job en
+  `pending`/`running`, usando el `_JOBS_LOCK` que ya existe.
+- **Sin rate limiting en `/auth/login` ni `/auth/register`** — comprobado: seis
+  intentos fallidos seguidos devuelven seis `401`, ninguno `429`. Permite
+  fuerza bruta sobre las contraseñas y creación masiva de cuentas, que es lo
+  que hace explotable el punto anterior.
+- **Los contenedores corren como `root`** (uid 0). No están `privileged` ni
+  tienen capabilities extra, así que haría falta un escape del runtime para que
+  importase, pero añadir un `USER` no-root al `Dockerfile` es barato.
+- **`/docs`, `/redoc` y `/openapi.json` son públicos.** No filtran secretos y
+  en un TFG puede interesar que estén accesibles; conviene que sea una decisión
+  consciente.
+- Sin HSTS ni cabeceras de seguridad en Caddy. Menor para una API JSON.
