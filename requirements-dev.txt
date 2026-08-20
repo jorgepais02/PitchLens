@@ -6,3 +6,8 @@
 
 pytest==8.3.5
 httpx==0.28.1
+
+# Limpia las salidas de los notebooks antes de cada commit.
+# El filtro vive en .git/info/attributes y su ruta es absoluta, asi que
+# hay que reinstalarlo al clonar en otra maquina: python -m nbstripout --install
+nbstripout==0.9.1
