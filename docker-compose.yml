@@ -11,6 +11,15 @@ services:
       - "127.0.0.1:5432:5432" # solo accesible desde el propio host (local o VPS)
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # La API espera a que esto pase a "healthy", no solo a que el contenedor
+    # exista. Postgres tarda unos segundos en aceptar conexiones y en un
+    # reinicio del VPS la API podía arrancar antes que la base de datos.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kraken -d pitchlens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   # Solo se levanta explícitamente en el VPS (docker compose up -d api).
@@ -26,7 +35,8 @@ services:
       JWT_EXPIRE_HOURS: "24"
       MAX_CUSTOM_MODELS: "5"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000" # solo localhost — Caddy hace de reverse proxy hacia fuera
     volumes:
@@ -34,6 +44,19 @@ services:
       # /train lee core_features.parquet en caliente. Los datos no van en la
       # imagen ni en el repo público: se montan desde el host (ver README).
       - ./data/processed:/app/data/processed:ro
+    # /health consulta la BD y devuelve 503 si no responde, así que esto
+    # distingue "el proceso vive" de "la API funciona". La imagen no trae
+    # curl ni wget, de ahí que el check vaya por python.
+    #
+    # Ojo: Docker marca el contenedor como unhealthy pero NO lo reinicia por
+    # su cuenta (eso solo pasa en Swarm). Esto sirve para verlo en docker ps
+    # y para el service_healthy de arriba, no para recuperarse solo.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
 
 volumes:
