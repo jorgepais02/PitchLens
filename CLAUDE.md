@@ -91,7 +91,7 @@ Columnas clave:
 
 Distribución FTR (core_enriched, 10.660 filas): H=45.2%, D=24.7%, A=30.1%
 Distribución FTR (core_features, 9.792 filas, sin cold start): H=45.6%, D=24.7%, A=29.8%
-Baseline de accuracy en modelado: 45.6% (mayoría de clase sobre core_features)
+Baseline de accuracy en modelado (predecir siempre local): 44.7% en test 2024 (456/1.019), la comparable con el 57.3% de market; 48.2% en validación. El 45.6% es la distribución sobre todo core_features, no un acierto evaluado.
 
 ---
 
