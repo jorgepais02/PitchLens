@@ -50,7 +50,7 @@ Validación temporal estricta (nunca split aleatorio): entrenamiento ≤ 2022, v
 | extended | 11 — + forma, xG, descanso | 54.7 % | 0.951 |
 | market | 6 — + cuotas Pinnacle | **57.3 %** | **0.932** |
 
-Baseline de referencia (predecir siempre la clase mayoritaria): 45.6 %.
+Baseline de referencia (predecir siempre victoria local, la clase mayoritaria) sobre el mismo test 2024: 44.7 %. Sobre todo el dataset es 45.6 %, pero no es comparable con una accuracy medida en test.
 
 ## Stack
 

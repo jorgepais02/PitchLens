@@ -9,8 +9,10 @@
     npx playwright screenshot --viewport-size=1200,630 \
       scripts/og-card.html public/og.png
 
-  Las cifras salen de models/metrics.json (test accuracy del modelo market) y de
-  core_enriched.parquet (10.660 partidos, temporadas 2015-2024). Si se reentrena
+  Las cifras salen de models/metrics.json (test accuracy del modelo market), de
+  core_enriched.parquet (10.660 partidos, temporadas 2015-2024) y de la victoria
+  local en test (temporada 2024 de core_features: 44,7 %). La mayoritaria de todo
+  el dataset (45,6 %) no es comparable con un acierto medido en test. Si se reentrena
   o se amplía el dataset, actualizar aquí y volver a renderizar — y pasar la URL
   por el Post Inspector de LinkedIn, que cachea la tarjeta una semana.
 -->
@@ -123,7 +125,7 @@
       <div class="acierto">
         <div class="cifra">57,3%</div>
         <div class="etiqueta">acierto en test</div>
-        <div class="contraste">clase mayoritaria: 45,6%</div>
+        <div class="contraste">siempre local: 44,7%</div>
       </div>
     </div>
   </div>
