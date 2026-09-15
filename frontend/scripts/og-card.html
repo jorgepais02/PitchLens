@@ -1,13 +1,18 @@
 <!doctype html>
 <!--
-  Plantilla de la tarjeta de enlace (public/og.png), la imagen que sale al pegar
-  pitchlens.es en LinkedIn, WhatsApp o Slack.
+  Plantilla de la tarjeta de enlace (public/og-2026-09.png), la imagen que sale al
+  pegar pitchlens.es en LinkedIn, WhatsApp o Slack.
+
+  El nombre lleva la fecha a propósito: LinkedIn cachea la imagen por su URL y
+  aunque el Post Inspector vuelva a leer la página, sigue sirviendo la copia vieja
+  si el fichero se llama igual. Al cambiar la tarjeta, renderizar con un nombre
+  nuevo, actualizar og:image y twitter:image en index.html y borrar el anterior.
 
   No entra en el build: es la fuente para regenerar el PNG cuando cambie el texto.
   Se renderiza a 1200×630 desde frontend/:
 
     npx playwright screenshot --viewport-size=1200,630 \
-      scripts/og-card.html public/og.png
+      scripts/og-card.html public/og-AAAA-MM.png
 
   Sale del sistema visual que ya existe, sin inventar nada:
   - La diagonal, sus dos fondos y la costura #28282d son los del hero de
